@@ -1,0 +1,205 @@
+'use client'
+
+import { useState } from 'react'
+import { formatCurrency } from '@/lib/utils'
+
+interface Project {
+  id: string
+  name: string
+  goalAmount: number
+  currentAmount: number
+}
+
+interface DonateModalProps {
+  project?: Project
+  onClose: () => void
+  onSuccess: () => void
+}
+
+export default function DonateModal({
+  project,
+  onClose,
+  onSuccess,
+}: DonateModalProps) {
+  const [amount, setAmount] = useState('')
+  const [type, setType] = useState(project ? 'PROJECT' : 'TITHE')
+  const [selectedProject, setSelectedProject] = useState(project?.id || '')
+  const [notes, setNotes] = useState('')
+  const [donating, setDonating] = useState(false)
+  const [error, setError] = useState('')
+
+  const quickAmounts = [25, 50, 100, 250, 500, 1000]
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Please enter a valid amount')
+      return
+    }
+
+    if (type === 'PROJECT' && !selectedProject) {
+      setError('Please select a project')
+      return
+    }
+
+    setDonating(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/giving/donate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          type,
+          projectId: type === 'PROJECT' ? selectedProject : null,
+          paymentMethod: 'Card', // TODO: Integrate payment gateway
+          notes,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Donation failed')
+      }
+
+      alert('Thank you for your donation! Receipt will be sent to your email.')
+      onSuccess()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setDonating(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Make a Donation</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!project && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Giving Type
+                </label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="TITHE">Tithe</option>
+                  <option value="OFFERING">Offering</option>
+                  <option value="THANKSGIVING">Thanksgiving</option>
+                  <option value="SEED">Seed</option>
+                  <option value="PROJECT">Project</option>
+                </select>
+              </div>
+            )}
+
+            {type === 'PROJECT' && !project && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Project
+                </label>
+                <select
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  required
+                >
+                  <option value="">Select a project...</option>
+                  {/* Projects would be loaded here */}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Amount *
+              </label>
+              <div className="flex gap-2 mb-2">
+                {quickAmounts.map((quickAmount) => (
+                  <button
+                    key={quickAmount}
+                    type="button"
+                    onClick={() => setAmount(quickAmount.toString())}
+                    className={`px-3 py-1 rounded ${
+                      amount === quickAmount.toString()
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {formatCurrency(quickAmount)}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount"
+                min="1"
+                step="0.01"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes (optional)
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                placeholder="Add a note or dedication..."
+              />
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Payment gateway integration is pending. This is a demo transaction.
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={donating}
+                className="flex-1 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              >
+                {donating ? 'Processing...' : 'Donate'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+

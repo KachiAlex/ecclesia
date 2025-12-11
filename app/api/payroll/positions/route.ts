@@ -1,0 +1,132 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth-options'
+import { getCurrentChurch } from '@/lib/church-context'
+import { requireRole } from '@/lib/auth'
+import { PayrollPositionService } from '@/lib/services/payroll-service'
+import { db } from '@/lib/firestore'
+import { COLLECTIONS } from '@/lib/firestore-collections'
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userId = (session.user as any).id
+    const church = await getCurrentChurch(userId)
+
+    if (!church) {
+      return NextResponse.json(
+        { error: 'No church selected' },
+        { status: 400 }
+      )
+    }
+
+    const positions = await PayrollPositionService.findByChurch(church.id, true)
+
+    // Add department, wage scales, and counts
+    const positionsWithDetails = await Promise.all(
+      positions.map(async (position) => {
+        // Get department
+        let department = null
+        if (position.departmentId) {
+          const deptDoc = await db.collection(COLLECTIONS.departments).doc(position.departmentId).get()
+          if (deptDoc.exists) {
+            const deptData = deptDoc.data()!
+            department = {
+              id: deptDoc.id,
+              name: deptData.name,
+            }
+          }
+        }
+
+        // Get active wage scales
+        const { WageScaleService } = await import('@/lib/services/payroll-service')
+        const wageScales = await WageScaleService.findByChurch(church.id, position.id)
+
+        // Get salary count
+        const salariesCount = await db.collection(COLLECTIONS.salaries)
+          .where('positionId', '==', position.id)
+          .count()
+          .get()
+
+        return {
+          ...position,
+          department,
+          wageScales: wageScales.slice(0, 1), // Get most recent
+          _count: {
+            userSalaries: salariesCount.data().count || 0,
+          },
+        }
+      })
+    )
+
+    return NextResponse.json(positionsWithDetails)
+  } catch (error) {
+    console.error('Error fetching positions:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await requireRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'])
+    const userId = (session.user as any).id
+    const church = await getCurrentChurch(userId)
+
+    if (!church) {
+      return NextResponse.json(
+        { error: 'No church selected' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { name, description, departmentId } = body
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Position name is required' },
+        { status: 400 }
+      )
+    }
+
+    const position = await PayrollPositionService.create({
+      name,
+      description,
+      departmentId: departmentId || undefined,
+      churchId: church.id,
+      isActive: true,
+    })
+
+    // Get department info
+    let department = null
+    if (position.departmentId) {
+      const deptDoc = await db.collection(COLLECTIONS.departments).doc(position.departmentId).get()
+      if (deptDoc.exists) {
+        const deptData = deptDoc.data()!
+        department = {
+          id: deptDoc.id,
+          ...deptData,
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ...position,
+      department,
+    }, { status: 201 })
+  } catch (error: any) {
+    console.error('Error creating position:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: error.status || 500 }
+    )
+  }
+}
+

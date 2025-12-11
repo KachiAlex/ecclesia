@@ -1,0 +1,995 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Seed script configuration
+// Run with: npm run db:seed
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MEMBER
+  VISITOR
+  LEADER
+  PASTOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SpiritualMaturityLevel {
+  NEW_BELIEVER
+  GROWING
+  MATURE
+  LEADER
+}
+
+enum GivingType {
+  TITHE
+  OFFERING
+  THANKSGIVING
+  SEED
+  PROJECT
+}
+
+enum EventType {
+  SERVICE
+  MEETING
+  CONFERENCE
+  WORKSHOP
+  SOCIAL
+  OTHER
+}
+
+enum BadgeType {
+  PRAYER_STREAK
+  READING_PLAN
+  GIVING
+  EVENT_ATTENDANCE
+  SERVING
+  EVANGELISM
+  OTHER
+}
+
+enum PrayerStatus {
+  ACTIVE
+  ANSWERED
+  CLOSED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum SubscriptionPlanType {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum PayrollType {
+  SALARY
+  HOURLY
+  COMMISSION
+  STIPEND
+}
+
+enum PayrollStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CHECK
+  CASH
+  MOBILE_MONEY
+}
+
+// User & Member Management
+model User {
+  id                    String                @id @default(cuid())
+  email                 String                @unique
+  phone                 String?
+  password              String
+  firstName             String
+  lastName              String
+  role                  UserRole              @default(VISITOR)
+  spiritualMaturity    SpiritualMaturityLevel? @default(NEW_BELIEVER)
+  profileImage          String?
+  bio                   String?
+  dateOfBirth           DateTime?
+  address               String?
+  city                  String?
+  state                 String?
+  zipCode               String?
+  country               String?
+  
+  // Family relationships
+  parentId              String?
+  parent                User?                 @relation("FamilyRelations", fields: [parentId], references: [id])
+  children              User[]                @relation("FamilyRelations")
+  spouseId              String?
+  spouse                User?                 @relation("SpouseRelation", fields: [spouseId], references: [id])
+  
+  // Church association
+  churchId              String?
+  church                Church?               @relation(fields: [churchId], references: [id])
+  
+  // Relationships
+  departments           DepartmentMembership[]
+  groups                GroupMembership[]
+  badges                UserBadge[]
+  prayerRequests        PrayerRequest[]
+  prayerInteractions    PrayerInteraction[]
+  sermonsWatched        SermonView[]
+  sermonsDownloaded     SermonDownload[]
+  giving                Giving[]
+  eventsAttended        EventAttendance[]
+  eventsRegistered      EventRegistration[]
+  checkIns              CheckIn[]
+  messagesSent          Message[]             @relation("MessageSender")
+  messagesReceived      Message[]             @relation("MessageReceiver")
+  groupMessages         GroupMessage[]
+  posts                 Post[]
+  postLikes             PostLike[]
+  comments              Comment[]
+  testimonies           Testimony[]
+  readingPlans          ReadingPlanProgress[]
+  aiCoaching            AICoachingSession[]
+  followUps             FollowUp[]
+  mentorAssignments     MentorAssignment[]    @relation("Mentor")
+  menteeAssignments     MentorAssignment[]    @relation("Mentee")
+  volunteerShifts       VolunteerShift[]
+  tasks                 Task[]
+  childrenCheckIns      ChildrenCheckIn[]
+  
+  // Payroll
+  salary                UserSalary?
+  payrollRecords        PayrollRecord[]
+  
+  // Gamification
+  xp                    Int                   @default(0)
+  level                 Int                   @default(1)
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  lastLoginAt           DateTime?
+  
+  @@index([email])
+  @@index([churchId])
+  @@index([role])
+}
+
+// Multi-Church Support
+model Church {
+  id                    String                @id @default(cuid())
+  name                  String
+  slug                  String                @unique
+  logo                  String?
+  primaryColor          String?
+  secondaryColor        String?
+  address               String?
+  city                  String?
+  state                 String?
+  zipCode               String?
+  country               String?
+  phone                 String?
+  email                 String?
+  website               String?
+  description           String?
+  
+  // Custom domain support
+  customDomain          String?
+  domainVerified        Boolean               @default(false)
+  
+  // Subscription & Licensing
+  subscriptionId        String?
+  subscription          Subscription?         @relation(fields: [subscriptionId], references: [id])
+  
+  // Owner/Admin user
+  ownerId               String?
+  
+  users                 User[]
+  departments           Department[]
+  groups                Group[]
+  sermons               Sermon[]
+  events                Event[]
+  projects              Project[]
+  prayerRequests        PrayerRequest[]
+  posts                 Post[]
+  usageTracking         UsageTracking[]
+  
+  // Payroll
+  payrollPositions      PayrollPosition[]
+  wageScales            WageScale[]
+  userSalaries          UserSalary[]
+  payrollPeriods        PayrollPeriod[]
+  payrollRecords        PayrollRecord[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([slug])
+  @@index([subscriptionId])
+  @@index([customDomain])
+}
+
+// Subscription Plans
+model SubscriptionPlan {
+  id                    String                @id @default(cuid())
+  name                  String
+  type                  SubscriptionPlanType
+  description           String?
+  
+  // Pricing
+  price                 Float                 // Monthly price
+  currency              String                @default("USD")
+  
+  // Limits
+  maxUsers              Int?                  // null = unlimited
+  maxStorageGB           Int?                 // Storage limit in GB
+  maxSermons            Int?                 // Max sermons
+  maxEvents             Int?                 // Max events per month
+  maxDepartments        Int?                 // Max departments
+  maxGroups             Int?                 // Max groups
+  
+  // Features
+  features              String[]              // ["AI Coaching", "Custom Domain", "Analytics", etc.]
+  
+  // Billing
+  billingCycle          String                @default("monthly") // "monthly", "yearly"
+  trialDays             Int                   @default(0)
+  
+  subscriptions         Subscription[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([type])
+}
+
+// Church Subscriptions
+model Subscription {
+  id                    String                @id @default(cuid())
+  churchId              String                @unique
+  church                Church                @relation
+  
+  planId                String
+  plan                  SubscriptionPlan      @relation(fields: [planId], references: [id])
+  
+  status                SubscriptionStatus    @default(TRIAL)
+  
+  // Billing
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean               @default(false)
+  cancelledAt           DateTime?
+  
+  // Payment
+  paymentMethodId       String?               // Stripe/Paystack payment method ID
+  lastPaymentDate        DateTime?
+  nextBillingDate        DateTime?
+  
+  // Trial
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+// Usage Tracking
+model UsageTracking {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  
+  // Usage metrics
+  userCount             Int                   @default(0)
+  storageUsedGB          Float                 @default(0)
+  sermonsCount           Int                   @default(0)
+  eventsCount            Int                   @default(0)
+  apiCalls              Int                   @default(0)
+  aiCoachingSessions     Int                   @default(0)
+  
+  // Period
+  periodStart           DateTime              @default(now())
+  periodEnd             DateTime
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@unique([churchId, periodStart])
+  @@index([churchId])
+  @@index([periodEnd])
+}
+
+// Departments & Groups
+model Department {
+  id                    String                @id @default(cuid())
+  name                  String
+  description           String?
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  members               DepartmentMembership[]
+  groups                Group[]
+  payrollPositions      PayrollPosition[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+}
+
+model DepartmentMembership {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  departmentId          String
+  department            Department            @relation(fields: [departmentId], references: [id])
+  role                  String?               // e.g., "Member", "Leader", "Coordinator"
+  joinedAt              DateTime              @default(now())
+  
+  @@unique([userId, departmentId])
+  @@index([userId])
+  @@index([departmentId])
+}
+
+model Group {
+  id                    String                @id @default(cuid())
+  name                  String
+  description           String?
+  type                  String                // "Cell Group", "Bible Study", "Youth", etc.
+  departmentId          String?
+  department            Department?           @relation(fields: [departmentId], references: [id])
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  leaderId              String?
+  location              String?
+  latitude              Float?
+  longitude             Float?
+  meetingDay            String?
+  meetingTime            String?
+  
+  members               GroupMembership[]
+  messages              GroupMessage[]
+  events                Event[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([departmentId])
+}
+
+model GroupMembership {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  groupId               String
+  group                 Group                 @relation(fields: [groupId], references: [id])
+  role                  String?               @default("Member")
+  joinedAt              DateTime              @default(now())
+  
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+}
+
+// AI Discipleship Engine
+model ReadingPlan {
+  id                    String                @id @default(cuid())
+  title                 String
+  description           String?
+  duration              Int                   // days
+  difficulty            String?
+  topics                String[]              // e.g., ["Faith", "Prayer", "Healing"]
+  createdAt             DateTime              @default(now())
+  
+  progress              ReadingPlanProgress[]
+}
+
+model ReadingPlanProgress {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  readingPlanId         String
+  readingPlan           ReadingPlan           @relation(fields: [readingPlanId], references: [id])
+  currentDay            Int                   @default(1)
+  completed             Boolean               @default(false)
+  startedAt             DateTime              @default(now())
+  completedAt           DateTime?
+  
+  @@unique([userId, readingPlanId])
+  @@index([userId])
+}
+
+model AICoachingSession {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  question              String
+  answer                String
+  topic                 String?
+  createdAt             DateTime              @default(now())
+  
+  @@index([userId])
+}
+
+model FollowUp {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  type                  String                // "New Convert", "First Timer", etc.
+  message               String
+  scripture             String?
+  sentAt                DateTime              @default(now())
+  readAt                DateTime?
+  
+  @@index([userId])
+}
+
+model MentorAssignment {
+  id                    String                @id @default(cuid())
+  mentorId              String
+  mentor                User                  @relation("Mentor", fields: [mentorId], references: [id])
+  menteeId              String
+  mentee                User                  @relation("Mentee", fields: [menteeId], references: [id])
+  assignedAt            DateTime              @default(now())
+  status                String                @default("Active")
+  
+  @@unique([mentorId, menteeId])
+  @@index([mentorId])
+  @@index([menteeId])
+}
+
+// Social Network
+model Post {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  churchId              String?
+  church                Church?               @relation(fields: [churchId], references: [id])
+  content               String
+  type                  String                @default("Update") // "Update", "Testimony", "Announcement", "Prayer Request"
+  images                String[]
+  likes                 PostLike[]
+  comments              Comment[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([userId])
+  @@index([churchId])
+  @@index([createdAt])
+}
+
+model PostLike {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  postId                String
+  post                  Post                  @relation(fields: [postId], references: [id])
+  createdAt             DateTime              @default(now())
+  
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+model Comment {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  postId                String
+  post                  Post                  @relation(fields: [postId], references: [id])
+  content               String
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([postId])
+  @@index([userId])
+}
+
+model Testimony {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  title                 String
+  content               String
+  approved              Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([userId])
+  @@index([approved])
+}
+
+// Prayer Wall
+model PrayerRequest {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  churchId              String?
+  church                Church?               @relation(fields: [churchId], references: [id])
+  title                 String
+  content               String
+  status                PrayerStatus          @default(ACTIVE)
+  isAnonymous           Boolean               @default(false)
+  interactions          PrayerInteraction[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([userId])
+  @@index([churchId])
+  @@index([status])
+}
+
+model PrayerInteraction {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  prayerRequestId       String
+  prayerRequest         PrayerRequest         @relation(fields: [prayerRequestId], references: [id])
+  type                  String                @default("Prayed") // "Prayed", "Comment"
+  comment               String?
+  createdAt             DateTime              @default(now())
+  
+  @@unique([userId, prayerRequestId])
+  @@index([prayerRequestId])
+}
+
+// Media & Sermons
+model Sermon {
+  id                    String                @id @default(cuid())
+  title                 String
+  description           String?
+  speaker               String
+  videoUrl              String?
+  audioUrl              String?
+  thumbnailUrl          String?
+  duration              Int?                  // seconds
+  category              String?
+  tags                  String[]
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  
+  // AI-generated content
+  aiSummary             String?
+  topics                String[]
+  
+  views                 SermonView[]
+  downloads             SermonDownload[]
+  
+  createdAt             DateTime              @default(now())
+  publishedAt           DateTime?
+  
+  @@index([churchId])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model SermonView {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  sermonId              String
+  sermon                Sermon               @relation(fields: [sermonId], references: [id])
+  watchedDuration       Int                   @default(0) // seconds
+  completed             Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  
+  @@unique([userId, sermonId])
+  @@index([sermonId])
+}
+
+model SermonDownload {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  sermonId              String
+  sermon                Sermon               @relation(fields: [sermonId], references: [id])
+  downloadedAt          DateTime              @default(now())
+  
+  @@unique([userId, sermonId])
+  @@index([sermonId])
+}
+
+// Giving & Financial
+model Project {
+  id                    String                @id @default(cuid())
+  name                  String
+  description           String?
+  goalAmount            Float
+  currentAmount         Float                @default(0)
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  imageUrl              String?
+  status                String                @default("Active") // "Active", "Completed", "Paused"
+  startDate             DateTime?
+  endDate               DateTime?
+  
+  giving                Giving[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([status])
+}
+
+model Giving {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  amount                Float
+  type                  GivingType
+  projectId             String?
+  project               Project?              @relation(fields: [projectId], references: [id])
+  paymentMethod         String?               // "Card", "Bank Transfer", "Cash", etc.
+  transactionId         String?
+  receiptUrl            String?
+  notes                 String?
+  createdAt             DateTime              @default(now())
+  
+  @@index([userId])
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+// Events
+model Event {
+  id                    String                @id @default(cuid())
+  title                 String
+  description           String?
+  type                  EventType
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  groupId               String?
+  group                 Group?                @relation(fields: [groupId], references: [id])
+  location              String?
+  startDate             DateTime
+  endDate               DateTime?
+  maxAttendees          Int?
+  isTicketed            Boolean               @default(false)
+  ticketPrice           Float?
+  imageUrl              String?
+  
+  registrations         EventRegistration[]
+  attendances           EventAttendance[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([startDate])
+}
+
+model EventRegistration {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  eventId               String
+  event                 Event                 @relation(fields: [eventId], references: [id])
+  ticketNumber          String?
+  qrCode                String?
+  status                String                @default("Registered") // "Registered", "Cancelled", "Attended"
+  registeredAt          DateTime              @default(now())
+  
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model EventAttendance {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  eventId               String
+  event                 Event                 @relation(fields: [eventId], references: [id])
+  checkedInAt           DateTime              @default(now())
+  
+  @@unique([userId, eventId])
+  @@index([eventId])
+}
+
+// Check-ins
+model CheckIn {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  eventId               String?
+  qrCode                String
+  location              String?
+  checkedInAt           DateTime              @default(now())
+  
+  @@index([userId])
+  @@index([eventId])
+  @@index([checkedInAt])
+}
+
+model ChildrenCheckIn {
+  id                    String                @id @default(cuid())
+  childId               String
+  parentId              String
+  parent                User                  @relation(fields: [parentId], references: [id])
+  qrCode                String
+  checkedInAt           DateTime              @default(now())
+  checkedOutAt          DateTime?
+  
+  @@index([parentId])
+  @@index([checkedInAt])
+}
+
+// Messaging
+model Message {
+  id                    String                @id @default(cuid())
+  senderId              String
+  sender                User                  @relation("MessageSender", fields: [senderId], references: [id])
+  receiverId            String
+  receiver              User                  @relation("MessageReceiver", fields: [receiverId], references: [id])
+  content               String
+  read                  Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+model GroupMessage {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  groupId               String
+  group                 Group                 @relation(fields: [groupId], references: [id])
+  content               String
+  createdAt             DateTime              @default(now())
+  
+  @@index([groupId])
+  @@index([createdAt])
+}
+
+// Gamification
+model Badge {
+  id                    String                @id @default(cuid())
+  name                  String
+  description           String?
+  type                  BadgeType
+  icon                  String?
+  xpReward              Int                   @default(0)
+  createdAt             DateTime              @default(now())
+  
+  users                 UserBadge[]
+}
+
+model UserBadge {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  badgeId               String
+  badge                 Badge                 @relation(fields: [badgeId], references: [id])
+  earnedAt              DateTime              @default(now())
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+}
+
+// Workforce Management
+model VolunteerShift {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  departmentId          String?
+  role                  String
+  startTime             DateTime
+  endTime               DateTime?
+  status                String                @default("Scheduled") // "Scheduled", "Completed", "Cancelled"
+  reminderSent          Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  
+  @@index([userId])
+  @@index([startTime])
+}
+
+model Task {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  title                 String
+  description           String?
+  departmentId          String?
+  dueDate               DateTime?
+  status                String                @default("Pending") // "Pending", "In Progress", "Completed"
+  priority              String?               @default("Medium")
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+// Payroll Management
+model PayrollPosition {
+  id                    String                @id @default(cuid())
+  name                  String
+  description           String?
+  departmentId          String?
+  department            Department?            @relation(fields: [departmentId], references: [id])
+  churchId              String
+  church                Church                 @relation(fields: [churchId], references: [id])
+  
+  // Wage configuration
+  wageScales            WageScale[]
+  userSalaries          UserSalary[]
+  
+  isActive              Boolean               @default(true)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([departmentId])
+}
+
+model WageScale {
+  id                    String                @id @default(cuid())
+  positionId            String
+  position              PayrollPosition       @relation(fields: [positionId], references: [id])
+  churchId              String
+  church                Church                 @relation(fields: [churchId], references: [id])
+  
+  // Wage details
+  type                  PayrollType
+  amount                Float                 // Salary amount or hourly rate
+  currency              String                @default("USD")
+  
+  // For hourly workers
+  hoursPerWeek          Float?                // Expected hours per week
+  
+  // For commission-based
+  commissionRate        Float?                // Percentage or fixed amount
+  
+  // Benefits and deductions
+  benefits              Float?                @default(0) // Additional benefits amount
+  deductions            Float?                @default(0) // Standard deductions
+  
+  // Effective dates
+  effectiveFrom         DateTime
+  effectiveTo           DateTime?
+  
+  // Notes
+  notes                 String?
+  
+  // Relations
+  userSalaries          UserSalary[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([positionId])
+  @@index([churchId])
+  @@index([effectiveFrom])
+}
+
+model UserSalary {
+  id                    String                @id @default(cuid())
+  userId                String                @unique
+  user                  User                  @relation(fields: [userId], references: [id])
+  positionId            String
+  position              PayrollPosition       @relation(fields: [positionId], references: [id])
+  wageScaleId           String
+  wageScale              WageScale            @relation(fields: [wageScaleId], references: [id])
+  churchId              String
+  church                Church                 @relation(fields: [churchId], references: [id])
+  
+  // Current salary details
+  type                  PayrollType
+  amount                Float
+  currency              String                @default("USD")
+  
+  // Start date
+  startDate             DateTime              @default(now())
+  endDate               DateTime?
+  
+  // Status
+  isActive              Boolean               @default(true)
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([userId])
+  @@index([positionId])
+  @@index([churchId])
+  @@index([isActive])
+}
+
+model PayrollPeriod {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                 @relation(fields: [churchId], references: [id])
+  
+  // Period details
+  periodName            String                // e.g., "January 2024"
+  startDate             DateTime
+  endDate               DateTime
+  payDate               DateTime              // When payments should be made
+  
+  // Status
+  status                PayrollStatus         @default(PENDING)
+  
+  // Totals
+  totalAmount           Float                 @default(0)
+  totalEmployees        Int                   @default(0)
+  
+  // Records
+  records               PayrollRecord[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@unique([churchId, startDate, endDate])
+  @@index([churchId])
+  @@index([payDate])
+  @@index([status])
+}
+
+model PayrollRecord {
+  id                    String                @id @default(cuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id])
+  periodId              String
+  period                PayrollPeriod         @relation(fields: [periodId], references: [id])
+  churchId              String
+  church                Church                 @relation(fields: [churchId], references: [id])
+  
+  // Salary details
+  positionId            String
+  position              PayrollPosition       @relation(fields: [positionId], references: [id])
+  baseAmount            Float
+  type                  PayrollType
+  
+  // Calculations
+  hoursWorked           Float?                // For hourly workers
+  commissionEarned      Float?                // For commission-based
+  
+  // Adjustments
+  bonuses               Float                 @default(0)
+  allowances            Float                 @default(0)
+  deductions            Float                 @default(0)
+  taxes                 Float                 @default(0)
+  
+  // Final amount
+  grossAmount           Float
+  netAmount              Float
+  
+  // Payment
+  status                PayrollStatus         @default(PENDING)
+  paymentMethod         PaymentMethod?
+  paymentDate           DateTime?
+  transactionReference  String?
+  notes                 String?
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([userId])
+  @@index([periodId])
+  @@index([churchId])
+  @@index([status])
+  @@index([paymentDate])
+}
+

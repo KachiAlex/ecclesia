@@ -1,0 +1,157 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth-options'
+import { getCurrentChurch } from '@/lib/church-context'
+import { requireRole } from '@/lib/auth'
+import { WageScaleService, PayrollPositionService } from '@/lib/services/payroll-service'
+import { db, FieldValue } from '@/lib/firestore'
+import { COLLECTIONS } from '@/lib/firestore-collections'
+
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const positionId = searchParams.get('positionId')
+    const churchId = searchParams.get('churchId')
+
+    const userId = (session.user as any).id
+    const church = await getCurrentChurch(userId)
+
+    if (!church) {
+      return NextResponse.json(
+        { error: 'No church selected' },
+        { status: 400 }
+      )
+    }
+
+    const wageScales = await WageScaleService.findByChurch(churchId || church.id, positionId || undefined)
+
+    // Add position and department info
+    const wageScalesWithDetails = await Promise.all(
+      wageScales.map(async (scale) => {
+        const position = await PayrollPositionService.findById(scale.positionId)
+        let department = null
+        if (position?.departmentId) {
+          const deptDoc = await db.collection(COLLECTIONS.departments).doc(position.departmentId).get()
+          if (deptDoc.exists) {
+            const deptData = deptDoc.data()!
+            department = {
+              id: deptDoc.id,
+              name: deptData.name,
+            }
+          }
+        }
+
+        return {
+          ...scale,
+          position: position ? {
+            id: position.id,
+            name: position.name,
+            department,
+          } : null,
+        }
+      })
+    )
+
+    return NextResponse.json(wageScalesWithDetails)
+  } catch (error) {
+    console.error('Error fetching wage scales:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await requireRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'])
+    const userId = (session.user as any).id
+    const church = await getCurrentChurch(userId)
+
+    if (!church) {
+      return NextResponse.json(
+        { error: 'No church selected' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const {
+      positionId,
+      type,
+      amount,
+      currency,
+      hoursPerWeek,
+      commissionRate,
+      benefits,
+      deductions,
+      effectiveFrom,
+      effectiveTo,
+      notes,
+    } = body
+
+    // Validate required fields
+    if (!positionId || !type || amount === undefined) {
+      return NextResponse.json(
+        { error: 'Position ID, type, and amount are required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify position belongs to church
+    const position = await PayrollPositionService.findById(positionId)
+
+    if (!position || position.churchId !== church.id) {
+      return NextResponse.json(
+        { error: 'Position not found' },
+        { status: 404 }
+      )
+    }
+
+    // If there's an existing active wage scale, set its effectiveTo date
+    if (effectiveFrom) {
+      const existingScales = await WageScaleService.findByChurch(church.id, positionId)
+      const effectiveFromDate = new Date(effectiveFrom)
+      for (const scale of existingScales) {
+        if (!scale.effectiveTo || scale.effectiveTo >= effectiveFromDate) {
+          await db.collection(COLLECTIONS.wageScales).doc(scale.id).update({
+            effectiveTo: effectiveFromDate,
+            updatedAt: FieldValue.serverTimestamp(),
+          })
+        }
+      }
+    }
+
+    const wageScale = await WageScaleService.create({
+      positionId,
+      churchId: church.id,
+      type,
+      amount,
+      currency: currency || 'USD',
+      hoursPerWeek: hoursPerWeek || undefined,
+      commissionRate: commissionRate || undefined,
+      benefits: benefits || 0,
+      deductions: deductions || 0,
+      effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
+      effectiveTo: effectiveTo ? new Date(effectiveTo) : undefined,
+      notes: notes || undefined,
+    })
+
+    return NextResponse.json({
+      ...wageScale,
+      position,
+    }, { status: 201 })
+  } catch (error: any) {
+    console.error('Error creating wage scale:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: error.status || 500 }
+    )
+  }
+}
+

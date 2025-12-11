@@ -1,0 +1,226 @@
+/**
+ * Migration Script: PostgreSQL → Firestore
+ * 
+ * This script migrates data from PostgreSQL (Prisma) to Firestore
+ * 
+ * Usage:
+ * 1. Ensure PostgreSQL connection is working
+ * 2. Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT
+ * 3. Run: tsx scripts/migrate-to-firestore.ts
+ */
+
+import { PrismaClient } from '@prisma/client'
+import { initFirebase, db } from '../lib/firestore'
+import { COLLECTIONS } from '../lib/firestore-collections'
+import { FieldValue } from 'firebase-admin/firestore'
+
+const prisma = new PrismaClient()
+
+// Initialize Firestore
+initFirebase()
+
+interface MigrationStats {
+  users: number
+  churches: number
+  posts: number
+  sermons: number
+  events: number
+  errors: number
+}
+
+const stats: MigrationStats = {
+  users: 0,
+  churches: 0,
+  posts: 0,
+  sermons: 0,
+  events: 0,
+  errors: 0,
+}
+
+/**
+ * Convert Prisma date to Firestore timestamp
+ */
+function toFirestoreTimestamp(date: Date | null | undefined) {
+  if (!date) return FieldValue.serverTimestamp()
+  return date
+}
+
+/**
+ * Migrate Users
+ */
+async function migrateUsers() {
+  console.log('Migrating users...')
+  const users = await prisma.user.findMany()
+  
+  const batch = db.batch()
+  let count = 0
+
+  for (const user of users) {
+    try {
+      const userRef = db.collection(COLLECTIONS.users).doc(user.id)
+      batch.set(userRef, {
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        password: user.password, // Already hashed
+        role: user.role,
+        churchId: user.churchId,
+        profileImage: user.profileImage || null,
+        phone: user.phone || null,
+        dateOfBirth: user.dateOfBirth ? toFirestoreTimestamp(user.dateOfBirth) : null,
+        address: user.address || null,
+        parentId: user.parentId || null,
+        spouseId: user.spouseId || null,
+        xp: user.xp || 0,
+        level: user.level || 1,
+        lastLoginAt: user.lastLoginAt ? toFirestoreTimestamp(user.lastLoginAt) : null,
+        createdAt: toFirestoreTimestamp(user.createdAt),
+        updatedAt: toFirestoreTimestamp(user.updatedAt),
+      })
+      count++
+
+      // Commit in batches of 500 (Firestore limit)
+      if (count % 500 === 0) {
+        await batch.commit()
+        console.log(`Migrated ${count} users...`)
+      }
+    } catch (error) {
+      console.error(`Error migrating user ${user.id}:`, error)
+      stats.errors++
+    }
+  }
+
+  if (count % 500 !== 0) {
+    await batch.commit()
+  }
+
+  stats.users = count
+  console.log(`✅ Migrated ${count} users`)
+}
+
+/**
+ * Migrate Churches
+ */
+async function migrateChurches() {
+  console.log('Migrating churches...')
+  const churches = await prisma.church.findMany()
+  
+  const batch = db.batch()
+  let count = 0
+
+  for (const church of churches) {
+    try {
+      const churchRef = db.collection(COLLECTIONS.churches).doc(church.id)
+      batch.set(churchRef, {
+        name: church.name,
+        address: church.address || null,
+        phone: church.phone || null,
+        email: church.email || null,
+        logo: church.logo || null,
+        createdAt: toFirestoreTimestamp(church.createdAt),
+        updatedAt: toFirestoreTimestamp(church.updatedAt),
+      })
+      count++
+
+      if (count % 500 === 0) {
+        await batch.commit()
+        console.log(`Migrated ${count} churches...`)
+      }
+    } catch (error) {
+      console.error(`Error migrating church ${church.id}:`, error)
+      stats.errors++
+    }
+  }
+
+  if (count % 500 !== 0) {
+    await batch.commit()
+  }
+
+  stats.churches = count
+  console.log(`✅ Migrated ${count} churches`)
+}
+
+/**
+ * Migrate Posts
+ */
+async function migratePosts() {
+  console.log('Migrating posts...')
+  const posts = await prisma.post.findMany()
+  
+  const batch = db.batch()
+  let count = 0
+
+  for (const post of posts) {
+    try {
+      const postRef = db.collection(COLLECTIONS.posts).doc(post.id)
+      batch.set(postRef, {
+        userId: post.userId,
+        churchId: post.churchId,
+        content: post.content,
+        type: post.type,
+        imageUrl: post.imageUrl || null,
+        likes: post.likes || 0,
+        createdAt: toFirestoreTimestamp(post.createdAt),
+        updatedAt: toFirestoreTimestamp(post.updatedAt),
+      })
+      count++
+
+      if (count % 500 === 0) {
+        await batch.commit()
+        console.log(`Migrated ${count} posts...`)
+      }
+    } catch (error) {
+      console.error(`Error migrating post ${post.id}:`, error)
+      stats.errors++
+    }
+  }
+
+  if (count % 500 !== 0) {
+    await batch.commit()
+  }
+
+  stats.posts = count
+  console.log(`✅ Migrated ${count} posts`)
+}
+
+/**
+ * Main migration function
+ */
+async function migrate() {
+  console.log('🚀 Starting migration from PostgreSQL to Firestore...\n')
+
+  try {
+    await migrateChurches()
+    await migrateUsers()
+    await migratePosts()
+    // Add more migrations as needed
+
+    console.log('\n✅ Migration complete!')
+    console.log('\n📊 Statistics:')
+    console.log(`   Churches: ${stats.churches}`)
+    console.log(`   Users: ${stats.users}`)
+    console.log(`   Posts: ${stats.posts}`)
+    console.log(`   Errors: ${stats.errors}`)
+  } catch (error) {
+    console.error('❌ Migration failed:', error)
+    throw error
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+// Run migration
+if (require.main === module) {
+  migrate()
+    .then(() => {
+      console.log('\n✅ Migration script completed')
+      process.exit(0)
+    })
+    .catch((error) => {
+      console.error('\n❌ Migration script failed:', error)
+      process.exit(1)
+    })
+}
+
+export { migrate }
+

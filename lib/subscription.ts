@@ -1,0 +1,294 @@
+import { SubscriptionService, SubscriptionPlanService, UsageMetricService } from './services/subscription-service'
+import { ChurchService } from './services/church-service'
+import { UserService } from './services/user-service'
+import { db } from './firestore'
+import { COLLECTIONS } from './firestore-collections'
+
+export interface UsageLimits {
+  maxUsers?: number
+  maxStorageGB?: number
+  maxSermons?: number
+  maxEvents?: number
+  maxDepartments?: number
+  maxGroups?: number
+}
+
+export interface UsageStats {
+  userCount: number
+  storageUsedGB: number
+  sermonsCount: number
+  eventsCount: number
+  apiCalls: number
+  aiCoachingSessions: number
+}
+
+/**
+ * Get subscription plan limits
+ */
+export async function getPlanLimits(planId: string): Promise<UsageLimits> {
+  const plan = await SubscriptionPlanService.findById(planId)
+  if (!plan) return {}
+
+  return {
+    maxUsers: plan.maxUsers,
+    maxStorageGB: plan.maxStorageGB,
+    maxSermons: plan.maxSermons,
+    maxEvents: plan.maxEvents,
+    maxDepartments: plan.maxDepartments,
+    maxGroups: plan.maxGroups,
+  }
+}
+
+/**
+ * Get current usage for a church
+ */
+export async function getChurchUsage(churchId: string): Promise<UsageStats> {
+  // Get current period (this month)
+  const now = new Date()
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+  const period = `${periodStart.toISOString().split('T')[0]}`
+
+  // Get usage metrics for current period
+  const metrics = await UsageMetricService.findByChurch(churchId)
+  const currentPeriodMetrics = metrics.filter(m => m.period === period)
+
+  // Calculate current usage
+  const [userCount, sermonsCount, eventsCount] = await Promise.all([
+    UserService.findByChurch(churchId).then(users => users.length),
+    db.collection(COLLECTIONS.sermons).where('churchId', '==', churchId).count().get(),
+    db.collection(COLLECTIONS.events)
+      .where('churchId', '==', churchId)
+      .where('startDate', '>=', periodStart)
+      .where('startDate', '<=', periodEnd)
+      .count()
+      .get(),
+  ])
+
+  // Get API calls and AI sessions from metrics
+  const apiCallsMetric = currentPeriodMetrics.find(m => m.metricType === 'apiCalls')
+  const aiSessionsMetric = currentPeriodMetrics.find(m => m.metricType === 'aiCoachingSessions')
+
+  // Calculate storage (simplified - would need actual file size tracking)
+  const storageUsedGB = 0 // TODO: Implement actual storage calculation
+
+  return {
+    userCount,
+    storageUsedGB,
+    sermonsCount: sermonsCount.data().count || 0,
+    eventsCount: eventsCount.data().count || 0,
+    apiCalls: apiCallsMetric?.value || 0,
+    aiCoachingSessions: aiSessionsMetric?.value || 0,
+  }
+}
+
+/**
+ * Check if church has reached a usage limit
+ */
+export async function checkUsageLimit(
+  churchId: string,
+  limitType: keyof UsageLimits
+): Promise<{ allowed: boolean; current: number; limit?: number }> {
+  const church = await ChurchService.findById(churchId)
+  if (!church) {
+    return { allowed: false, current: 0 }
+  }
+
+  const subscription = await SubscriptionService.findByChurch(churchId)
+  if (!subscription) {
+    return { allowed: false, current: 0 }
+  }
+
+  const limits = await getPlanLimits(subscription.planId)
+  const usage = await getChurchUsage(churchId)
+
+  const limit = limits[limitType]
+  if (!limit) {
+    // Unlimited
+    return { allowed: true, current: usage[limitType as keyof UsageStats] as number }
+  }
+
+  const current = usage[limitType as keyof UsageStats] as number
+  return {
+    allowed: current < limit,
+    current,
+    limit,
+  }
+}
+
+/**
+ * Increment usage counter
+ */
+export async function incrementUsage(
+  churchId: string,
+  metric: keyof UsageStats,
+  amount: number = 1
+): Promise<void> {
+  const now = new Date()
+  const period = `${new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]}`
+
+  // Get existing metric
+  const existingMetrics = await UsageMetricService.findByChurch(churchId, metric)
+  const currentPeriodMetric = existingMetrics.find(m => m.period === period)
+
+  if (currentPeriodMetric) {
+    // Update existing
+    await db.collection(COLLECTIONS.usageMetrics).doc(currentPeriodMetric.id).update({
+      value: currentPeriodMetric.value + amount,
+    })
+  } else {
+    // Create new
+    await UsageMetricService.create({
+      churchId,
+      metricType: metric,
+      value: amount,
+      period,
+    })
+  }
+}
+
+/**
+ * Check if subscription is active
+ */
+export async function isSubscriptionActive(churchId: string): Promise<boolean> {
+  const subscription = await SubscriptionService.findByChurch(churchId)
+
+  if (!subscription) {
+    return false
+  }
+
+  const { status, endDate } = subscription
+  const now = new Date()
+
+  if (status === 'ACTIVE' || status === 'TRIAL') {
+    return !endDate || endDate > now
+  }
+
+  return false
+}
+
+/**
+ * Get subscription status with details
+ */
+export async function getSubscriptionStatus(churchId: string) {
+  const subscription = await SubscriptionService.findByChurch(churchId)
+
+  if (!subscription) {
+    return {
+      active: false,
+      status: null,
+      plan: null,
+      usage: null,
+      limits: null,
+      subscription: null,
+    }
+  }
+
+  const plan = await SubscriptionPlanService.findById(subscription.planId)
+  const usage = await getChurchUsage(churchId)
+  const limits = await getPlanLimits(subscription.planId)
+  const active = await isSubscriptionActive(churchId)
+
+  // Calculate current billing period
+  const now = new Date()
+  const billingCycle = plan?.billingCycle || 'monthly'
+  let currentPeriodStart: Date
+  let currentPeriodEnd: Date
+
+  if (billingCycle === 'monthly') {
+    currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+  } else {
+    // Yearly - use subscription start date as period start
+    currentPeriodStart = subscription.startDate
+    currentPeriodEnd = new Date(
+      currentPeriodStart.getFullYear() + 1,
+      currentPeriodStart.getMonth(),
+      currentPeriodStart.getDate()
+    )
+  }
+
+  // Transform subscription to include required fields
+  const subscriptionWithPeriod = {
+    ...subscription,
+    currentPeriodStart,
+    currentPeriodEnd,
+    cancelAtPeriodEnd: subscription.status === 'CANCELLED' || subscription.status === 'CANCELING',
+  }
+
+  return {
+    active,
+    status: subscription.status,
+    plan,
+    usage,
+    limits,
+    subscription: subscriptionWithPeriod,
+  }
+}
+
+/**
+ * Create a new subscription (trial or paid)
+ */
+export async function createSubscription(
+  churchId: string,
+  planId: string,
+  startTrial: boolean = true
+) {
+  const plan = await SubscriptionPlanService.findById(planId)
+
+  if (!plan) {
+    throw new Error('Plan not found')
+  }
+
+  const now = new Date()
+  let endDate = new Date(now)
+  endDate.setMonth(endDate.getMonth() + 1)
+
+  let status = 'ACTIVE'
+  let trialEndsAt: Date | undefined = undefined
+
+  if (startTrial && plan.trialDays > 0) {
+    status = 'TRIAL'
+    trialEndsAt = new Date(now)
+    trialEndsAt.setDate(trialEndsAt.getDate() + plan.trialDays)
+    endDate = trialEndsAt
+  }
+
+  const subscription = await SubscriptionService.create({
+    churchId,
+    planId,
+    status,
+    startDate: now,
+    endDate,
+    trialEndsAt,
+  })
+
+  return subscription
+}
+
+/**
+ * Cancel subscription
+ */
+export async function cancelSubscription(churchId: string, cancelAtPeriodEnd: boolean = true) {
+  const subscription = await SubscriptionService.findByChurch(churchId)
+
+  if (!subscription) {
+    throw new Error('Subscription not found')
+  }
+
+  const updateData: any = {
+    status: cancelAtPeriodEnd ? subscription.status : 'CANCELLED',
+  }
+
+  if (!cancelAtPeriodEnd) {
+    updateData.endDate = new Date()
+  }
+
+  await db.collection(COLLECTIONS.subscriptions).doc(subscription.id).update(updateData)
+
+  return {
+    ...subscription,
+    ...updateData,
+  }
+}
+

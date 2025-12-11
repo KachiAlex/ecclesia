@@ -1,0 +1,189 @@
+import { db, toDate } from '@/lib/firestore'
+import { COLLECTIONS } from '@/lib/firestore-collections'
+import { FieldValue, Query } from 'firebase-admin/firestore'
+
+export interface SubscriptionPlan {
+  id: string
+  name: string
+  type: string
+  description?: string
+  price: number
+  currency: string
+  maxUsers?: number
+  maxStorageGB?: number
+  maxSermons?: number
+  maxEvents?: number
+  maxDepartments?: number
+  maxGroups?: number
+  features: string[]
+  billingCycle: string
+  trialDays: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface Subscription {
+  id: string
+  churchId: string
+  planId: string
+  status: string
+  startDate: Date
+  endDate?: Date
+  trialEndsAt?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface UsageMetric {
+  id: string
+  churchId: string
+  metricType: string
+  value: number
+  period: string
+  createdAt: Date
+}
+
+export class SubscriptionPlanService {
+  static async findAll(): Promise<SubscriptionPlan[]> {
+    const snapshot = await db.collection(COLLECTIONS.subscriptionPlans)
+      .orderBy('price', 'asc')
+      .get()
+
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        features: data.features || [],
+        ...data,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+      } as SubscriptionPlan
+    })
+  }
+
+  static async findById(id: string): Promise<SubscriptionPlan | null> {
+    const doc = await db.collection(COLLECTIONS.subscriptionPlans).doc(id).get()
+    if (!doc.exists) return null
+    
+    const data = doc.data()!
+    return {
+      id: doc.id,
+      features: data.features || [],
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as SubscriptionPlan
+  }
+
+  static async create(data: Omit<SubscriptionPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubscriptionPlan> {
+    const planData = {
+      ...data,
+      features: data.features || [],
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    const docRef = db.collection(COLLECTIONS.subscriptionPlans).doc()
+    await docRef.set(planData)
+
+    const created = await docRef.get()
+    const createdData = created.data()!
+    return {
+      id: created.id,
+      ...createdData,
+      createdAt: toDate(createdData.createdAt),
+      updatedAt: toDate(createdData.updatedAt),
+    } as SubscriptionPlan
+  }
+}
+
+export class SubscriptionService {
+  static async findByChurch(churchId: string): Promise<Subscription | null> {
+    const snapshot = await db.collection(COLLECTIONS.subscriptions)
+      .where('churchId', '==', churchId)
+      .orderBy('startDate', 'desc')
+      .limit(1)
+      .get()
+
+    if (snapshot.empty) return null
+
+    const doc = snapshot.docs[0]
+    const data = doc.data()
+    return {
+      id: doc.id,
+      ...data,
+      startDate: toDate(data.startDate),
+      endDate: data.endDate ? toDate(data.endDate) : undefined,
+      trialEndsAt: data.trialEndsAt ? toDate(data.trialEndsAt) : undefined,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as Subscription
+  }
+
+  static async create(data: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subscription> {
+    const subscriptionData = {
+      ...data,
+      startDate: data.startDate instanceof Date ? data.startDate : new Date(data.startDate),
+      endDate: data.endDate ? (data.endDate instanceof Date ? data.endDate : new Date(data.endDate)) : null,
+      trialEndsAt: data.trialEndsAt ? (data.trialEndsAt instanceof Date ? data.trialEndsAt : new Date(data.trialEndsAt)) : null,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    const docRef = db.collection(COLLECTIONS.subscriptions).doc()
+    await docRef.set(subscriptionData)
+
+    const created = await docRef.get()
+    const createdData = created.data()!
+    return {
+      id: created.id,
+      ...createdData,
+      startDate: toDate(createdData.startDate),
+      endDate: createdData.endDate ? toDate(createdData.endDate) : undefined,
+      trialEndsAt: createdData.trialEndsAt ? toDate(createdData.trialEndsAt) : undefined,
+      createdAt: toDate(createdData.createdAt),
+      updatedAt: toDate(createdData.updatedAt),
+    } as Subscription
+  }
+}
+
+export class UsageMetricService {
+  static async findByChurch(churchId: string, metricType?: string): Promise<UsageMetric[]> {
+    let query: Query = db.collection(COLLECTIONS.usageMetrics)
+      .where('churchId', '==', churchId)
+    
+    if (metricType) {
+      query = query.where('metricType', '==', metricType)
+    }
+
+    const snapshot = await query.orderBy('createdAt', 'desc').limit(100).get()
+
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt),
+      } as UsageMetric
+    })
+  }
+
+  static async create(data: Omit<UsageMetric, 'id' | 'createdAt'>): Promise<UsageMetric> {
+    const metricData = {
+      ...data,
+      createdAt: FieldValue.serverTimestamp(),
+    }
+
+    const docRef = db.collection(COLLECTIONS.usageMetrics).doc()
+    await docRef.set(metricData)
+
+    const created = await docRef.get()
+    const createdData = created.data()!
+    return {
+      id: created.id,
+      ...createdData,
+      createdAt: toDate(createdData.createdAt),
+    } as UsageMetric
+  }
+}
+
