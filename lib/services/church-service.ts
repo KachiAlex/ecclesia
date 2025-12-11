@@ -14,6 +14,7 @@ export interface Church {
   country?: string
   phone?: string
   email?: string
+  website?: string
   logo?: string
   ownerId?: string
   createdAt: Date

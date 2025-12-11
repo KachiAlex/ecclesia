@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { UserService } from '@/lib/services/user-service'
+import { ChurchService } from '@/lib/services/church-service'
 import { getCurrentChurchId } from '@/lib/church-context'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
@@ -23,15 +24,21 @@ export default async function DashboardLayout({
   const user = await UserService.findById(userId)
   
   // If user doesn't have a church, redirect to register-church page
-  // Skip this check if already on the register-church page to avoid redirect loop
   if (!user?.churchId) {
     redirect('/register-church')
   }
 
-  // Verify church exists
+  // Verify church exists and check onboarding status
   const churchId = await getCurrentChurchId(userId)
   if (!churchId) {
     redirect('/register-church')
+  }
+
+  // Check if onboarding is complete (church has address or description)
+  const church = await ChurchService.findById(churchId)
+  if (church && !church.address && !church.description) {
+    // Onboarding not complete, redirect to onboarding
+    redirect('/onboarding')
   }
 
   const navigation = [

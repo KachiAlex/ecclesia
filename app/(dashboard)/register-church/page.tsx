@@ -42,8 +42,8 @@ export default function RegisterChurchPage() {
         return
       }
 
-      // Success - redirect to dashboard
-      router.push('/dashboard')
+      // Success - redirect to onboarding
+      router.push('/onboarding')
       router.refresh()
     } catch (err) {
       setError('An error occurred. Please try again.')
