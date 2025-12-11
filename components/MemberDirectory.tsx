@@ -35,6 +35,9 @@ export default function MemberDirectory() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
+  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 20,
@@ -43,8 +46,28 @@ export default function MemberDirectory() {
   })
 
   useEffect(() => {
+    loadBranches()
     loadUsers()
-  }, [pagination.page, search, roleFilter])
+  }, [pagination.page, search, roleFilter, branchFilter])
+
+  const loadBranches = async () => {
+    try {
+      const userRes = await fetch('/api/users/me')
+      const userData = await userRes.json()
+      
+      if (userData.churchId) {
+        setCurrentBranchId(userData.branchId || null)
+        
+        const res = await fetch(`/api/churches/${userData.churchId}/branches`)
+        if (res.ok) {
+          const data = await res.json()
+          setBranches(data)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading branches:', error)
+    }
+  }
 
   const loadUsers = async () => {
     setLoading(true)
@@ -55,6 +78,7 @@ export default function MemberDirectory() {
       })
       if (search) params.append('search', search)
       if (roleFilter) params.append('role', roleFilter)
+      if (branchFilter) params.append('branchId', branchFilter)
 
       const response = await fetch(`/api/users?${params}`)
       if (!response.ok) {
@@ -89,13 +113,14 @@ export default function MemberDirectory() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <form onSubmit={handleSearch} className="flex gap-4">
+        <form onSubmit={handleSearch} className="flex gap-4 flex-wrap">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or email..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
+            style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
           />
           <select
             value={roleFilter}
@@ -111,7 +136,25 @@ export default function MemberDirectory() {
             <option value="LEADER">Leader</option>
             <option value="PASTOR">Pastor</option>
             <option value="ADMIN">Admin</option>
+            <option value="BRANCH_ADMIN">Branch Admin</option>
           </select>
+          {branches.length > 0 && (
+            <select
+              value={branchFilter}
+              onChange={(e) => {
+                setBranchFilter(e.target.value)
+                setPagination({ ...pagination, page: 1 })
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="">All Branches</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             type="submit"
             className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"

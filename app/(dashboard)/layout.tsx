@@ -7,6 +7,7 @@ import { getCurrentChurchId } from '@/lib/church-context'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
 import ChurchSwitcher from '@/components/ChurchSwitcher'
+import BranchSwitcher from '@/components/BranchSwitcher'
 
 export default async function DashboardLayout({
   children,
@@ -53,6 +54,7 @@ export default async function DashboardLayout({
     { name: 'Reading Plans', href: '/reading-plans', icon: '📖' },
     { name: 'Leaderboard', href: '/leaderboard', icon: '🏆' },
     { name: 'Users', href: '/users', icon: '👤' },
+    { name: 'Branches', href: '/branches', icon: '🏛️' },
     { name: 'Payroll', href: '/payroll', icon: '💼' },
   ]
 
@@ -101,6 +103,9 @@ export default async function DashboardLayout({
           </div>
           <div className="space-y-1">
             <ChurchSwitcher />
+            <div className="px-2 py-2">
+              <BranchSwitcher />
+            </div>
             <Link
               href="/subscription"
               className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 rounded-lg hover:bg-gray-100 transition-colors w-full"

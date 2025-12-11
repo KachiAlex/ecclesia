@@ -27,14 +27,20 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate')
     const type = searchParams.get('type')
     const groupId = searchParams.get('groupId')
+    const branchId = searchParams.get('branchId')
 
     // Get events using service
-    const events = await EventService.findByChurch(church.id, {
+    let events = await EventService.findByChurch(church.id, {
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
       type: type || undefined,
       groupId: groupId || undefined,
     })
+
+    // Filter by branch if specified
+    if (branchId) {
+      events = events.filter((event: any) => event.branchId === branchId)
+    }
 
     // Get registration and attendance counts, and user registration status
     const eventsWithDetails = await Promise.all(

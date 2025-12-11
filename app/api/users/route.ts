@@ -26,11 +26,17 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
     const search = searchParams.get('search')
+    const branchId = searchParams.get('branchId')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
     // Get users by church
     let users = await UserService.findByChurch(church.id, limit * page) // Get more to filter
+
+    // Filter by branch
+    if (branchId) {
+      users = users.filter(user => (user as any).branchId === branchId)
+    }
 
     // Filter by role
     if (role) {
@@ -40,6 +46,10 @@ export async function GET(request: Request) {
     // Filter by search
     if (search) {
       users = await UserService.search(church.id, search)
+      // Re-apply branch filter after search
+      if (branchId) {
+        users = users.filter(user => (user as any).branchId === branchId)
+      }
     }
 
     // Paginate

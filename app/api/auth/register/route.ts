@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { UserService } from '@/lib/services/user-service'
 import { ChurchService, generateSlug } from '@/lib/services/church-service'
+import { BranchService, BranchAdminService, generateBranchSlug } from '@/lib/services/branch-service'
 import { SubscriptionPlanService, SubscriptionService } from '@/lib/services/subscription-service'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
@@ -8,7 +9,7 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { firstName, lastName, email, phone, password, churchName, churchCity, churchCountry } = body
+    const { firstName, lastName, email, phone, password, churchName, churchCity, churchCountry, branchName, branchCity, branchCountry, branchAddress } = body
 
     // Validate input - Church registration is MANDATORY
     if (!firstName || !lastName || !email || !password) {
@@ -74,6 +75,50 @@ export async function POST(request: Request) {
       ownerId: user.id,
     })
 
+    // Create branch if branch name is provided
+    let branch = null
+    if (branchName && branchName.trim() !== '') {
+      // Generate unique slug within church
+      let baseSlug = generateBranchSlug(branchName)
+      let branchSlug = baseSlug
+      let counter = 1
+      
+      while (true) {
+        const existingBranch = await BranchService.findBySlug(church.id, branchSlug)
+        if (!existingBranch) break
+        branchSlug = `${baseSlug}-${counter}`
+        counter++
+      }
+
+      branch = await BranchService.create({
+        name: branchName,
+        slug: branchSlug,
+        churchId: church.id,
+        city: branchCity || churchCity || null,
+        country: branchCountry || churchCountry || null,
+        address: branchAddress || null,
+        adminId: user.id,
+        isActive: true,
+      })
+
+      // Assign user as branch admin
+      await BranchAdminService.assignAdmin({
+        branchId: branch.id,
+        userId: user.id,
+        canManageMembers: true,
+        canManageEvents: true,
+        canManageGroups: true,
+        canManageGiving: true,
+        canManageSermons: true,
+        assignedBy: user.id,
+      })
+
+      // Update user with branch ID
+      await UserService.update(user.id, {
+        branchId: branch.id,
+      })
+    }
+
     // Find or create FREE plan with 30-day trial
     let freePlan
     const plansSnapshot = await db.collection(COLLECTIONS.subscriptionPlans)
@@ -128,8 +173,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { 
-        user: userWithoutPassword, 
+        user: {
+          ...userWithoutPassword,
+          branchId: branch?.id || null,
+        }, 
         church,
+        branch: branch ? {
+          id: branch.id,
+          name: branch.name,
+          slug: branch.slug,
+        } : null,
         trialEndsAt: trialEndDate.toISOString(),
         message: 'Church organization and account created successfully. You have a 30-day free trial.' 
       },

@@ -33,10 +33,33 @@ export default function EventCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [registering, setRegistering] = useState<string | null>(null)
+  const [branchFilter, setBranchFilter] = useState<string>('')
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
+  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
 
   useEffect(() => {
+    loadBranches()
     loadEvents()
-  }, [currentDate, view])
+  }, [currentDate, view, branchFilter])
+
+  const loadBranches = async () => {
+    try {
+      const userRes = await fetch('/api/users/me')
+      const userData = await userRes.json()
+      
+      if (userData.churchId) {
+        setCurrentBranchId(userData.branchId || null)
+        
+        const res = await fetch(`/api/churches/${userData.churchId}/branches`)
+        if (res.ok) {
+          const data = await res.json()
+          setBranches(data)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading branches:', error)
+    }
+  }
 
   const loadEvents = async () => {
     try {
@@ -55,9 +78,15 @@ export default function EventCalendar() {
         end.setDate(start.getDate() + 1)
       }
 
-      const response = await fetch(
-        `/api/events?startDate=${start.toISOString()}&endDate=${end.toISOString()}`
-      )
+      const params = new URLSearchParams({
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      })
+      if (branchFilter) {
+        params.append('branchId', branchFilter)
+      }
+
+      const response = await fetch(`/api/events?${params}`)
       if (response.ok) {
         const data = await response.json()
         setEvents(data)
@@ -155,6 +184,28 @@ export default function EventCalendar() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Branch Filter */}
+      {branches.length > 0 && (
+        <div className="mb-6 bg-white rounded-lg shadow p-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-semibold text-gray-700">Filter by Branch:</label>
+            <select
+              value={branchFilter}
+              onChange={(e) => {
+                setBranchFilter(e.target.value)
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="">All Branches</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Event Calendar</h1>
         <div className="flex gap-2">

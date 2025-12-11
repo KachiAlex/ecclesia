@@ -19,6 +19,7 @@ enum UserRole {
   LEADER
   PASTOR
   ADMIN
+  BRANCH_ADMIN
   SUPER_ADMIN
 }
 
@@ -128,10 +129,18 @@ model User {
   churchId              String?
   church                Church?               @relation(fields: [churchId], references: [id])
   
+  // Branch association
+  branchId              String?
+  branch                Branch?               @relation(fields: [branchId], references: [id])
+  
   // Relationships
   departments           DepartmentMembership[]
   groups                GroupMembership[]
   badges                UserBadge[]
+  
+  // Branch admin relationships
+  branchAdminOf         Branch?                @relation("BranchAdmin")
+  branchAdminAssignments BranchAdmin[]         @relation("BranchAdminUser")
   prayerRequests        PrayerRequest[]
   prayerInteractions    PrayerInteraction[]
   sermonsWatched        SermonView[]
@@ -170,6 +179,7 @@ model User {
   
   @@index([email])
   @@index([churchId])
+  @@index([branchId])
   @@index([role])
 }
 
@@ -202,6 +212,9 @@ model Church {
   // Owner/Admin user
   ownerId               String?
   
+  // Branches
+  branches               Branch[]
+  
   users                 User[]
   departments           Department[]
   groups                Group[]
@@ -225,6 +238,73 @@ model Church {
   @@index([slug])
   @@index([subscriptionId])
   @@index([customDomain])
+}
+
+// Church Branches
+model Branch {
+  id                    String                @id @default(cuid())
+  name                  String
+  slug                  String                // Unique within church
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  
+  // Branch details
+  address               String?
+  city                  String?
+  state                 String?
+  zipCode               String?
+  country               String?
+  phone                 String?
+  email                 String?
+  description           String?
+  
+  // Branch admin (primary admin for this branch)
+  adminId               String?
+  admin                 User?                 @relation("BranchAdmin", fields: [adminId], references: [id])
+  
+  // Branch admins (multiple admins can manage a branch)
+  branchAdmins          BranchAdmin[]
+  
+  // Branch members
+  users                 User[]
+  
+  // Branch-specific data
+  departments           Department[]
+  groups                Group[]
+  events                Event[]
+  
+  isActive              Boolean               @default(true)
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@unique([churchId, slug])
+  @@index([churchId])
+  @@index([adminId])
+  @@index([isActive])
+}
+
+// Branch Admin Assignment
+model BranchAdmin {
+  id                    String                @id @default(cuid())
+  branchId              String
+  branch                Branch                @relation(fields: [branchId], references: [id])
+  userId                String
+  user                  User                  @relation("BranchAdminUser", fields: [userId], references: [id])
+  
+  // Permissions (can be extended)
+  canManageMembers      Boolean               @default(true)
+  canManageEvents       Boolean               @default(true)
+  canManageGroups       Boolean               @default(true)
+  canManageGiving       Boolean               @default(false)
+  canManageSermons      Boolean               @default(false)
+  
+  assignedAt            DateTime              @default(now())
+  assignedBy            String?               // User ID who assigned this admin
+  
+  @@unique([branchId, userId])
+  @@index([branchId])
+  @@index([userId])
 }
 
 // Subscription Plans
@@ -328,6 +408,8 @@ model Department {
   description           String?
   churchId              String
   church                Church                @relation(fields: [churchId], references: [id])
+  branchId              String?
+  branch                Branch?               @relation(fields: [branchId], references: [id])
   members               DepartmentMembership[]
   groups                Group[]
   payrollPositions      PayrollPosition[]
@@ -335,6 +417,7 @@ model Department {
   updatedAt             DateTime              @updatedAt
   
   @@index([churchId])
+  @@index([branchId])
 }
 
 model DepartmentMembership {
@@ -360,6 +443,8 @@ model Group {
   department            Department?           @relation(fields: [departmentId], references: [id])
   churchId              String
   church                Church                @relation(fields: [churchId], references: [id])
+  branchId              String?
+  branch                Branch?               @relation(fields: [branchId], references: [id])
   leaderId              String?
   location              String?
   latitude              Float?
@@ -375,6 +460,7 @@ model Group {
   updatedAt             DateTime              @updatedAt
   
   @@index([churchId])
+  @@index([branchId])
   @@index([departmentId])
 }
 
@@ -659,6 +745,8 @@ model Event {
   type                  EventType
   churchId              String
   church                Church                @relation(fields: [churchId], references: [id])
+  branchId              String?
+  branch                Branch?               @relation(fields: [branchId], references: [id])
   groupId               String?
   group                 Group?                @relation(fields: [groupId], references: [id])
   location              String?
@@ -676,6 +764,7 @@ model Event {
   updatedAt             DateTime              @updatedAt
   
   @@index([churchId])
+  @@index([branchId])
   @@index([startDate])
 }
 

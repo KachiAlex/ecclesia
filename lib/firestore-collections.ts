@@ -7,6 +7,8 @@ export const COLLECTIONS = {
   // Core
   users: 'users',
   churches: 'churches',
+  branches: 'branches',
+  branchAdmins: 'branchAdmins',
   
   // Subscriptions
   subscriptionPlans: 'subscriptionPlans',
