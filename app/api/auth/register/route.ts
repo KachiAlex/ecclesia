@@ -10,10 +10,18 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { firstName, lastName, email, phone, password, churchName, churchCity, churchCountry } = body
 
-    // Validate input
-    if (!firstName || !lastName || !email || !password || !churchName) {
+    // Validate input - Church registration is MANDATORY
+    if (!firstName || !lastName || !email || !password) {
       return NextResponse.json(
-        { error: 'Missing required fields. Church name is required.' },
+        { error: 'Missing required fields: First name, last name, email, and password are required.' },
+        { status: 400 }
+      )
+    }
+
+    // Church name is MANDATORY - no personal accounts allowed
+    if (!churchName || churchName.trim() === '') {
+      return NextResponse.json(
+        { error: 'Church organization registration is required. You must register a church to create an account.' },
         { status: 400 }
       )
     }

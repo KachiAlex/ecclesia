@@ -28,8 +28,9 @@ export default async function OnboardingLayout({
   const churchId = await getCurrentChurchId(userId)
   if (churchId) {
     const church = await ChurchService.findById(churchId)
-    // If church has been onboarded (has address or description), skip onboarding
-    if (church?.address || church?.description) {
+    // Onboarding is complete if church has address OR description OR phone OR website
+    // This ensures churches have at least some basic information
+    if (church && (church.address || church.description || church.phone || church.website)) {
       redirect('/dashboard')
     }
   }

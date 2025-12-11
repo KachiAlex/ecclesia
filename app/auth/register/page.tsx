@@ -57,6 +57,12 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
+    // Church name is MANDATORY - no personal accounts allowed
+    if (!formData.churchName || formData.churchName.trim() === '') {
+      setError('Church name is required. You must register a church organization to create an account.')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
@@ -134,7 +140,12 @@ export default function RegisterPage() {
             </span>
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Register Your Church</h1>
-          <p className="text-gray-600">Start your 30-day free trial. Create your church organization and admin account.</p>
+          <p className="text-gray-600 mb-3">Start your 30-day free trial. Create your church organization and admin account.</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 inline-block">
+            <p className="text-sm text-blue-800 font-medium">
+              ⚠️ Church registration is required. Personal accounts are not available.
+            </p>
+          </div>
         </div>
 
         {/* Error message */}

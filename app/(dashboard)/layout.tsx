@@ -34,10 +34,10 @@ export default async function DashboardLayout({
     redirect('/register-church')
   }
 
-  // Check if onboarding is complete (church has address or description)
+  // Check if onboarding is complete - church must have at least one of: address, description, phone, or website
   const church = await ChurchService.findById(churchId)
-  if (church && !church.address && !church.description) {
-    // Onboarding not complete, redirect to onboarding
+  if (church && !church.address && !church.description && !church.phone && !church.website) {
+    // Onboarding not complete - redirect to onboarding (MANDATORY)
     redirect('/onboarding')
   }
 

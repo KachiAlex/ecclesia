@@ -80,6 +80,18 @@ export default function OnboardingPage() {
   }
 
   const handleSubmit = async () => {
+    // Validate that at least one onboarding field is filled
+    const hasOnboardingData = 
+      formData.address?.trim() || 
+      formData.description?.trim() || 
+      formData.phone?.trim() || 
+      formData.website?.trim()
+
+    if (!hasOnboardingData) {
+      alert('Please fill in at least one field (address, description, phone, or website) to complete onboarding.')
+      return
+    }
+
     setLoading(true)
     try {
       // Update church with onboarding data
