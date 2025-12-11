@@ -11,6 +11,7 @@ export interface User {
   password: string
   role: string
   churchId: string
+  branchId?: string
   profileImage?: string
   phone?: string
   dateOfBirth?: string

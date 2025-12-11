@@ -229,19 +229,19 @@ export async function DELETE(
 
     await BranchAdminService.removeAdmin(params.branchId, targetUserId)
 
-    // Update user role if they're no longer a branch admin
-    const targetUser = await UserService.findById(targetUserId)
-    if (targetUser && targetUser.role === 'BRANCH_ADMIN' && targetUser.branchId === params.branchId) {
-      // Check if user is admin of any other branch
-      const otherBranchAdmins = await BranchAdminService.findByUser(targetUserId)
-      if (otherBranchAdmins.length === 0) {
-        // Remove BRANCH_ADMIN role, set to MEMBER
-        await UserService.update(targetUserId, {
-          role: 'MEMBER',
-          branchId: null,
-        })
+      // Update user role if they're no longer a branch admin
+      const targetUser = await UserService.findById(targetUserId)
+      if (targetUser && targetUser.role === 'BRANCH_ADMIN' && targetUser.branchId === params.branchId) {
+        // Check if user is admin of any other branch
+        const otherBranchAdmins = await BranchAdminService.findByUser(targetUserId)
+        if (otherBranchAdmins.length === 0) {
+          // Remove BRANCH_ADMIN role, set to MEMBER
+          await UserService.update(targetUserId, {
+            role: 'MEMBER',
+            branchId: undefined,
+          })
+        }
       }
-    }
 
     return NextResponse.json({ message: 'Admin removed successfully' })
   } catch (error) {
