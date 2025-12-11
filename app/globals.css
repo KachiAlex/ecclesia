@@ -135,13 +135,35 @@ input[type="tel"],
 input[type="number"],
 input[type="url"],
 input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
 textarea,
 select {
   color: #111827 !important; /* text-gray-900 */
+  -webkit-text-fill-color: #111827 !important; /* Override autofill text color */
+}
+
+/* Override browser autofill styles */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #111827 !important;
+  color: #111827 !important;
+  box-shadow: 0 0 0px 1000px white inset !important;
 }
 
 input::placeholder,
 textarea::placeholder {
   color: #9ca3af !important; /* text-gray-400 */
+  opacity: 1 !important;
+}
+
+/* Ensure input values are visible */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
 }
 
