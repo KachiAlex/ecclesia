@@ -119,7 +119,7 @@ export default function RegisterPage() {
             </span>
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Register Your Church</h1>
-          <p className="text-gray-600">Create your church organization and admin account</p>
+          <p className="text-gray-600">Start your 30-day free trial. Create your church organization and admin account.</p>
         </div>
 
         {/* Error message */}
@@ -149,6 +149,93 @@ export default function RegisterPage() {
           }`}
         >
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Church Organization Section - Moved to Top */}
+            <div className="pb-4 border-b border-gray-200">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Church Organization</h3>
+              </div>
+              
+              {/* Church Name */}
+              <div className="mb-5">
+                <label htmlFor="churchName" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Church Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    id="churchName"
+                    type="text"
+                    value={formData.churchName}
+                    onChange={(e) => setFormData({ ...formData, churchName: e.target.value })}
+                    required
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                    placeholder="Grace Community Church"
+                  />
+                </div>
+              </div>
+
+              {/* Church City & Country */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="churchCity" className="block text-sm font-semibold text-gray-700 mb-2">
+                    City <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    id="churchCity"
+                    type="text"
+                    value={formData.churchCity}
+                    onChange={(e) => setFormData({ ...formData, churchCity: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                    placeholder="New York"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="churchCountry" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Country <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    id="churchCountry"
+                    type="text"
+                    value={formData.churchCountry}
+                    onChange={(e) => setFormData({ ...formData, churchCountry: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                    placeholder="United States"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Account Section */}
+            <div className="pt-4">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Your Admin Account</h3>
+                <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">You'll be the admin</span>
+              </div>
+
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -245,10 +332,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-
-            {/* Church Organization Section */}
-            <div className="pt-4 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Church Organization</h3>
+            </div>
               
               {/* Church Name */}
               <div className="mb-5">
@@ -493,6 +577,19 @@ export default function RegisterPage() {
               )}
             </div>
 
+            {/* Free Trial Notice */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">30-Day Free Trial</p>
+                  <p className="text-xs text-blue-700 mt-1">Your church will receive a 30-day free trial. No credit card required.</p>
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -520,10 +617,10 @@ export default function RegisterPage() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Creating account...
+                  Registering Church...
                 </span>
               ) : (
-                'Create Account'
+                'Register Church & Create Account'
               )}
             </button>
           </form>
