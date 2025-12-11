@@ -218,6 +218,7 @@ export default function RegisterPage() {
                     required
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="Grace Community Church"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
               </div>
@@ -235,6 +236,7 @@ export default function RegisterPage() {
                     onChange={(e) => setFormData({ ...formData, churchCity: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="New York"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
                 <div>
@@ -248,6 +250,7 @@ export default function RegisterPage() {
                     onChange={(e) => setFormData({ ...formData, churchCountry: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="United States"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
               </div>
@@ -279,6 +282,7 @@ export default function RegisterPage() {
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="John"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
               </div>
               <div>
@@ -293,6 +297,7 @@ export default function RegisterPage() {
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="Doe"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
               </div>
             </div>
@@ -326,6 +331,7 @@ export default function RegisterPage() {
                   required
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="your@email.com"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
               </div>
             </div>
@@ -358,6 +364,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="+1 (555) 000-0000"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
               </div>
             </div>
@@ -392,6 +399,7 @@ export default function RegisterPage() {
                   required
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="At least 8 characters"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
                 <button
                   type="button"
@@ -482,6 +490,7 @@ export default function RegisterPage() {
                   required
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="Re-enter your password"
+                  style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
                 <button
                   type="button"
