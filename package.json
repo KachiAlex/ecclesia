@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "create-superadmin": "node scripts/create-superadmin.js",
+    "delete-users-without-church": "node scripts/delete-users-without-church.js",
     "firebase:deploy": "firebase deploy",
     "firebase:deploy:hosting": "firebase deploy --only hosting",
     "docker:build": "docker build -t ecclesia-app .",
