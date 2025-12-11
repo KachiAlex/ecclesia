@@ -247,7 +247,7 @@ export default function OnboardingPage() {
                     value={formData.churchName}
                     onChange={(e) => setFormData({ ...formData, churchName: e.target.value })}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="Grace Community Church"
                   />
                 </div>
@@ -261,7 +261,7 @@ export default function OnboardingPage() {
                       type="text"
                       value={formData.churchCity}
                       onChange={(e) => setFormData({ ...formData, churchCity: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                       placeholder="New York"
                     />
                   </div>
@@ -273,7 +273,7 @@ export default function OnboardingPage() {
                       type="text"
                       value={formData.churchCountry}
                       onChange={(e) => setFormData({ ...formData, churchCountry: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                       placeholder="United States"
                     />
                   </div>
@@ -287,7 +287,7 @@ export default function OnboardingPage() {
                     type="text"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="123 Main Street"
                   />
                 </div>
@@ -300,7 +300,7 @@ export default function OnboardingPage() {
                     type="text"
                     value={formData.denomination}
                     onChange={(e) => setFormData({ ...formData, denomination: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="e.g., Baptist, Methodist, Non-denominational"
                   />
                 </div>
@@ -313,7 +313,7 @@ export default function OnboardingPage() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="Tell us about your church mission, vision, and values..."
                   />
                 </div>
@@ -352,7 +352,7 @@ export default function OnboardingPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="+1 (555) 000-0000"
                   />
                 </div>
@@ -365,7 +365,7 @@ export default function OnboardingPage() {
                     type="url"
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="https://yourchurch.com"
                   />
                 </div>

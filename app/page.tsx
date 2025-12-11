@@ -736,7 +736,7 @@ function ChurchLoginForm() {
           value={churchSlug}
           onChange={(e) => setChurchSlug(e.target.value)}
           placeholder="e.g., grace-community-church"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
           required
         />
         <p className="mt-1 text-xs text-gray-500">Enter your church name (e.g., "grace-community-church")</p>

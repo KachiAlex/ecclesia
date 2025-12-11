@@ -144,7 +144,7 @@ export default function RegisterChurchPage() {
                   value={formData.churchName}
                   onChange={(e) => setFormData({ ...formData, churchName: e.target.value })}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="Grace Community Church"
                 />
               </div>
@@ -161,7 +161,7 @@ export default function RegisterChurchPage() {
                   type="text"
                   value={formData.churchCity}
                   onChange={(e) => setFormData({ ...formData, churchCity: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="New York"
                 />
               </div>
@@ -174,7 +174,7 @@ export default function RegisterChurchPage() {
                   type="text"
                   value={formData.churchCountry}
                   onChange={(e) => setFormData({ ...formData, churchCountry: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="United States"
                 />
               </div>
