@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
+import { UserService } from '@/lib/services/user-service'
+import { getCurrentChurchId } from '@/lib/church-context'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
 import ChurchSwitcher from '@/components/ChurchSwitcher'
@@ -14,6 +16,22 @@ export default async function DashboardLayout({
 
   if (!session) {
     redirect('/auth/login')
+  }
+
+  // Check if user has a church
+  const userId = (session.user as any).id
+  const user = await UserService.findById(userId)
+  
+  // If user doesn't have a church, redirect to register-church page
+  // Skip this check if already on the register-church page to avoid redirect loop
+  if (!user?.churchId) {
+    redirect('/register-church')
+  }
+
+  // Verify church exists
+  const churchId = await getCurrentChurchId(userId)
+  if (!churchId) {
+    redirect('/register-church')
   }
 
   const navigation = [
