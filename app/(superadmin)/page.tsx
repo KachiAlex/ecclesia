@@ -6,6 +6,9 @@ import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function SuperAdminDashboard() {
   const session = await getServerSession(authOptions)
 

@@ -19,6 +19,12 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Experimental features to help with Vercel builds
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
 }
 
 module.exports = nextConfig

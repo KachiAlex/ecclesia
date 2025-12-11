@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth-options'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function SuperAdminLayout({
   children,
 }: {
