@@ -107,11 +107,14 @@ export default function RegisterPage() {
 
       if (signInResult?.error) {
         // If auto-login fails, redirect to login page
-        router.push('/auth/login?registered=true')
+        setError('Registration successful! Please log in to continue.')
+        setTimeout(() => {
+          window.location.href = '/auth/login?registered=true'
+        }, 2000)
       } else {
-        // Redirect to onboarding
-        router.push('/onboarding')
-        router.refresh()
+        // Use full page reload to ensure session is properly set
+        // This prevents black screen issues with session not being ready
+        window.location.href = '/onboarding'
       }
     } catch (err) {
       setError('An error occurred. Please try again.')

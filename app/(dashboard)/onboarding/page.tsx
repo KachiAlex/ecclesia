@@ -56,9 +56,13 @@ export default function OnboardingPage() {
             website: church.website || '',
             denomination: denomination,
           })
+        } else {
+          // If API call fails, still show the form (user can fill it manually)
+          console.error('Failed to load church data, but continuing with onboarding')
         }
       } catch (error) {
         console.error('Error loading church data:', error)
+        // Don't block onboarding if data load fails
       } finally {
         setLoadingData(false)
       }
@@ -133,7 +137,8 @@ export default function OnboardingPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading your church information...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait</p>
         </div>
       </div>
     )
