@@ -16,21 +16,29 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.log('Authorize: Missing credentials')
           return null
         }
 
         const user = await UserService.findByEmail(credentials.email)
 
         if (!user) {
+          console.log('Authorize: User not found for email:', credentials.email)
+          return null
+        }
+
+        if (!user.password) {
+          console.log('Authorize: User has no password set')
           return null
         }
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
-          user.password || ''
+          user.password
         )
 
         if (!isPasswordValid) {
+          console.log('Authorize: Invalid password for user:', credentials.email)
           return null
         }
 

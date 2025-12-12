@@ -98,15 +98,30 @@ export default function RegisterPage() {
         return
       }
 
-      // Auto-login and redirect to onboarding
-      const signInResult = await signIn('credentials', {
+      // Wait a moment for Firestore to index the new user
+      // This prevents "user not found" errors during immediate sign-in
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Auto-login with retry mechanism
+      let signInResult = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
         redirect: false,
       })
 
+      // If sign-in fails, retry once after a short delay
       if (signInResult?.error) {
-        // If auto-login fails, redirect to login page
+        console.log('First sign-in attempt failed, retrying...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        signInResult = await signIn('credentials', {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        })
+      }
+
+      if (signInResult?.error) {
+        // If auto-login still fails after retry, redirect to login page
         setError('Registration successful! Please log in to continue.')
         setTimeout(() => {
           window.location.href = '/auth/login?registered=true'
