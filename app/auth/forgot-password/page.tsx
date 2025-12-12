@@ -1,6 +1,6 @@
-'use client'
-
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 export default function ForgotPasswordPage() {
   return (
@@ -22,4 +22,3 @@ export default function ForgotPasswordPage() {
     </div>
   )
 }
-
