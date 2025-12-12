@@ -10,32 +10,47 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions)
+  try {
+    const session = await getServerSession(authOptions)
 
-  if (!session) {
-    redirect('/auth/login')
+    if (!session) {
+      redirect('/auth/login')
+    }
+
+    const userId = (session.user as any)?.id
+    if (!userId) {
+      redirect('/auth/login')
+    }
+
+    const user = await UserService.findById(userId)
+    
+    if (!user?.churchId) {
+      redirect('/register-church')
+    }
+
+    const churchId = await getCurrentChurchId(userId)
+    if (!churchId) {
+      redirect('/register-church')
+    }
+
+    const church = await ChurchService.findById(churchId)
+    if (church && (church.address || church.description || church.phone || church.website)) {
+      redirect('/dashboard')
+    }
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        {children}
+      </div>
+    )
+  } catch (error) {
+    console.error('Onboarding layout error:', error)
+    // If there's an error, still render children but log it
+    // This prevents blank screens
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        {children}
+      </div>
+    )
   }
-
-  const userId = (session.user as any).id
-  const user = await UserService.findById(userId)
-  
-  if (!user?.churchId) {
-    redirect('/register-church')
-  }
-
-  const churchId = await getCurrentChurchId(userId)
-  if (!churchId) {
-    redirect('/register-church')
-  }
-
-  const church = await ChurchService.findById(churchId)
-  if (church && (church.address || church.description || church.phone || church.website)) {
-    redirect('/dashboard')
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {children}
-    </div>
-  )
 }

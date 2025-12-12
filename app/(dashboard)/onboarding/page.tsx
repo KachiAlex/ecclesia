@@ -19,6 +19,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<OnboardingData>({
     churchName: '',
     churchCity: '',
@@ -33,7 +34,15 @@ export default function OnboardingPage() {
   useEffect(() => {
     const loadChurchData = async () => {
       try {
+        setError(null)
         const response = await fetch('/api/churches/me')
+        
+        if (response.status === 401) {
+          // Unauthorized - redirect to login
+          window.location.href = '/auth/login'
+          return
+        }
+        
         if (response.ok) {
           const church = await response.json()
           let description = church.description || ''
@@ -55,9 +64,14 @@ export default function OnboardingPage() {
             website: church.website || '',
             denomination: denomination,
           })
+        } else {
+          // If API call fails, still show the form (user can fill it manually)
+          console.error('Failed to load church data, but continuing with onboarding')
+          setError('Could not load existing church data. Please fill in the form below.')
         }
       } catch (error) {
         console.error('Error loading church data:', error)
+        setError('Could not load church data. Please fill in the form below.')
       } finally {
         setInitialLoading(false)
       }
@@ -91,6 +105,7 @@ export default function OnboardingPage() {
     }
 
     setLoading(true)
+    setError(null)
     try {
       const response = await fetch('/api/churches/onboarding', {
         method: 'POST',
@@ -99,7 +114,8 @@ export default function OnboardingPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save onboarding data')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to save onboarding data')
       }
 
       await fetch('/api/churches/onboarding/complete', {
@@ -107,9 +123,9 @@ export default function OnboardingPage() {
       })
 
       window.location.href = '/dashboard'
-    } catch (error) {
+    } catch (error: any) {
       console.error('Onboarding error:', error)
-      alert('An error occurred. Please try again.')
+      setError(error.message || 'An error occurred. Please try again.')
       setLoading(false)
     }
   }
@@ -123,17 +139,18 @@ export default function OnboardingPage() {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading your church information...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Progress Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -179,6 +196,12 @@ export default function OnboardingPage() {
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {error && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <p className="text-sm text-yellow-800">{error}</p>
+          </div>
+        )}
+        
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           {/* Step 1: Welcome */}
           {step === 1 && (
@@ -407,6 +430,12 @@ export default function OnboardingPage() {
               <p className="text-lg text-gray-600 mb-8">
                 Your church organization has been set up successfully. You can now start managing your church community.
               </p>
+              
+              {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
               
               <div className="bg-gray-50 rounded-xl p-6 mb-8 text-left">
                 <h3 className="font-semibold text-gray-900 mb-4">What's next?</h3>
