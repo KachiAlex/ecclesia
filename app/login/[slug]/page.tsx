@@ -285,14 +285,15 @@ function ChurchLoginForm() {
               </div>
             </div>
 
-            <p className="mt-6 text-center text-sm text-gray-600">
+            {/* TODO: Implement forgot password functionality */}
+            {/* <p className="mt-6 text-center text-sm text-gray-600">
               <Link
                 href="/auth/forgot-password"
                 className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
               >
                 Forgot your password?
               </Link>
-            </p>
+            </p> */}
           </div>
         </div>
 

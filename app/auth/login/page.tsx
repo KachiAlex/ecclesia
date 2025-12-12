@@ -237,12 +237,13 @@ function LoginForm() {
                   Remember me
                 </label>
               </div>
-              <Link
+              {/* TODO: Implement forgot password functionality */}
+              {/* <Link
                 href="/auth/forgot-password"
                 className="text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 Forgot password?
-              </Link>
+              </Link> */}
             </div>
 
             <button
