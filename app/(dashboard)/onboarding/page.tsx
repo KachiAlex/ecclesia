@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 interface OnboardingData {
   churchName: string
@@ -16,6 +17,7 @@ interface OnboardingData {
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
@@ -132,7 +134,14 @@ export default function OnboardingPage() {
     { number: 4, title: 'Complete', description: 'You\'re all set!' },
   ]
 
-  if (loadingData) {
+  // Check session status - if not authenticated, redirect to login
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/login')
+    }
+  }, [status, router])
+
+  if (status === 'loading' || loadingData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
@@ -142,6 +151,10 @@ export default function OnboardingPage() {
         </div>
       </div>
     )
+  }
+
+  if (status === 'unauthenticated') {
+    return null // Will redirect via useEffect
   }
 
   return (

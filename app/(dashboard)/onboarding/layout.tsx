@@ -13,7 +13,16 @@ export default async function OnboardingLayout({
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    redirect('/auth/login')
+    // Don't redirect immediately - let the page render and handle client-side
+    // This prevents redirect loops during initial session setup
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Setting up your account...</p>
+        </div>
+      </div>
+    )
   }
 
   const userId = (session.user as any).id

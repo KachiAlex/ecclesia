@@ -126,11 +126,20 @@ export default function RegisterPage() {
         setTimeout(() => {
           window.location.href = '/auth/login?registered=true'
         }, 2000)
-      } else {
-        // Use full page reload to ensure session is properly set
-        // This prevents black screen issues with session not being ready
-        window.location.href = '/onboarding'
+        return
       }
+
+      // Wait a bit more for session cookie to be set
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Use router.push with replace to avoid navigation loops
+      // Then do a full page reload after a short delay to ensure session is available
+      router.push('/onboarding')
+      
+      // Force a full page reload after navigation to ensure session is available
+      setTimeout(() => {
+        window.location.href = '/onboarding'
+      }, 100)
     } catch (err) {
       setError('An error occurred. Please try again.')
     } finally {
