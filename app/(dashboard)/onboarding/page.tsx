@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 
 interface OnboardingData {
   churchName: string
@@ -17,10 +16,9 @@ interface OnboardingData {
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [loadingData, setLoadingData] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [formData, setFormData] = useState<OnboardingData>({
     churchName: '',
     churchCity: '',
@@ -33,15 +31,14 @@ export default function OnboardingPage() {
   })
 
   useEffect(() => {
-    // Load existing church data
     const loadChurchData = async () => {
       try {
         const response = await fetch('/api/churches/me')
         if (response.ok) {
           const church = await response.json()
-          // Extract denomination from description if present
           let description = church.description || ''
           let denomination = ''
+          
           if (description.includes('Denomination:')) {
             const parts = description.split('Denomination:')
             description = parts[0].trim()
@@ -58,15 +55,11 @@ export default function OnboardingPage() {
             website: church.website || '',
             denomination: denomination,
           })
-        } else {
-          // If API call fails, still show the form (user can fill it manually)
-          console.error('Failed to load church data, but continuing with onboarding')
         }
       } catch (error) {
         console.error('Error loading church data:', error)
-        // Don't block onboarding if data load fails
       } finally {
-        setLoadingData(false)
+        setInitialLoading(false)
       }
     }
     
@@ -86,7 +79,6 @@ export default function OnboardingPage() {
   }
 
   const handleSubmit = async () => {
-    // Validate that at least one onboarding field is filled
     const hasOnboardingData = 
       formData.address?.trim() || 
       formData.description?.trim() || 
@@ -100,7 +92,6 @@ export default function OnboardingPage() {
 
     setLoading(true)
     try {
-      // Update church with onboarding data
       const response = await fetch('/api/churches/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,18 +102,14 @@ export default function OnboardingPage() {
         throw new Error('Failed to save onboarding data')
       }
 
-      // Mark onboarding as complete
       await fetch('/api/churches/onboarding/complete', {
         method: 'POST',
       })
 
-      // Redirect to dashboard
-      router.push('/dashboard')
-      router.refresh()
+      window.location.href = '/dashboard'
     } catch (error) {
       console.error('Onboarding error:', error)
       alert('An error occurred. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
@@ -134,31 +121,19 @@ export default function OnboardingPage() {
     { number: 4, title: 'Complete', description: 'You\'re all set!' },
   ]
 
-  // Check session status - if not authenticated, redirect to login
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login')
-    }
-  }, [status, router])
-
-  if (status === 'loading' || loadingData) {
+  if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your church information...</p>
-          <p className="text-sm text-gray-500 mt-2">Please wait</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     )
   }
 
-  if (status === 'unauthenticated') {
-    return null // Will redirect via useEffect
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen">
       {/* Progress Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -267,6 +242,7 @@ export default function OnboardingPage() {
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="Grace Community Church"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
 
@@ -281,6 +257,7 @@ export default function OnboardingPage() {
                       onChange={(e) => setFormData({ ...formData, churchCity: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                       placeholder="New York"
+                      style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                     />
                   </div>
                   <div>
@@ -293,6 +270,7 @@ export default function OnboardingPage() {
                       onChange={(e) => setFormData({ ...formData, churchCountry: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                       placeholder="United States"
+                      style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                     />
                   </div>
                 </div>
@@ -307,6 +285,7 @@ export default function OnboardingPage() {
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="123 Main Street"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
 
@@ -320,6 +299,7 @@ export default function OnboardingPage() {
                     onChange={(e) => setFormData({ ...formData, denomination: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="e.g., Baptist, Methodist, Non-denominational"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
 
@@ -333,6 +313,7 @@ export default function OnboardingPage() {
                     rows={4}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="Tell us about your church mission, vision, and values..."
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
               </div>
@@ -346,7 +327,7 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={handleNext}
-                  disabled={!formData.churchName}
+                  disabled={!formData.churchName.trim()}
                   className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next →
@@ -372,6 +353,7 @@ export default function OnboardingPage() {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="+1 (555) 000-0000"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
 
@@ -385,6 +367,7 @@ export default function OnboardingPage() {
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     placeholder="https://yourchurch.com"
+                    style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
                 </div>
 
@@ -461,4 +444,3 @@ export default function OnboardingPage() {
     </div>
   )
 }
-
