@@ -19,6 +19,9 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
   const [events, setEvents] = useState<Event[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showCreateEvent, setShowCreateEvent] = useState(false)
+  const [showEventList, setShowEventList] = useState(false)
+  const [selectedDayEvents, setSelectedDayEvents] = useState<Event[]>([])
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   
   // New event form
@@ -78,7 +81,7 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day))
     }
-    
+
     return days
   }
 
@@ -93,9 +96,20 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
     })
   }
 
-  const handleDayClick = (date: Date) => { if (!isAdmin) return;
+  const handleDayClick = (date: Date) => {
+    if (!isAdmin) return;
+    
+    const dayEvents = getEventsForDate(date)
     setSelectedDate(date)
-    setShowCreateEvent(true)
+    
+    if (dayEvents.length > 0) {
+      // Show existing events for editing
+      setSelectedDayEvents(dayEvents)
+      setShowEventList(true)
+    } else {
+      // Show create form for empty days
+      setShowCreateEvent(true)
+    }
   }
 
   const handlePreviousMonth = () => {
@@ -146,6 +160,7 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
 
       if (response.ok) {
         setShowCreateEvent(false)
+        setEditingEvent(null)
         setNewEvent({
           title: '',
           description: '',
@@ -166,6 +181,98 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
     } catch (error) {
       console.error('Error creating event:', error)
       alert('Failed to create event')
+    }
+  }
+
+  const handleEditEvent = (event: Event) => {
+    setEditingEvent(event)
+    setNewEvent({
+      title: event.title,
+      description: event.description || '',
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location || '',
+      type: event.type || 'SERVICE',
+      isRecurring: false,
+      recurrencePattern: 'WEEKLY',
+      recurrenceEndDate: '',
+    })
+    setShowEventList(false)
+    setShowCreateEvent(true)
+  }
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent || !selectedDate || !newEvent.title) {
+      alert('Please provide a title for the event')
+      return
+    }
+
+    try {
+      const startDateTime = new Date(selectedDate)
+      const [startHour, startMinute] = newEvent.startTime.split(':')
+      startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0)
+
+      const endDateTime = new Date(selectedDate)
+      const [endHour, endMinute] = newEvent.endTime.split(':')
+      endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0, 0)
+
+      const response = await fetch(`/api/events/${editingEvent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newEvent.title,
+          description: newEvent.description,
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          location: newEvent.location,
+          type: newEvent.type,
+        }),
+      })
+
+      if (response.ok) {
+        setShowCreateEvent(false)
+        setEditingEvent(null)
+        setNewEvent({
+          title: '',
+          description: '',
+          startTime: '09:00',
+          endTime: '10:00',
+          location: '',
+          type: 'SERVICE',
+          isRecurring: false,
+          recurrencePattern: 'WEEKLY',
+          recurrenceEndDate: '',
+        })
+        loadEvents()
+        alert('Event updated successfully!')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to update event')
+      }
+    } catch (error) {
+      console.error('Error updating event:', error)
+      alert('Failed to update event')
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this event?')) return
+
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        loadEvents()
+        setShowEventList(false)
+        alert('Event deleted successfully!')
+      } else {
+        alert('Failed to delete event')
+      }
+    } catch (error) {
+      console.error('Error deleting event:', error)
+      alert('Failed to delete event')
     }
   }
 
@@ -206,31 +313,31 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-6">
           <div className="flex justify-between items-center">
-            <button
+        <button
               onClick={handlePreviousMonth}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-            >
+        >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-            </button>
+        </button>
             
             <h2 className="text-2xl font-bold">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
+        </h2>
             
-            <button
+        <button
               onClick={handleNextMonth}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-            >
+        >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </button>
+        </button>
           </div>
-        </div>
+      </div>
 
-        {/* Calendar Grid */}
+      {/* Calendar Grid */}
         <div className="p-4">
           {/* Day Names */}
           <div className="grid grid-cols-7 gap-2 mb-2">
@@ -267,26 +374,26 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                   <div className="flex flex-col h-full">
                     <div className={`text-sm mb-1 ${today ? 'text-primary-700' : ''}`}>
                       {date.getDate()}
-                    </div>
+                  </div>
                     
                     {/* Event indicators */}
                     <div className="flex-1 overflow-hidden">
-                      {dayEvents.slice(0, 2).map((event) => (
-                        <div
-                          key={event.id}
+                    {dayEvents.slice(0, 2).map((event) => (
+                      <div
+                        key={event.id}
                           className="text-xs bg-blue-100 text-blue-800 rounded px-1 py-0.5 mb-1 truncate"
                           title={event.title}
-                        >
-                          {event.title}
-                        </div>
-                      ))}
-                      {dayEvents.length > 2 && (
-                        <div className="text-xs text-gray-500">
-                          +{dayEvents.length - 2} more
-                        </div>
-                      )}
-                    </div>
+                      >
+                        {event.title}
+                      </div>
+                    ))}
+                    {dayEvents.length > 2 && (
+                      <div className="text-xs text-gray-500">
+                        +{dayEvents.length - 2} more
+                      </div>
+                    )}
                   </div>
+                </div>
                 </button>
               )
             })}
@@ -301,7 +408,7 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-2xl font-bold">Create Event</h2>
+                  <h2 className="text-2xl font-bold">{editingEvent ? 'Edit Event' : 'Create Event'}</h2>
                   <p className="text-gray-600">
                     {selectedDate.toLocaleDateString('en-US', {
                       weekday: 'long',
@@ -312,7 +419,10 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowCreateEvent(false)}
+                  onClick={() => {
+                    setShowCreateEvent(false)
+                    setEditingEvent(null)
+                  }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,19 +517,20 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                   </select>
                 </div>
 
-                {/* Recurring Event Options */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="isRecurring"
-                      checked={newEvent.isRecurring}
-                      onChange={(e) => setNewEvent({ ...newEvent, isRecurring: e.target.checked })}
-                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-                      🔄 Recurring Event
-                    </label>
+                {/* Recurring Event Options - Only for new events */}
+                {!editingEvent && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        type="checkbox"
+                        id="isRecurring"
+                        checked={newEvent.isRecurring}
+                        onChange={(e) => setNewEvent({ ...newEvent, isRecurring: e.target.checked })}
+                        className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                        🔄 Recurring Event
+                      </label>
                   </div>
 
                   {newEvent.isRecurring && (
@@ -437,7 +548,7 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                           <option value="BIWEEKLY">Bi-weekly (every 2 weeks)</option>
                           <option value="MONTHLY">Monthly (same day each month)</option>
                         </select>
-                      </div>
+              </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -464,24 +575,120 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex justify-end gap-3 mt-6">
                 <button
-                  onClick={() => setShowCreateEvent(false)}
+                  onClick={() => {
+                    setShowCreateEvent(false)
+                    setEditingEvent(null)
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleCreateEvent}
+                  onClick={editingEvent ? handleUpdateEvent : handleCreateEvent}
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
                 >
-                  Create Event
+                  {editingEvent ? 'Update Event' : 'Create Event'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Event List Modal - When clicking on a day with events */}
+      {showEventList && selectedDate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Events on this Day</h2>
+                  <p className="text-gray-600">
+                    {selectedDate.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowEventList(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Events List */}
+              <div className="space-y-3">
+                {selectedDayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-primary-500 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{event.title}</h3>
+                        {event.description && (
+                          <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                        )}
+                      </div>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        {event.type}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-sm text-gray-600 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span>⏰</span>
+                        <span>{event.startTime} - {event.endTime}</span>
+                      </div>
+                      {event.location && (
+                        <div className="flex items-center gap-2">
+                          <span>📍</span>
+                          <span>{event.location}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="flex-1 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add New Event Button */}
+              <button
+                onClick={() => {
+                  setShowEventList(false)
+                  setShowCreateEvent(true)
+                }}
+                className="w-full mt-4 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors text-gray-600 hover:text-primary-700 font-medium"
+              >
+                + Add Another Event on This Day
+              </button>
             </div>
           </div>
         </div>
