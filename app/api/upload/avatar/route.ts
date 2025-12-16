@@ -47,24 +47,44 @@ export async function POST(request: Request) {
       )
     }
 
-    // In production, upload to cloud storage (S3, Cloudinary, etc.)
-    // For now, we'll return a placeholder URL
-    // You should implement actual file upload logic here
-    
-    // Example: Upload to Google Drive (based on memory preference)
-    // const uploadUrl = await uploadToGoogleDrive(file, userId)
-    
-    // For now, return a data URL or placeholder
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    const base64 = buffer.toString('base64')
-    const dataUrl = `data:${file.type};base64,${base64}`
+    // Upload to Firebase Storage
+    try {
+      const { StorageService } = await import('@/lib/services/storage-service')
+      const result = await StorageService.uploadImage(file, {
+        userId,
+        churchId: church.id,
+        folder: 'avatars',
+        maxWidth: 512,
+        maxHeight: 512,
+        quality: 85,
+      })
 
-    // In production, return the actual uploaded URL
-    return NextResponse.json({
-      url: dataUrl, // Replace with actual upload URL
-      message: 'File uploaded successfully (using data URL - implement cloud storage)',
-    })
+      return NextResponse.json({
+        url: result.url,
+        path: result.path,
+        message: 'Avatar uploaded successfully',
+      })
+    } catch (error: any) {
+      console.error('Error uploading to storage:', error)
+      
+      // Fallback to data URL if storage fails (for development)
+      if (process.env.NODE_ENV === 'development') {
+        const arrayBuffer = await file.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
+        const base64 = buffer.toString('base64')
+        const dataUrl = `data:${file.type};base64,${base64}`
+
+        return NextResponse.json({
+          url: dataUrl,
+          message: 'File uploaded as data URL (storage service not configured)',
+        })
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to upload file. Please try again.' },
+        { status: 500 }
+      )
+    }
   } catch (error: any) {
     console.error('Error uploading avatar:', error)
     return NextResponse.json(

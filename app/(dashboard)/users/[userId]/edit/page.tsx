@@ -6,7 +6,7 @@ import UserProfileEdit from '@/components/UserProfileEdit'
 export default async function UserProfileEditPage({
   params,
 }: {
-  params: { userId: string }
+  params: Promise<{ userId: string }>
 }) {
   const session = await getServerSession(authOptions)
 
@@ -14,6 +14,7 @@ export default async function UserProfileEditPage({
     redirect('/auth/login')
   }
 
-  return <UserProfileEdit userId={params.userId} />
+  const { userId } = await params
+  return <UserProfileEdit userId={userId} />
 }
 

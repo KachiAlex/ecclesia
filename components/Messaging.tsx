@@ -135,8 +135,12 @@ export default function Messaging() {
             <h2 className="font-semibold">Conversations</h2>
           </div>
           {conversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500 text-sm">
-              No conversations yet
+            <div className="p-8 text-center">
+              <div className="text-4xl mb-3">✉️</div>
+              <p className="text-gray-600 mb-2">No conversations yet</p>
+              <p className="text-sm text-gray-500">
+                Start a conversation by messaging a member from the directory
+              </p>
             </div>
           ) : (
             conversations.map((conv) => (

@@ -8,9 +8,10 @@ import { scheduleNewConvertFollowUps } from '@/lib/ai/follow-up'
 
 export async function POST(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params
     const { error: permError, user } = await requirePermissionMiddleware(
       'manage_roles'
     )
@@ -18,8 +19,6 @@ export async function POST(
     if (permError) {
       return permError
     }
-
-    const { userId } = params
     const body = await request.json()
     const { newRole, scheduleFollowUps } = body
 

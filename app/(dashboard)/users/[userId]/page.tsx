@@ -6,7 +6,7 @@ import UserProfile from '@/components/UserProfile'
 export default async function UserProfilePage({
   params,
 }: {
-  params: { userId: string }
+  params: Promise<{ userId: string }>
 }) {
   const session = await getServerSession(authOptions)
 
@@ -14,6 +14,7 @@ export default async function UserProfilePage({
     redirect('/auth/login')
   }
 
-  return <UserProfile userId={params.userId} />
+  const { userId } = await params
+  return <UserProfile userId={userId} />
 }
 

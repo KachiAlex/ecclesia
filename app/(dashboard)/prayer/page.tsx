@@ -10,6 +10,9 @@ export default async function PrayerPage() {
     redirect('/auth/login')
   }
 
-  return <PrayerWall />
+  const userRole = (session.user as any).role
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)
+
+  return <PrayerWall isAdmin={isAdmin} />
 }
 

@@ -5,16 +5,16 @@ import { ReadingPlanService, ReadingPlanProgressService } from '@/lib/services/r
 
 export async function POST(
   request: Request,
-  { params }: { params: { planId: string } }
+  { params }: { params: Promise<{ planId: string }> }
 ) {
   try {
+    const { planId } = await params
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const userId = (session.user as any).id
-    const { planId } = params
 
     // Check if plan exists
     const plan = await ReadingPlanService.findById(planId)

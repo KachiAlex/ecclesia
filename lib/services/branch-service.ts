@@ -77,21 +77,28 @@ export class BranchService {
    * Find all branches for a church
    */
   static async findByChurch(churchId: string): Promise<Branch[]> {
-    const snapshot = await db.collection(COLLECTIONS.branches)
-      .where('churchId', '==', churchId)
-      .where('isActive', '==', true)
-      .orderBy('createdAt', 'desc')
-      .get()
-    
-    return snapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
-      } as Branch
-    })
+    try {
+      const snapshot = await db.collection(COLLECTIONS.branches)
+        .where('churchId', '==', churchId)
+        .where('isActive', '==', true)
+        .get()
+      
+      const branches = snapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: toDate(data.createdAt),
+          updatedAt: toDate(data.updatedAt),
+        } as Branch
+      })
+      
+      // Sort by createdAt descending (client-side to avoid index requirement)
+      return branches.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    } catch (error) {
+      console.error('Error in findByChurch:', error)
+      throw error
+    }
   }
 
   /**

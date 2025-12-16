@@ -2,185 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-}
-
+/* Prevent white-on-white text issues */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  /* Fix any accidental white text on white backgrounds */
+  .bg-white .text-white:not([class*="bg-gradient"]) {
+    color: #111827 !important; /* gray-900 */
+  }
+  
+  /* Ensure text on white backgrounds is dark */
+  .text-on-white {
+    @apply text-gray-900;
+  }
+  
+  /* Muted text on white */
+  .text-muted-on-white {
+    @apply text-gray-600;
+  }
+  
+  /* Ensure gradient backgrounds keep proper text color */
+  [class*="bg-gradient"] .text-white {
+    color: white !important;
+  }
+  
+  /* Link styling */
+  .text-link {
+    @apply text-blue-600 hover:text-blue-700;
+  }
+  
+  /* Button utilities */
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md;
+  }
+  
+  /* Card utilities */
+  .card {
+    @apply bg-white rounded-xl p-6 shadow-sm border border-gray-100;
+  }
+  
+  .card-title {
+    @apply text-xl font-bold text-gray-900 mb-2;
+  }
+  
+  .card-subtitle {
+    @apply text-sm text-gray-600;
   }
 }
-
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Animation keyframes */
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-/* Floating animation */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) translateX(0px);
-  }
-  33% {
-    transform: translateY(-30px) translateX(20px);
-  }
-  66% {
-    transform: translateY(20px) translateX(-20px);
-  }
-}
-
-.animate-float {
-  animation: float 8s ease-in-out infinite;
-}
-
-/* Slow pulse animation */
-@keyframes pulse-slow {
-  0%, 100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.animate-pulse-slow {
-  animation: pulse-slow 4s ease-in-out infinite;
-}
-
-/* Fade in animation */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.6s ease-out forwards;
-}
-
-/* Gradient animation */
-@keyframes gradient {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient 3s ease infinite;
-}
-
-/* Ensure form inputs have visible text - MUST override all styles */
-/* Place after Tailwind utilities to ensure highest priority */
-@layer utilities {
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="tel"],
-  input[type="number"],
-  input[type="url"],
-  input[type="search"],
-  input[type="date"],
-  input[type="time"],
-  input[type="datetime-local"],
-  textarea,
-  select {
-    color: #111827 !important; /* text-gray-900 */
-    -webkit-text-fill-color: #111827 !important; /* Override autofill text color */
-  }
-
-  /* Override browser autofill styles */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active {
-    -webkit-text-fill-color: #111827 !important;
-    color: #111827 !important;
-    box-shadow: 0 0 0px 1000px white inset !important;
-  }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: #9ca3af !important; /* text-gray-400 */
-    opacity: 1 !important;
-  }
-
-  /* Ensure input values are visible */
-  input:not([type="checkbox"]):not([type="radio"]),
-  textarea {
-    color: #111827 !important;
-    -webkit-text-fill-color: #111827 !important;
-  }
-}
-
-/* Additional global override outside of layers for maximum priority */
-input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
-textarea,
-select {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-input:-webkit-autofill {
-  -webkit-text-fill-color: #111827 !important;
-  color: #111827 !important;
-  box-shadow: 0 0 0px 1000px white inset !important;
-}
-

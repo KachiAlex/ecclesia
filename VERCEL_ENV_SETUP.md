@@ -44,9 +44,18 @@ Add each of these variables:
 
 ### Optional Variables
 
-7. **OPENAI_API_KEY** (if using AI features)
+7. **DEEPSEEK_API_KEY** (Recommended for AI features - Cost-effective)
+   - Value: Your DeepSeek API key
+   - How to get: Sign up at https://platform.deepseek.com → API Keys section
+   - Optional: `DEEPSEEK_MODEL=deepseek-chat` (default: deepseek-chat)
+   - Environment: Production, Preview, Development
+
+**Alternative:**
+7b. **OPENAI_API_KEY** (Alternative AI provider)
    - Value: Your OpenAI API key
    - Environment: Production, Preview, Development
+
+**Note:** The app uses DeepSeek if `DEEPSEEK_API_KEY` is set, otherwise falls back to OpenAI if `OPENAI_API_KEY` is set.
 
 8. **NODE_ENV**
    - Value: `production`

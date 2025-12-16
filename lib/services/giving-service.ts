@@ -70,13 +70,13 @@ export class GivingService {
   }
 
   static async findByUser(userId: string, limit: number = 50): Promise<Giving[]> {
+    // Simplified query to avoid composite index requirement
     const snapshot = await db.collection(COLLECTIONS.giving)
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .limit(limit)
       .get()
 
-    return snapshot.docs.map((doc: any) => {
+    const results = snapshot.docs.map((doc: any) => {
       const data = doc.data()
       return {
         id: doc.id,
@@ -85,6 +85,9 @@ export class GivingService {
         updatedAt: toDate(data.updatedAt),
       } as Giving
     })
+
+    // Sort in memory since we can't use orderBy without indexes
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
 
   static async getTotalByUser(userId: string): Promise<number> {
@@ -163,13 +166,15 @@ export class ProjectService {
   }
 
   static async findByChurch(churchId: string): Promise<Project[]> {
+    // Simplified query to avoid composite index requirement
+    // Note: orderBy removed temporarily. Once Firestore indexes are created, add back:
+    // .orderBy('createdAt', 'desc')
     const snapshot = await db.collection(COLLECTIONS.projects)
       .where('churchId', '==', churchId)
       .where('status', '==', 'Active')
-      .orderBy('createdAt', 'desc')
       .get()
 
-    return snapshot.docs.map((doc: any) => {
+    const results = snapshot.docs.map((doc: any) => {
       const data = doc.data()
       return {
         id: doc.id,
@@ -180,6 +185,9 @@ export class ProjectService {
         updatedAt: toDate(data.updatedAt),
       } as Project
     })
+
+    // Sort in memory since we can't use orderBy without indexes
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
 
   static async incrementAmount(projectId: string, amount: number): Promise<void> {

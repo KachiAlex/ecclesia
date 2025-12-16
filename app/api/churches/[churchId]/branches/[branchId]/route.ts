@@ -11,9 +11,10 @@ import { UserService } from '@/lib/services/user-service'
  */
 export async function GET(
   request: Request,
-  { params }: { params: { churchId: string; branchId: string } }
+  { params }: { params: Promise<{ churchId: string; branchId: string }> }
 ) {
   try {
+    const { churchId, branchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -33,7 +34,7 @@ export async function GET(
       )
     }
 
-    const branch = await BranchService.findById(params.branchId)
+    const branch = await BranchService.findById(branchId)
     
     if (!branch) {
       return NextResponse.json(
@@ -43,7 +44,7 @@ export async function GET(
     }
 
     // Verify branch belongs to church
-    if (branch.churchId !== params.churchId) {
+    if (branch.churchId !== churchId) {
       return NextResponse.json(
         { error: 'Branch does not belong to this church' },
         { status: 400 }
@@ -51,7 +52,7 @@ export async function GET(
     }
 
     // Verify user has access
-    if (user.churchId !== params.churchId && user.role !== 'SUPER_ADMIN') {
+    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -59,7 +60,7 @@ export async function GET(
     }
 
     // Get branch admins
-    const admins = await BranchAdminService.findByBranch(params.branchId)
+    const admins = await BranchAdminService.findByBranch(branchId)
     
     return NextResponse.json({
       ...branch,
@@ -80,9 +81,10 @@ export async function GET(
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { churchId: string; branchId: string } }
+  { params }: { params: Promise<{ churchId: string; branchId: string }> }
 ) {
   try {
+    const { churchId, branchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -102,7 +104,7 @@ export async function PATCH(
       )
     }
 
-    const branch = await BranchService.findById(params.branchId)
+    const branch = await BranchService.findById(branchId)
     
     if (!branch) {
       return NextResponse.json(
@@ -112,8 +114,8 @@ export async function PATCH(
     }
 
     // Verify user is church admin or branch admin
-    const isChurchAdmin = user.churchId === params.churchId && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
-    const isBranchAdmin = await BranchAdminService.findByBranchAndUser(params.branchId, userId)
+    const isChurchAdmin = user.churchId === churchId && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
+    const isBranchAdmin = await BranchAdminService.findByBranchAndUser(branchId, userId)
     
     if (!isChurchAdmin && !isBranchAdmin) {
       return NextResponse.json(
@@ -123,7 +125,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const updatedBranch = await BranchService.update(params.branchId, body)
+    const updatedBranch = await BranchService.update(branchId, body)
     
     return NextResponse.json(updatedBranch)
   } catch (error) {
@@ -141,9 +143,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { churchId: string; branchId: string } }
+  { params }: { params: Promise<{ churchId: string; branchId: string }> }
 ) {
   try {
+    const { churchId, branchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -164,14 +167,14 @@ export async function DELETE(
     }
 
     // Only church admins can delete branches
-    if (user.churchId !== params.churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
         { error: 'Only church admins can delete branches' },
         { status: 403 }
       )
     }
 
-    await BranchService.delete(params.branchId)
+    await BranchService.delete(branchId)
     
     return NextResponse.json({ message: 'Branch deleted successfully' })
   } catch (error) {

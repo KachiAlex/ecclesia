@@ -69,6 +69,23 @@ export async function POST(request: Request) {
     // TODO: Generate PDF receipt
     // const receiptUrl = await generateReceipt(giving)
 
+    // Send donation receipt email
+    if (user) {
+      const { EmailService } = await import('@/lib/services/email-service')
+      await EmailService.sendDonationReceipt(
+        user.email,
+        {
+          amount: parseFloat(amount),
+          type,
+          projectName: project?.name,
+          transactionId: transactionId || giving.id,
+          date: new Date(giving.createdAt),
+          receiptUrl: undefined, // Will be added when PDF generation is implemented
+        },
+        `${user.firstName} ${user.lastName}`
+      )
+    }
+
     return NextResponse.json(
       {
         ...giving,

@@ -1,8 +1,10 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app'
 import { getFirestore, Firestore, FieldValue, Transaction } from 'firebase-admin/firestore'
+import { getStorage, Storage } from 'firebase-admin/storage'
 
 let app: App
 let _db: Firestore | null = null
+let _storage: Storage | null = null
 
 /**
  * Initialize Firebase Admin SDK
@@ -38,18 +40,22 @@ export function initFirebase() {
       app = initializeApp({
         credential: cert(serviceAccount),
         projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
       })
     } else {
       // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
       app = initializeApp({
         projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
       })
     }
 
     _db = getFirestore(app)
+    _storage = getStorage(app)
   } else {
     app = getApps()[0]
     _db = getFirestore(app)
+    _storage = getStorage(app)
   }
 
   return _db!
@@ -67,6 +73,22 @@ export function getFirestoreDB(): Firestore {
 
 // Export db - initialized on first access
 export const db = getFirestoreDB()
+
+/**
+ * Get Firebase Storage instance
+ */
+export function getFirebaseStorage(): Storage {
+  if (!_storage) {
+    initFirebase() // This will initialize storage too
+    if (!_storage) {
+      throw new Error('Firebase Storage not initialized')
+    }
+  }
+  return _storage
+}
+
+// Export storage - initialized on first access
+export const storage = getFirebaseStorage()
 
 /**
  * Helper to convert Firestore timestamp to Date

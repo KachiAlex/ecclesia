@@ -11,9 +11,10 @@ import { UserService } from '@/lib/services/user-service'
  */
 export async function GET(
   request: Request,
-  { params }: { params: { churchId: string } }
+  { params }: { params: Promise<{ churchId: string }> }
 ) {
   try {
+    const { churchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -34,20 +35,20 @@ export async function GET(
     }
 
     // Verify user belongs to this church
-    if (user.churchId !== params.churchId && user.role !== 'SUPER_ADMIN') {
+    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    const branches = await BranchService.findByChurch(params.churchId)
+    const branches = await BranchService.findByChurch(churchId)
     
     return NextResponse.json(branches)
   } catch (error) {
     console.error('Error fetching branches:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -59,9 +60,10 @@ export async function GET(
  */
 export async function POST(
   request: Request,
-  { params }: { params: { churchId: string } }
+  { params }: { params: Promise<{ churchId: string }> }
 ) {
   try {
+    const { churchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -82,7 +84,7 @@ export async function POST(
     }
 
     // Verify user is admin of this church
-    const church = await ChurchService.findById(params.churchId)
+    const church = await ChurchService.findById(churchId)
     if (!church) {
       return NextResponse.json(
         { error: 'Church not found' },
@@ -90,7 +92,7 @@ export async function POST(
       )
     }
 
-    if (user.churchId !== params.churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
         { error: 'Only church admins can create branches' },
         { status: 403 }
@@ -113,7 +115,7 @@ export async function POST(
     let counter = 1
     
     while (true) {
-      const existingBranch = await BranchService.findBySlug(params.churchId, slug)
+      const existingBranch = await BranchService.findBySlug(churchId, slug)
       if (!existingBranch) break
       slug = `${baseSlug}-${counter}`
       counter++
@@ -123,7 +125,7 @@ export async function POST(
     const branch = await BranchService.create({
       name,
       slug,
-      churchId: params.churchId,
+      churchId: churchId,
       address: address || null,
       city: city || null,
       state: state || null,
@@ -139,7 +141,7 @@ export async function POST(
     // If adminId provided, assign as branch admin
     if (adminId) {
       const adminUser = await UserService.findById(adminId)
-      if (adminUser && adminUser.churchId === params.churchId) {
+      if (adminUser && adminUser.churchId === churchId) {
         // Assign as branch admin
         await BranchAdminService.assignAdmin({
           branchId: branch.id,
@@ -169,7 +171,7 @@ export async function POST(
   } catch (error) {
     console.error('Error creating branch:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

@@ -36,10 +36,16 @@ export default function SermonHub() {
 
   useEffect(() => {
     loadSermons()
-    loadCategories()
   }, [search, category])
 
+  useEffect(() => {
+    // Extract unique categories from sermons after they're loaded
+    const cats = Array.from(new Set(sermons.map((s) => s.category).filter(Boolean)))
+    setCategories(cats as string[])
+  }, [sermons])
+
   const loadSermons = async () => {
+    setLoading(true)
     try {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
@@ -48,19 +54,15 @@ export default function SermonHub() {
       const response = await fetch(`/api/sermons?${params}`)
       if (response.ok) {
         const data = await response.json()
-        setSermons(data.sermons)
+        setSermons(data.sermons || [])
+      } else {
+        console.error('Failed to load sermons')
       }
     } catch (error) {
       console.error('Error loading sermons:', error)
     } finally {
       setLoading(false)
     }
-  }
-
-  const loadCategories = async () => {
-    // Extract unique categories from sermons
-    const cats = Array.from(new Set(sermons.map((s) => s.category).filter(Boolean)))
-    setCategories(cats as string[])
   }
 
   const formatDuration = (seconds?: number) => {
@@ -83,11 +85,19 @@ export default function SermonHub() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Sermon Hub</h1>
-        <p className="text-gray-600">
-          Watch sermons, continue where you left off, and download for offline listening
-        </p>
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Sermon Hub</h1>
+          <p className="text-gray-600">
+            Watch sermons, continue where you left off, and download for offline listening
+          </p>
+        </div>
+        <Link
+          href="/sermons/upload"
+          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium flex items-center gap-2"
+        >
+          <span>📤</span> Upload Sermon
+        </Link>
       </div>
 
       {/* Search and Filters */}
@@ -177,7 +187,7 @@ export default function SermonHub() {
             sermons.map((sermon) => (
               <Link
                 key={sermon.id}
-                href={`/dashboard/sermons/${sermon.id}`}
+                href={`/sermons/${sermon.id}`}
                 className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
               >
                 {sermon.thumbnailUrl ? (

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { plans } from '@/lib/plans-data'
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -35,14 +36,6 @@ export default function Home() {
       window.removeEventListener('scroll', handleScroll)
       observerRef.current?.disconnect()
     }
-  }, [])
-
-  // Auto-rotate features
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveFeature((prev) => (prev + 1) % features.length)
-    }, 5000)
-    return () => clearInterval(interval)
   }, [])
 
   const features = [
@@ -144,110 +137,22 @@ export default function Home() {
     },
   ]
 
-  const testimonials = [
-    {
-      name: 'Pastor Michael Johnson',
-      role: 'Senior Pastor',
-      church: 'Grace Community Church',
-      content: 'Ecclesia has transformed how we engage with our congregation. The AI discipleship features help us personalize spiritual growth for every member.',
-      rating: 5,
-      avatar: '👨‍💼',
-    },
-    {
-      name: 'Sarah Williams',
-      role: 'Church Administrator',
-      church: 'Hope Fellowship',
-      content: 'The payroll system alone saves us hours every week. And the member management is so intuitive - our team loves it!',
-      rating: 5,
-      avatar: '👩‍💼',
-    },
-    {
-      name: 'Pastor David Chen',
-      role: 'Lead Pastor',
-      church: 'New Life Church',
-      content: 'The sermon hub with AI summaries is incredible. Our members can quickly find relevant content, and engagement has increased significantly.',
-      rating: 5,
-      avatar: '👨‍💼',
-    },
-    {
-      name: 'Emily Rodriguez',
-      role: 'Children\'s Ministry Director',
-      church: 'Faith Church',
-      content: 'The family module makes managing children\'s check-in so easy. Parents love the digital cards and family devotion features.',
-      rating: 5,
-      avatar: '👩‍🏫',
-    },
-  ]
+  // Auto-rotate features - temporarily disabled
+  // useEffect(() => {
+  //   if (features.length === 0) return
+  //   const interval = setInterval(() => {
+  //     setActiveFeature((prev) => (prev + 1) % features.length)
+  //   }, 5000)
+  //   return () => clearInterval(interval)
+  // }, [])
 
-  const plans = [
-    {
-      name: 'Free',
-      price: '$0',
-      period: '/month',
-      description: 'Perfect for small churches getting started',
-      features: [
-        'Up to 50 members',
-        'Basic member management',
-        'Community feed',
-        'Prayer wall',
-        'Basic event calendar',
-        'Email support',
-      ],
-      cta: 'Start Free',
-      popular: false,
-    },
-    {
-      name: 'Basic',
-      price: '$49',
-      period: '/month',
-      description: 'For growing churches',
-      features: [
-        'Up to 200 members',
-        'All Free features',
-        'AI Discipleship',
-        'Sermon Hub',
-        'Giving & Finance',
-        'Event registration',
-        'Priority support',
-      ],
-      cta: 'Get Started',
-      popular: true,
-    },
-    {
-      name: 'Pro',
-      price: '$99',
-      period: '/month',
-      description: 'For established churches',
-      features: [
-        'Up to 1,000 members',
-        'All Basic features',
-        'Payroll system',
-        'Advanced analytics',
-        'Gamification',
-        'Custom branding',
-        '24/7 support',
-      ],
-      cta: 'Get Started',
-      popular: false,
-    },
-    {
-      name: 'Enterprise',
-      price: 'Custom',
-      period: '',
-      description: 'For large organizations',
-      features: [
-        'Unlimited members',
-        'All Pro features',
-        'Multi-church management',
-        'Dedicated support',
-        'Custom integrations',
-        'SLA guarantee',
-        'Training & onboarding',
-      ],
-      cta: 'Contact Sales',
-      popular: false,
-    },
-  ]
+  // const testimonials = [
+  //   { name: 'Pastor Michael Johnson', role: 'Senior Pastor', church: 'Grace Community Church', content: 'Ecclesia has transformed how we engage with our congregation.', rating: 5, avatar: '👨‍💼' },
+  //   { name: 'Sarah Williams', role: 'Church Administrator', church: 'Hope Fellowship', content: 'The payroll system alone saves us hours every week.', rating: 5, avatar: '👩‍💼' },
+  //   { name: 'Pastor David Chen', role: 'Lead Pastor', church: 'New Life Church', content: 'The sermon hub with AI summaries is incredible.', rating: 5, avatar: '👨‍💼' },
+  //   { name: 'Emily Rodriguez', role: "Children's Ministry Director", church: 'Faith Church', content: "The family module makes managing children's check-in so easy.", rating: 5, avatar: '👩‍🏫' },
+  // ]
+  const testimonials: any[] = []
 
   return (
     <main className="min-h-screen bg-white overflow-hidden">
@@ -284,21 +189,21 @@ export default function Home() {
               <a href="#testimonials" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">Testimonials</a>
               <a href="#pricing" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">Pricing</a>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/auth/login"
-                className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 text-sm md:text-base"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/auth/register"
-                className="relative px-4 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold text-sm md:text-base transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 group overflow-hidden"
-              >
-                <span className="relative z-10">Get Started</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Link>
-            </div>
+                   <div className="flex items-center space-x-4">
+                     <Link
+                       href="/auth/login"
+                       className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 text-sm md:text-base"
+                     >
+                       Sign In
+                     </Link>
+                     <Link
+                       href="/auth/register"
+                       className="relative px-4 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold text-sm md:text-base transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 group overflow-hidden"
+                     >
+                       <span className="relative z-10">Get Started</span>
+                       <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                     </Link>
+                   </div>
           </div>
         </div>
       </nav>
@@ -371,23 +276,17 @@ export default function Home() {
                 >
                   Church Login
                 </Link>
-                <Link
-                  href="#demo"
-                  className="px-8 py-4 bg-transparent text-gray-700 rounded-2xl font-semibold text-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 w-full sm:w-auto"
-                >
-                  Watch Demo
-                </Link>
               </div>
+            </div>
 
-              {/* Church Login Form - Collapsible */}
-              <div className={`mb-12 transition-all duration-1000 delay-200 ease-out max-w-md ${
-                mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}>
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Church Login</h2>
-                  <p className="text-gray-600 text-center mb-6 text-sm md:text-base">Sign in to your church portal</p>
-                  <ChurchLoginForm />
-                </div>
+            {/* Church Login Form - Collapsible */}
+            <div className={`mb-12 transition-all duration-1000 delay-200 ease-out max-w-md ${
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Church Login</h2>
+                <p className="text-gray-600 text-center mb-6 text-sm md:text-base">Sign in to your church portal</p>
+                <ChurchLoginForm />
               </div>
             </div>
           </div>
@@ -512,36 +411,38 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-              {testimonials.map((testimonial, index) => (
-                <div
-                  key={index}
-                  className={`bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 ${
-                    mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-                  }`}
-                  style={{ transitionDelay: `${index * 100}ms` }}
-                >
-                  <div className="flex items-center gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <span key={i} className="text-yellow-400 text-xl">★</span>
-                    ))}
-                  </div>
-                  <p className="text-gray-700 mb-6 leading-relaxed text-base md:text-lg">
-                    "{testimonial.content}"
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl">
-                      {testimonial.avatar}
+            {testimonials.length > 0 && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+                {testimonials.map((testimonial, index) => (
+                  <div
+                    key={index}
+                    className={`bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 ${
+                      mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                    }`}
+                    style={{ transitionDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-center gap-1 mb-4">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <span key={i} className="text-yellow-400 text-xl">★</span>
+                      ))}
                     </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                      <div className="text-sm text-gray-600">{testimonial.role}</div>
-                      <div className="text-xs text-gray-500">{testimonial.church}</div>
+                    <p className="text-gray-700 mb-6 leading-relaxed text-base md:text-lg">
+                      "{testimonial.content}"
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl">
+                        {testimonial.avatar}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900">{testimonial.name}</div>
+                        <div className="text-sm text-gray-600">{testimonial.role}</div>
+                        <div className="text-xs text-gray-500">{testimonial.church}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -597,16 +498,13 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href="/auth/register"
-                    className={`block w-full text-center py-3 md:py-4 rounded-xl font-semibold transition-all duration-300 ${
-                      plan.popular
-                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-lg hover:shadow-blue-500/30'
-                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
+                  <div className={`block w-full text-center py-3 md:py-4 rounded-xl font-semibold transition-all duration-300 ${
+                    plan.popular
+                      ? 'bg-gray-200 text-gray-500'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {plan.cta} (Coming Soon)
+                  </div>
                 </div>
               ))}
             </div>
@@ -662,7 +560,6 @@ export default function Home() {
               <ul className="space-y-2">
                 <li><a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">Features</a></li>
                 <li><a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors">Pricing</a></li>
-                <li><Link href="/auth/register" className="text-gray-600 hover:text-gray-900 transition-colors">Sign Up</Link></li>
               </ul>
             </div>
             <div>

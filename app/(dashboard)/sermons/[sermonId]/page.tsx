@@ -6,7 +6,7 @@ import SermonPlayer from '@/components/SermonPlayer'
 export default async function SermonPage({
   params,
 }: {
-  params: { sermonId: string }
+  params: Promise<{ sermonId: string }>
 }) {
   const session = await getServerSession(authOptions)
 
@@ -14,6 +14,7 @@ export default async function SermonPage({
     redirect('/auth/login')
   }
 
-  return <SermonPlayer sermonId={params.sermonId} />
+  const { sermonId } = await params
+  return <SermonPlayer sermonId={sermonId} />
 }
 

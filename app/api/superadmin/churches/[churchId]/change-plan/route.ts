@@ -7,9 +7,10 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function POST(
   request: Request,
-  { params }: { params: { churchId: string } }
+  { params }: { params: Promise<{ churchId: string }> }
 ) {
   try {
+    const { churchId } = await params
     const session = await getServerSession(authOptions)
 
     if (!session) {
@@ -20,8 +21,6 @@ export async function POST(
     if (userRole !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    const { churchId } = params
     const body = await request.json()
     const { planId } = body
 

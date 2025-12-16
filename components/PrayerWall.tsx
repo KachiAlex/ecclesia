@@ -23,7 +23,11 @@ interface PrayerRequest {
   }
 }
 
-export default function PrayerWall() {
+interface PrayerWallProps {
+  isAdmin?: boolean
+}
+
+export default function PrayerWall({ isAdmin = false }: PrayerWallProps) {
   const [requests, setRequests] = useState<PrayerRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -84,6 +88,44 @@ export default function PrayerWall() {
   const handleRequestCreated = () => {
     setShowCreate(false)
     loadRequests()
+  }
+
+  const handleMarkAsAnswered = async (requestId: string) => {
+    if (!confirm('Mark this prayer as answered?')) return
+
+    try {
+      const response = await fetch(`/api/prayer/requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ANSWERED' }),
+      })
+
+      if (response.ok) {
+        loadRequests()
+        alert('Prayer marked as answered!')
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('Failed to update status')
+    }
+  }
+
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!confirm('Are you sure you want to delete this prayer request?')) return
+
+    try {
+      const response = await fetch(`/api/prayer/requests/${requestId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        loadRequests()
+        alert('Prayer request deleted')
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error)
+      alert('Failed to delete request')
+    }
   }
 
   if (loading) {
@@ -220,23 +262,45 @@ export default function PrayerWall() {
               </div>
 
               {/* Prayer Actions */}
-              <div className="flex items-center justify-between pt-4 border-t">
-                <button
-                  onClick={() => handlePray(request.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    request.hasPrayed
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  <span className="text-xl">🙏</span>
-                  <span>
-                    {request.hasPrayed ? 'I Prayed' : 'I Will Pray'}
-                  </span>
-                </button>
-                <div className="text-sm text-gray-600">
-                  {request._count.interactions} people prayed
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => handlePray(request.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      request.hasPrayed
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span className="text-xl">🙏</span>
+                    <span>
+                      {request.hasPrayed ? 'I Prayed' : 'I Will Pray'}
+                    </span>
+                  </button>
+                  <div className="text-sm text-gray-600">
+                    {request._count.interactions} people prayed
+                  </div>
                 </div>
+
+                {/* Admin Actions */}
+                {isAdmin && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {request.status === 'ACTIVE' && (
+                      <button
+                        onClick={() => handleMarkAsAnswered(request.id)}
+                        className="px-3 py-1.5 bg-green-50 text-green-700 rounded text-sm font-medium hover:bg-green-100 transition-colors"
+                      >
+                        ✓ Mark as Answered
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteRequest(request.id)}
+                      className="px-3 py-1.5 bg-red-50 text-red-700 rounded text-sm font-medium hover:bg-red-100 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))

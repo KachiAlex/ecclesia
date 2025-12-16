@@ -17,6 +17,7 @@ export interface Church {
   website?: string
   logo?: string
   ownerId?: string
+  subscriptionId?: string
   createdAt: Date
   updatedAt: Date
 }

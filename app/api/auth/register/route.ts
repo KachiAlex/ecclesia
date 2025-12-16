@@ -1,35 +1,34 @@
 import { NextResponse } from 'next/server'
 import { UserService } from '@/lib/services/user-service'
 import { ChurchService, generateSlug } from '@/lib/services/church-service'
-import { BranchService, BranchAdminService, generateBranchSlug } from '@/lib/services/branch-service'
 import { SubscriptionPlanService, SubscriptionService } from '@/lib/services/subscription-service'
-import { db } from '@/lib/firestore'
+import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { firstName, lastName, email, phone, password, churchName, churchCity, churchCountry, branchName, branchCity, branchCountry, branchAddress } = body
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      churchName,
+      city,
+      country,
+    } = body
 
-    // Validate input - Church registration is MANDATORY
-    if (!firstName || !lastName || !email || !password) {
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password || !churchName) {
       return NextResponse.json(
-        { error: 'Missing required fields: First name, last name, email, and password are required.' },
-        { status: 400 }
-      )
-    }
-
-    // Church name is MANDATORY - no personal accounts allowed
-    if (!churchName || churchName.trim() === '') {
-      return NextResponse.json(
-        { error: 'Church organization registration is required. You must register a church to create an account.' },
+        { error: 'All fields are required' },
         { status: 400 }
       )
     }
 
     // Check if user already exists
     const existingUser = await UserService.findByEmail(email)
-
     if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
@@ -42,7 +41,7 @@ export async function POST(request: Request) {
     let slug = baseSlug
     let counter = 1
     
-    // Check if slug exists and make it unique
+    // Check if slug exists and generate unique one
     while (true) {
       const existingChurch = await ChurchService.findBySlug(slug)
       if (!existingChurch) break
@@ -50,148 +49,87 @@ export async function POST(request: Request) {
       counter++
     }
 
-    // Create church organization first
-    const church = await ChurchService.create({
-      name: churchName,
-      slug,
-      city: churchCity || null,
-      country: churchCountry || null,
-      email: email, // Use registrant's email as church contact initially
-    })
-
-    // Create user as church owner/admin
-    const user = await UserService.create({
-      firstName,
-      lastName,
-      email,
-      phone: phone || null,
-      password, // Will be hashed in service
-      role: 'ADMIN', // Church owner gets ADMIN role
-      churchId: church.id,
-    })
-
-    // Update church with owner ID
-    await ChurchService.update(church.id, {
-      ownerId: user.id,
-    })
-
-    // Create branch if branch name is provided
-    let branch = null
-    if (branchName && branchName.trim() !== '') {
-      // Generate unique slug within church
-      let baseSlug = generateBranchSlug(branchName)
-      let branchSlug = baseSlug
-      let counter = 1
-      
-      while (true) {
-        const existingBranch = await BranchService.findBySlug(church.id, branchSlug)
-        if (!existingBranch) break
-        branchSlug = `${baseSlug}-${counter}`
-        counter++
-      }
-
-      branch = await BranchService.create({
-        name: branchName,
-        slug: branchSlug,
-        churchId: church.id,
-        city: branchCity || churchCity || null,
-        country: branchCountry || churchCountry || null,
-        address: branchAddress || null,
-        adminId: user.id,
-        isActive: true,
-      })
-
-      // Assign user as branch admin
-      await BranchAdminService.assignAdmin({
-        branchId: branch.id,
-        userId: user.id,
-        canManageMembers: true,
-        canManageEvents: true,
-        canManageGroups: true,
-        canManageGiving: true,
-        canManageSermons: true,
-        assignedBy: user.id,
-      })
-
-      // Update user with branch ID
-      await UserService.update(user.id, {
-        branchId: branch.id,
-      })
-    }
-
-    // Find or create FREE plan with 30-day trial
-    let freePlan
-    const plansSnapshot = await db.collection(COLLECTIONS.subscriptionPlans)
-      .where('type', '==', 'FREE')
-      .limit(1)
-      .get()
+    // Find or create FREE plan
+    const allPlans = await SubscriptionPlanService.findAll()
+    let freePlan = allPlans.find(plan => plan.type === 'FREE')
     
-    if (plansSnapshot.empty) {
-      // Create FREE plan with 30-day trial
+    if (!freePlan) {
+      // Create FREE plan if it doesn't exist
       freePlan = await SubscriptionPlanService.create({
-        name: 'Free Trial',
+        name: 'Free',
         type: 'FREE',
-        description: '30-day free trial for new churches',
+        description: 'Free plan with basic features',
         price: 0,
         currency: 'USD',
-        maxUsers: 50, // Limit during trial
+        maxUsers: 50,
         maxStorageGB: 5,
         maxSermons: 20,
         maxEvents: 10,
         maxDepartments: 5,
         maxGroups: 10,
-        features: ['Basic Features', 'Member Management', 'Sermon Hub', 'Events', 'Giving'],
+        features: ['Basic Features'],
         billingCycle: 'monthly',
-        trialDays: 30, // 30-day free trial
+        trialDays: 30,
       })
-    } else {
-      const planData = plansSnapshot.docs[0].data()
-      freePlan = {
-        id: plansSnapshot.docs[0].id,
-        ...planData,
-        createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate() : new Date(planData.createdAt),
-        updatedAt: planData.updatedAt?.toDate ? planData.updatedAt.toDate() : new Date(planData.updatedAt),
-      }
     }
 
-    // Create 30-day trial subscription
-    const now = new Date()
-    const trialEndDate = new Date(now)
-    trialEndDate.setDate(trialEndDate.getDate() + 30) // 30 days from now
+    // Create church
+    const church = await ChurchService.create({
+      name: churchName,
+      slug,
+      city: city || undefined,
+      country: country || undefined,
+    })
 
-    await SubscriptionService.create({
+    // Create user with ADMIN role
+    const user = await UserService.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      role: 'ADMIN',
+      churchId: church.id,
+    })
+
+    // Update church with owner
+    await ChurchService.update(church.id, {
+      ownerId: user.id,
+    })
+
+    // Create subscription with 30-day trial
+    const now = new Date()
+    const trialEndsAt = new Date(now)
+    trialEndsAt.setDate(trialEndsAt.getDate() + 30)
+
+    const subscription = await SubscriptionService.create({
       churchId: church.id,
       planId: freePlan.id,
       status: 'TRIAL',
       startDate: now,
-      endDate: trialEndDate,
-      trialEndsAt: trialEndDate,
+      endDate: trialEndsAt,
+      trialEndsAt: trialEndsAt,
     })
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
+    // Update church with subscription ID
+    await ChurchService.update(church.id, {
+      subscriptionId: subscription.id,
+    })
 
+    // Return success response (don't return sensitive data)
     return NextResponse.json(
-      { 
-        user: {
-          ...userWithoutPassword,
-          branchId: branch?.id || null,
-        }, 
-        church,
-        branch: branch ? {
-          id: branch.id,
-          name: branch.name,
-          slug: branch.slug,
-        } : null,
-        trialEndsAt: trialEndDate.toISOString(),
-        message: 'Church organization and account created successfully. You have a 30-day free trial.' 
+      {
+        success: true,
+        message: 'Church and account created successfully',
+        churchId: church.id,
+        userId: user.id,
+        trialEndsAt: trialEndsAt.toISOString(),
       },
       { status: 201 }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Failed to create account. Please try again.' },
       { status: 500 }
     )
   }

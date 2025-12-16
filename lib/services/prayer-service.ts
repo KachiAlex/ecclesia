@@ -61,20 +61,26 @@ export class PrayerRequestService {
   ): Promise<PrayerRequest[]> {
     let query: Query = db.collection(COLLECTIONS.prayerRequests)
       .where('churchId', '==', churchId)
+      .limit(options?.limit || 20)
 
+    // Only filter by status if specified
     if (options?.status) {
       query = query.where('status', '==', options.status)
     }
 
-    query = query.orderBy('createdAt', 'desc').limit(options?.limit || 20)
+    // Note: orderBy removed temporarily to avoid composite index requirement
+    // Once Firestore indexes are created, we can add back:
+    // query = query.orderBy('createdAt', 'desc')
 
     if (options?.lastDocId) {
       const lastDoc = await db.collection(COLLECTIONS.prayerRequests).doc(options.lastDocId).get()
-      query = query.startAfter(lastDoc)
+      if (lastDoc.exists) {
+        query = query.startAfter(lastDoc)
+      }
     }
 
     const snapshot = await query.get()
-    return snapshot.docs.map((doc: any) => {
+    const results = snapshot.docs.map((doc: any) => {
       const data = doc.data()
       return {
         id: doc.id,
@@ -84,6 +90,9 @@ export class PrayerRequestService {
         updatedAt: toDate(data.updatedAt),
       } as PrayerRequest
     })
+
+    // Sort in memory since we can't use orderBy without indexes
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
 
   static async incrementPrayerCount(id: string): Promise<void> {

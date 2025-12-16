@@ -10,15 +10,14 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function GET(
   request: Request,
-  { params }: { params: { recordId: string } }
+  { params }: { params: Promise<{ recordId: string }> }
 ) {
   try {
+    const { recordId } = await params
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const { recordId } = params
     const userId = (session.user as any).id
     const church = await getCurrentChurch(userId)
 
@@ -91,11 +90,11 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { recordId: string } }
+  { params }: { params: Promise<{ recordId: string }> }
 ) {
   try {
+    const { recordId } = await params
     const session = await requireRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'])
-    const { recordId } = params
     const userId = (session.user as any).id
     const church = await getCurrentChurch(userId)
 

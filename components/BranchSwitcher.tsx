@@ -79,27 +79,23 @@ export default function BranchSwitcher() {
   }
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
+    <div className="w-full">
+      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
         Current Branch
       </label>
-      <div className="flex items-center space-x-3">
-        <select
-          value={currentBranchId || ''}
-          onChange={(e) => handleBranchChange(e.target.value)}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
-        >
-          <option value="">All Branches (Main)</option>
-          {branches.map((branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name} {branch.city ? `- ${branch.city}` : ''}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-gray-500">
-          {branches.length} {branches.length === 1 ? 'branch' : 'branches'}
-        </span>
-      </div>
+      <select
+        value={currentBranchId || ''}
+        onChange={(e) => handleBranchChange(e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 truncate"
+        title={currentBranchId ? branches.find(b => b.id === currentBranchId)?.name : 'All Branches (Main)'}
+      >
+        <option value="">All Branches (Main)</option>
+        {branches.map((branch) => (
+          <option key={branch.id} value={branch.id}>
+            {branch.name} {branch.city ? `- ${branch.city}` : ''}
+          </option>
+        ))}
+      </select>
       <p className="text-xs text-gray-500 mt-1">
         Switch branches to filter content by location
       </p>

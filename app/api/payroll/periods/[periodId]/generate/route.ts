@@ -7,11 +7,11 @@ import { generatePayrollRecords } from '@/lib/payroll'
 
 export async function POST(
   request: Request,
-  { params }: { params: { periodId: string } }
+  { params }: { params: Promise<{ periodId: string }> }
 ) {
   try {
+    const { periodId } = await params
     const session = await requireRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'])
-    const { periodId } = params
     const userId = (session.user as any).id
     const church = await getCurrentChurch(userId)
 

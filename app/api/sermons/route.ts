@@ -174,15 +174,14 @@ export async function POST(request: Request) {
       churchId: church.id,
     })
 
-    // Generate AI summary if OpenAI is available
-    if (description && process.env.OPENAI_API_KEY) {
+    // Generate AI summary if OpenAI or DeepSeek is available
+    if (description && (process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY)) {
       try {
         const { generateSermonSummary } = await import('@/lib/ai/openai')
         const summary = await generateSermonSummary(description, title)
         
         await SermonService.update(sermon.id, {
-          aiSummary: summary.summary,
-          topics: summary.topics,
+          aiSummary: summary,
         })
       } catch (error) {
         console.error('Error generating AI summary:', error)

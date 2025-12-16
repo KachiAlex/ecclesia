@@ -81,12 +81,13 @@ export default function ChurchSwitcher() {
   }
 
   return (
-    <div className="relative">
+    <div className="w-full px-2">
       <select
         value={currentChurch.id}
         onChange={(e) => handleSwitch(e.target.value)}
         disabled={switching}
-        className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 truncate"
+        title={currentChurch.name}
       >
         {availableChurches.map((church) => (
           <option key={church.id} value={church.id}>

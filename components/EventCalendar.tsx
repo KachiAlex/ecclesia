@@ -1,92 +1,50 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { formatDate, formatDateTime } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 
 interface Event {
   id: string
   title: string
   description?: string
-  type: string
+  date: string
+  startTime: string
+  endTime: string
   location?: string
-  startDate: string
-  endDate?: string
-  maxAttendees?: number
-  isTicketed: boolean
-  ticketPrice?: number
-  imageUrl?: string
-  userRegistration?: {
-    status: string
-    ticketNumber?: string
-  } | null
-  availableSpots?: number | null
-  _count: {
-    registrations: number
-    attendances: number
-  }
+  type?: string
 }
 
-export default function EventCalendar() {
-  const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month')
+interface EventsCalendarProps { isAdmin?: boolean } export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-  const [registering, setRegistering] = useState<string | null>(null)
-  const [branchFilter, setBranchFilter] = useState<string>('')
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
-  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
+  const [events, setEvents] = useState<Event[]>([])
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [showCreateEvent, setShowCreateEvent] = useState(false)
+  const [loading, setLoading] = useState(true)
+  
+  // New event form
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    startTime: '09:00',
+    endTime: '10:00',
+    location: '',
+    type: 'SERVICE',
+  })
 
   useEffect(() => {
-    loadBranches()
     loadEvents()
-  }, [currentDate, view, branchFilter])
-
-  const loadBranches = async () => {
-    try {
-      const userRes = await fetch('/api/users/me')
-      const userData = await userRes.json()
-      
-      if (userData.churchId) {
-        setCurrentBranchId(userData.branchId || null)
-        
-        const res = await fetch(`/api/churches/${userData.churchId}/branches`)
-        if (res.ok) {
-          const data = await res.json()
-          setBranches(data)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading branches:', error)
-    }
-  }
+  }, [currentDate])
 
   const loadEvents = async () => {
     try {
-      const start = new Date(currentDate)
-      const end = new Date(currentDate)
+      // Load events for the current month
+      const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+      const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
 
-      if (view === 'month') {
-        start.setDate(1)
-        end.setMonth(end.getMonth() + 1)
-        end.setDate(0)
-      } else if (view === 'week') {
-        const day = start.getDay()
-        start.setDate(start.getDate() - day)
-        end.setDate(start.getDate() + 6)
-      } else {
-        end.setDate(start.getDate() + 1)
-      }
-
-      const params = new URLSearchParams({
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
-      })
-      if (branchFilter) {
-        params.append('branchId', branchFilter)
-      }
-
-      const response = await fetch(`/api/events?${params}`)
+      const response = await fetch(
+        `/api/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+      )
+      
       if (response.ok) {
         const data = await response.json()
         setEvents(data)
@@ -98,74 +56,32 @@ export default function EventCalendar() {
     }
   }
 
-  const handleRegister = async (eventId: string) => {
-    setRegistering(eventId)
-    try {
-      const response = await fetch(`/api/events/${eventId}/register`, {
-        method: 'POST',
-      })
+  const getDaysInMonth = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        alert(errorData.error || 'Registration failed')
-        return
-      }
-
-      loadEvents()
-      alert('Successfully registered!')
-    } catch (error) {
-      console.error('Error registering:', error)
-      alert('Registration failed')
-    } finally {
-      setRegistering(null)
+    const days = []
+    
+    // Add empty slots for days before the month starts
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null)
     }
-  }
-
-  const navigateDate = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate)
-    if (view === 'month') {
-      newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1))
-    } else if (view === 'week') {
-      newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7))
-    } else {
-      newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1))
+    
+    // Add all days in the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day))
     }
-    setCurrentDate(newDate)
-  }
-
-  const getDaysInView = () => {
-    const days: Date[] = []
-    const start = new Date(currentDate)
-
-    if (view === 'month') {
-      start.setDate(1)
-      const firstDay = start.getDay()
-      start.setDate(start.getDate() - firstDay)
-
-      for (let i = 0; i < 42; i++) {
-        const day = new Date(start)
-        day.setDate(start.getDate() + i)
-        days.push(day)
-      }
-    } else if (view === 'week') {
-      const day = start.getDay()
-      start.setDate(start.getDate() - day)
-
-      for (let i = 0; i < 7; i++) {
-        const day = new Date(start)
-        day.setDate(start.getDate() + i)
-        days.push(day)
-      }
-    } else {
-      days.push(new Date(currentDate))
-    }
-
+    
     return days
   }
 
   const getEventsForDate = (date: Date) => {
     return events.filter((event) => {
-      const eventDate = new Date(event.startDate)
+      const eventDate = new Date(event.date)
       return (
         eventDate.getDate() === date.getDate() &&
         eventDate.getMonth() === date.getMonth() &&
@@ -174,294 +90,350 @@ export default function EventCalendar() {
     })
   }
 
+  const handleDayClick = (date: Date) => { if (!isAdmin) return;
+    setSelectedDate(date)
+    setShowCreateEvent(true)
+  }
+
+  const handlePreviousMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+  }
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+  }
+
+  const handleCreateEvent = async () => {
+    if (!selectedDate || !newEvent.title) {
+      alert('Please provide a title for the event')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newEvent.title,
+          description: newEvent.description,
+          date: selectedDate.toISOString().split('T')[0],
+          startTime: newEvent.startTime,
+          endTime: newEvent.endTime,
+          location: newEvent.location,
+          type: newEvent.type,
+        }),
+      })
+
+      if (response.ok) {
+        setShowCreateEvent(false)
+        setNewEvent({
+          title: '',
+          description: '',
+          startTime: '09:00',
+          endTime: '10:00',
+          location: '',
+          type: 'SERVICE',
+        })
+        loadEvents()
+      } else {
+        alert('Failed to create event')
+      }
+    } catch (error) {
+      console.error('Error creating event:', error)
+      alert('Failed to create event')
+    }
+  }
+
+  const isToday = (date: Date) => {
+    const today = new Date()
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    )
+  }
+
+  const days = getDaysInMonth()
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-center">Loading events...</div>
+        <div className="text-center">Loading calendar...</div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Branch Filter */}
-      {branches.length > 0 && (
-        <div className="mb-6 bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-semibold text-gray-700">Filter by Branch:</label>
-            <select
-              value={branchFilter}
-              onChange={(e) => {
-                setBranchFilter(e.target.value)
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Events Calendar</h1>
+        <p className="text-gray-600">
+          Click any day to create an event
+        </p>
+      </div>
+
+      {/* Calendar Header */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-6">
+          <div className="flex justify-between items-center">
+            <button
+              onClick={handlePreviousMonth}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
             >
-              <option value="">All Branches</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <h2 className="text-2xl font-bold">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+            
+            <button
+              onClick={handleNextMonth}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         </div>
-      )}
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Event Calendar</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView('month')}
-            className={`px-4 py-2 rounded-lg ${
-              view === 'month'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Month
-          </button>
-          <button
-            onClick={() => setView('week')}
-            className={`px-4 py-2 rounded-lg ${
-              view === 'week'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setView('day')}
-            className={`px-4 py-2 rounded-lg ${
-              view === 'day'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Day
-          </button>
-        </div>
-      </div>
 
-      {/* Calendar Navigation */}
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          onClick={() => navigateDate('prev')}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          ←
-        </button>
-        <h2 className="text-2xl font-semibold">
-          {view === 'month'
-            ? currentDate.toLocaleDateString('en-US', {
-                month: 'long',
-                year: 'numeric',
-              })
-            : view === 'week'
-            ? `Week of ${formatDate(currentDate)}`
-            : formatDate(currentDate)}
-        </h2>
-        <button
-          onClick={() => navigateDate('next')}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          →
-        </button>
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {view === 'month' && (
-          <div className="grid grid-cols-7">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+        {/* Calendar Grid */}
+        <div className="p-4">
+          {/* Day Names */}
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {dayNames.map((day) => (
               <div
                 key={day}
-                className="p-4 bg-gray-50 font-semibold text-center border-b"
+                className="text-center font-semibold text-gray-600 py-2"
               >
                 {day}
               </div>
             ))}
-            {getDaysInView().map((day, idx) => {
-              const dayEvents = getEventsForDate(day)
-              const isCurrentMonth =
-                day.getMonth() === currentDate.getMonth()
+          </div>
+
+          {/* Days Grid */}
+          <div className="grid grid-cols-7 gap-2">
+            {days.map((date, index) => {
+              if (!date) {
+                return <div key={`empty-${index}`} className="aspect-square" />
+              }
+
+              const dayEvents = getEventsForDate(date)
+              const today = isToday(date)
+
               return (
-                <div
-                  key={idx}
-                  className={`min-h-24 p-2 border-b border-r ${
-                    isCurrentMonth ? 'bg-white' : 'bg-gray-50'
+                <button
+                  key={index}
+                  onClick={() => handleDayClick(date)}
+                  className={`aspect-square border rounded-lg p-2 hover:bg-primary-50 hover:border-primary-500 transition-all ${
+                    today
+                      ? 'border-primary-600 bg-primary-50 font-bold'
+                      : 'border-gray-200'
                   }`}
                 >
-                  <div
-                    className={`text-sm mb-1 ${
-                      day.toDateString() === new Date().toDateString()
-                        ? 'font-bold text-primary-600'
-                        : ''
-                    }`}
-                  >
-                    {day.getDate()}
+                  <div className="flex flex-col h-full">
+                    <div className={`text-sm mb-1 ${today ? 'text-primary-700' : ''}`}>
+                      {date.getDate()}
+                    </div>
+                    
+                    {/* Event indicators */}
+                    <div className="flex-1 overflow-hidden">
+                      {dayEvents.slice(0, 2).map((event) => (
+                        <div
+                          key={event.id}
+                          className="text-xs bg-blue-100 text-blue-800 rounded px-1 py-0.5 mb-1 truncate"
+                          title={event.title}
+                        >
+                          {event.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <div className="text-xs text-gray-500">
+                          +{dayEvents.length - 2} more
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 2).map((event) => (
-                      <div
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        className="text-xs bg-primary-100 text-primary-800 p-1 rounded cursor-pointer hover:bg-primary-200 truncate"
-                      >
-                        {event.title}
-                      </div>
-                    ))}
-                    {dayEvents.length > 2 && (
-                      <div className="text-xs text-gray-500">
-                        +{dayEvents.length - 2} more
-                      </div>
-                    )}
-                  </div>
-                </div>
+                </button>
               )
             })}
           </div>
-        )}
+        </div>
+      </div>
 
-        {(view === 'week' || view === 'day') && (
-          <div className="divide-y">
-            {getDaysInView().map((day, idx) => {
-              const dayEvents = getEventsForDate(day)
-              return (
-                <div key={idx} className="p-4">
-                  <div className="font-semibold mb-4">
-                    {day.toLocaleDateString('en-US', {
+      {/* Create Event Modal */}
+      {showCreateEvent && selectedDate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Create Event</h2>
+                  <p className="text-gray-600">
+                    {selectedDate.toLocaleDateString('en-US', {
                       weekday: 'long',
+                      year: 'numeric',
                       month: 'long',
                       day: 'numeric',
                     })}
-                  </div>
-                  <div className="space-y-4">
-                    {dayEvents.length === 0 ? (
-                      <p className="text-gray-500 text-sm">No events</p>
-                    ) : (
-                      dayEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => setSelectedEvent(event)}
-                        >
-                          <h3 className="font-semibold text-lg mb-2">
-                            {event.title}
-                          </h3>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <span>🕐</span>
-                              {formatDateTime(event.startDate)}
-                            </div>
-                            {event.location && (
-                              <div className="flex items-center gap-2">
-                                <span>📍</span>
-                                {event.location}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <span>👥</span>
-                              {event._count.registrations} registered
-                              {event.maxAttendees &&
-                                ` / ${event.maxAttendees} max`}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Event Detail Modal */}
-      {selectedEvent && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold">{selectedEvent.title}</h2>
-                <button
-                  onClick={() => setSelectedEvent(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              {selectedEvent.description && (
-                <p className="text-gray-700 mb-4">{selectedEvent.description}</p>
-              )}
-
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500">🕐</span>
-                  <span>{formatDateTime(selectedEvent.startDate)}</span>
-                </div>
-                {selectedEvent.location && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">📍</span>
-                    <span>{selectedEvent.location}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500">👥</span>
-                  <span>
-                    {selectedEvent._count.registrations} registered
-                    {selectedEvent.maxAttendees &&
-                      ` / ${selectedEvent.maxAttendees} max`}
-                  </span>
-                </div>
-                {selectedEvent.isTicketed && selectedEvent.ticketPrice && (
-                  <div className="text-lg font-semibold">
-                    ${selectedEvent.ticketPrice} per ticket
-                  </div>
-                )}
-              </div>
-
-              {selectedEvent.userRegistration ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-green-800 font-medium mb-2">
-                    ✓ You are registered
                   </p>
-                  {selectedEvent.userRegistration.ticketNumber && (
-                    <p className="text-sm text-green-700">
-                      Ticket: {selectedEvent.userRegistration.ticketNumber}
-                    </p>
-                  )}
                 </div>
-              ) : (
                 <button
-                  onClick={() => handleRegister(selectedEvent.id)}
-                  disabled={
-                    registering === selectedEvent.id ||
-                    (selectedEvent.availableSpots !== null &&
-                      selectedEvent.availableSpots !== undefined &&
-                      selectedEvent.availableSpots <= 0)
-                  }
-                  className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowCreateEvent(false)}
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  {registering === selectedEvent.id
-                    ? 'Registering...'
-                    : selectedEvent.availableSpots === 0
-                    ? 'Event Full'
-                    : 'Register for Event'}
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
-              )}
+              </div>
+
+              {/* Event Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Event Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={newEvent.title}
+                    onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                    placeholder="e.g., Sunday Service"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newEvent.description}
+                    onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                    placeholder="Event details..."
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Time
+                    </label>
+                    <input
+                      type="time"
+                      value={newEvent.startTime}
+                      onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      End Time
+                    </label>
+                    <input
+                      type="time"
+                      value={newEvent.endTime}
+                      onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={newEvent.location}
+                    onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                    placeholder="e.g., Main Sanctuary"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Event Type
+                  </label>
+                  <select
+                    value={newEvent.type}
+                    onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="SERVICE">Service</option>
+                    <option value="PRAYER">Prayer Meeting</option>
+                    <option value="BIBLE_STUDY">Bible Study</option>
+                    <option value="YOUTH">Youth Event</option>
+                    <option value="OUTREACH">Outreach</option>
+                    <option value="CONFERENCE">Conference</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowCreateEvent(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateEvent}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                  Create Event
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Upcoming Events List */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {events
+            .filter((event) => new Date(event.date) >= new Date())
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .slice(0, 6)
+            .map((event) => (
+              <div
+                key={event.id}
+                className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow"
+              >
+                <h3 className="font-semibold mb-1">{event.title}</h3>
+                <p className="text-sm text-gray-600 mb-2">{event.description}</p>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>📅 {formatDate(event.date)}</span>
+                  <span>⏰ {event.startTime}</span>
+                </div>
+                {event.location && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    📍 {event.location}
+                  </div>
+                )}
+              </div>
+            ))}
+        </div>
+      </div>
     </div>
   )
 }
+
+
 

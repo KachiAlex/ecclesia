@@ -9,16 +9,16 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function GET(
   request: Request,
-  { params }: { params: { sermonId: string } }
+  { params }: { params: Promise<{ sermonId: string }> }
 ) {
   try {
+    const { sermonId } = await params
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const userId = (session.user as any).id
-    const { sermonId } = params
 
     const sermon = await SermonService.findById(sermonId)
 

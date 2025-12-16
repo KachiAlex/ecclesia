@@ -10,6 +10,9 @@ export default async function EventsPage() {
     redirect('/auth/login')
   }
 
-  return <EventCalendar />
+  const userRole = (session.user as any).role
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)
+
+  return <EventCalendar isAdmin={isAdmin} />
 }
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { formatDate, formatDuration } from '@/lib/utils'
 import Link from 'next/link'
+import MediaPlayer from './MediaPlayer'
 
 interface SermonPlayerProps {
   sermonId: string
@@ -37,25 +38,11 @@ interface Sermon {
 export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
   const [sermon, setSermon] = useState<Sermon | null>(null)
   const [loading, setLoading] = useState(true)
-  const [mediaType, setMediaType] = useState<'video' | 'audio'>('video')
   const [downloading, setDownloading] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
     loadSermon()
   }, [sermonId])
-
-  useEffect(() => {
-    // Auto-detect media type
-    if (sermon) {
-      if (sermon.videoUrl) {
-        setMediaType('video')
-      } else if (sermon.audioUrl) {
-        setMediaType('audio')
-      }
-    }
-  }, [sermon])
 
   const loadSermon = async () => {
     try {
@@ -71,18 +58,13 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
     }
   }
 
-  const handleTimeUpdate = async () => {
+  const handleTimeUpdate = async (currentTime: number) => {
     if (!sermon) return
-
-    const currentTime =
-      mediaType === 'video'
-        ? videoRef.current?.currentTime || 0
-        : audioRef.current?.currentTime || 0
 
     const watchedDuration = Math.floor(currentTime)
 
     // Update progress every 10 seconds
-    if (watchedDuration % 10 === 0) {
+    if (watchedDuration % 10 === 0 && watchedDuration > 0) {
       try {
         await fetch(`/api/sermons/${sermonId}/watch`, {
           method: 'POST',
@@ -143,7 +125,7 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-6">
         <Link
-          href="/dashboard/sermons"
+          href="/sermons"
           className="text-primary-600 hover:underline"
         >
           ← Back to Sermons
@@ -152,51 +134,14 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
 
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Media Player */}
-        <div className="bg-black">
-          {mediaType === 'video' && sermon.videoUrl ? (
-            <video
-              ref={videoRef}
-              src={sermon.videoUrl}
-              controls
-              className="w-full"
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={() => {
-                // Resume from last watched position
-                if (sermon.userProgress && videoRef.current) {
-                  videoRef.current.currentTime = sermon.userProgress.watchedDuration
-                }
-              }}
-            />
-          ) : sermon.audioUrl ? (
-            <div className="p-8">
-              <div className="max-w-md mx-auto">
-                {sermon.thumbnailUrl && (
-                  <img
-                    src={sermon.thumbnailUrl}
-                    alt={sermon.title}
-                    className="w-full rounded-lg mb-4"
-                  />
-                )}
-                <audio
-                  ref={audioRef}
-                  src={sermon.audioUrl}
-                  controls
-                  className="w-full"
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedMetadata={() => {
-                    if (sermon.userProgress && audioRef.current) {
-                      audioRef.current.currentTime = sermon.userProgress.watchedDuration
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="h-96 flex items-center justify-center text-white">
-              <p>No media available</p>
-            </div>
-          )}
-        </div>
+        <MediaPlayer
+          videoUrl={sermon.videoUrl}
+          audioUrl={sermon.audioUrl}
+          thumbnailUrl={sermon.thumbnailUrl}
+          title={sermon.title}
+          onTimeUpdate={handleTimeUpdate}
+          initialTime={sermon.userProgress?.watchedDuration || 0}
+        />
 
         {/* Sermon Info */}
         <div className="p-6">
@@ -211,16 +156,6 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
               </div>
             </div>
             <div className="flex gap-2">
-              {sermon.videoUrl && sermon.audioUrl && (
-                <button
-                  onClick={() =>
-                    setMediaType(mediaType === 'video' ? 'audio' : 'video')
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  {mediaType === 'video' ? 'Switch to Audio' : 'Switch to Video'}
-                </button>
-              )}
               <button
                 onClick={handleDownload}
                 disabled={downloading || sermon.isDownloaded}

@@ -82,7 +82,24 @@ production
 
 ## 🔧 Optional Variables
 
-### 8. OPENAI_API_KEY (Only if using AI features)
+### 8. DEEPSEEK_API_KEY (Recommended for AI features - Cost-effective)
+```
+your-deepseek-api-key-here
+```
+**How to get:**
+1. Go to https://platform.deepseek.com
+2. Sign in and create an account
+3. Go to API Keys section: https://platform.deepseek.com/api_keys
+4. Create a new secret key
+5. Copy and paste it here
+
+**Optional:**
+- `DEEPSEEK_MODEL=deepseek-chat` (default: deepseek-chat, other options: deepseek-coder)
+
+**Environments:** Production, Preview, Development (if using)
+
+**Alternative:**
+### 8b. OPENAI_API_KEY (Alternative AI provider)
 ```
 your-openai-api-key-here
 ```
@@ -91,7 +108,7 @@ your-openai-api-key-here
 2. Sign in and create a new secret key
 3. Copy and paste it here
 
-**Environments:** Production, Preview, Development (if using)
+**Note:** The app will use DeepSeek if `DEEPSEEK_API_KEY` is set, otherwise it falls back to OpenAI if `OPENAI_API_KEY` is set.
 
 ---
 
@@ -123,7 +140,7 @@ your-openai-api-key-here
 - [ ] Added NEXTAUTH_SECRET (All environments)
 - [ ] Added FIREBASE_SERVICE_ACCOUNT (All environments)
 - [ ] Added NODE_ENV (Production)
-- [ ] Added OPENAI_API_KEY (Optional - if using AI)
+- [ ] Added DEEPSEEK_API_KEY (Recommended - if using AI) OR OPENAI_API_KEY (Alternative)
 - [ ] Redeployed the app
 
 ---

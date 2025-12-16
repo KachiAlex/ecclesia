@@ -9,9 +9,10 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 // GET - Get church details with subscription info
 export async function GET(
   request: Request,
-  { params }: { params: { churchId: string } }
+  { params }: { params: Promise<{ churchId: string }> }
 ) {
   try {
+    const { churchId } = await params
     const session = await getServerSession(authOptions)
 
     if (!session) {
@@ -23,7 +24,6 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { churchId } = params
     const church = await ChurchService.findById(churchId)
 
     if (!church) {
@@ -61,9 +61,10 @@ export async function GET(
 // PUT - Update church or subscription
 export async function PUT(
   request: Request,
-  { params }: { params: { churchId: string } }
+  { params }: { params: Promise<{ churchId: string }> }
 ) {
   try {
+    const { churchId } = await params
     const session = await getServerSession(authOptions)
 
     if (!session) {
@@ -74,8 +75,6 @@ export async function PUT(
     if (userRole !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    const { churchId } = params
     const body = await request.json()
     const { action, ...data } = body
 
@@ -201,9 +200,10 @@ export async function PUT(
 // DELETE - Suspend/delete church (soft delete by suspending subscription)
 export async function DELETE(
   request: Request,
-  { params }: { params: { churchId: string } }
+  { params }: { params: Promise<{ churchId: string }> }
 ) {
   try {
+    const { churchId } = await params
     const session = await getServerSession(authOptions)
 
     if (!session) {
@@ -214,8 +214,6 @@ export async function DELETE(
     if (userRole !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    const { churchId } = params
     const subscription = await SubscriptionService.findByChurch(churchId)
 
     if (subscription) {

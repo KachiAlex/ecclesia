@@ -10,9 +10,10 @@ import { UserService } from '@/lib/services/user-service'
  */
 export async function GET(
   request: Request,
-  { params }: { params: { churchId: string; branchId: string } }
+  { params }: { params: Promise<{ churchId: string; branchId: string }> }
 ) {
   try {
+    const { churchId, branchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -32,9 +33,9 @@ export async function GET(
       )
     }
 
-    const branch = await BranchService.findById(params.branchId)
+    const branch = await BranchService.findById(branchId)
     
-    if (!branch || branch.churchId !== params.churchId) {
+    if (!branch || branch.churchId !== churchId) {
       return NextResponse.json(
         { error: 'Branch not found' },
         { status: 404 }
@@ -42,14 +43,14 @@ export async function GET(
     }
 
     // Verify user has access
-    if (user.churchId !== params.churchId && user.role !== 'SUPER_ADMIN') {
+    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    const admins = await BranchAdminService.findByBranch(params.branchId)
+    const admins = await BranchAdminService.findByBranch(branchId)
     
     // Get user details for each admin
     const adminsWithUsers = await Promise.all(
@@ -84,9 +85,10 @@ export async function GET(
  */
 export async function POST(
   request: Request,
-  { params }: { params: { churchId: string; branchId: string } }
+  { params }: { params: Promise<{ churchId: string; branchId: string }> }
 ) {
   try {
+    const { churchId, branchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -106,9 +108,9 @@ export async function POST(
       )
     }
 
-    const branch = await BranchService.findById(params.branchId)
+    const branch = await BranchService.findById(branchId)
     
-    if (!branch || branch.churchId !== params.churchId) {
+    if (!branch || branch.churchId !== churchId) {
       return NextResponse.json(
         { error: 'Branch not found' },
         { status: 404 }
@@ -116,7 +118,7 @@ export async function POST(
     }
 
     // Only church admins can assign branch admins
-    if (user.churchId !== params.churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
         { error: 'Only church admins can assign branch admins' },
         { status: 403 }
@@ -135,7 +137,7 @@ export async function POST(
 
     const targetUser = await UserService.findById(targetUserId)
     
-    if (!targetUser || targetUser.churchId !== params.churchId) {
+    if (!targetUser || targetUser.churchId !== churchId) {
       return NextResponse.json(
         { error: 'User not found or does not belong to this church' },
         { status: 400 }
@@ -144,7 +146,7 @@ export async function POST(
 
     // Assign as branch admin
     const branchAdmin = await BranchAdminService.assignAdmin({
-      branchId: params.branchId,
+      branchId: branchId,
       userId: targetUserId,
       canManageMembers: canManageMembers ?? true,
       canManageEvents: canManageEvents ?? true,
@@ -158,7 +160,7 @@ export async function POST(
     if (targetUser.role !== 'ADMIN' && targetUser.role !== 'SUPER_ADMIN') {
       await UserService.update(targetUserId, {
         role: 'BRANCH_ADMIN',
-        branchId: params.branchId,
+        branchId: branchId,
       })
     }
 
@@ -178,9 +180,10 @@ export async function POST(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { churchId: string; branchId: string } }
+  { params }: { params: Promise<{ churchId: string; branchId: string }> }
 ) {
   try {
+    const { churchId, branchId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session) {
@@ -200,9 +203,9 @@ export async function DELETE(
       )
     }
 
-    const branch = await BranchService.findById(params.branchId)
+    const branch = await BranchService.findById(branchId)
     
-    if (!branch || branch.churchId !== params.churchId) {
+    if (!branch || branch.churchId !== churchId) {
       return NextResponse.json(
         { error: 'Branch not found' },
         { status: 404 }
@@ -210,7 +213,7 @@ export async function DELETE(
     }
 
     // Only church admins can remove branch admins
-    if (user.churchId !== params.churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json(
         { error: 'Only church admins can remove branch admins' },
         { status: 403 }
@@ -227,11 +230,11 @@ export async function DELETE(
       )
     }
 
-    await BranchAdminService.removeAdmin(params.branchId, targetUserId)
+    await BranchAdminService.removeAdmin(branchId, targetUserId)
 
       // Update user role if they're no longer a branch admin
       const targetUser = await UserService.findById(targetUserId)
-      if (targetUser && targetUser.role === 'BRANCH_ADMIN' && targetUser.branchId === params.branchId) {
+      if (targetUser && targetUser.role === 'BRANCH_ADMIN' && targetUser.branchId === branchId) {
         // Check if user is admin of any other branch
         const otherBranchAdmins = await BranchAdminService.findByUser(targetUserId)
         if (otherBranchAdmins.length === 0) {

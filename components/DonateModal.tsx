@@ -46,28 +46,34 @@ export default function DonateModal({
     setError('')
 
     try {
-      const response = await fetch('/api/giving/donate', {
+      // Initialize payment with Paystack
+      const paymentResponse = await fetch('/api/payments/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parseFloat(amount),
+          currency: 'NGN',
           type,
           projectId: type === 'PROJECT' ? selectedProject : null,
-          paymentMethod: 'Card', // TODO: Integrate payment gateway
           notes,
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Donation failed')
+      if (!paymentResponse.ok) {
+        const errorData = await paymentResponse.json()
+        throw new Error(errorData.error || 'Failed to initialize payment')
       }
 
-      alert('Thank you for your donation! Receipt will be sent to your email.')
-      onSuccess()
+      const paymentData = await paymentResponse.json()
+
+      if (paymentData.authorizationUrl) {
+        // Redirect to Paystack payment page
+        window.location.href = paymentData.authorizationUrl
+      } else {
+        throw new Error('Payment initialization failed')
+      }
     } catch (err: any) {
-      setError(err.message)
-    } finally {
+      setError(err.message || 'Payment initialization failed')
       setDonating(false)
     }
   }
@@ -176,7 +182,7 @@ export default function DonateModal({
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Payment gateway integration is pending. This is a demo transaction.
+                <strong>Secure Payment:</strong> You will be redirected to Flutterwave to complete your payment securely.
               </p>
             </div>
 

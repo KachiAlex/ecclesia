@@ -153,7 +153,26 @@ export default function NearbyGroups() {
                 </div>
               </div>
 
-              <button className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/groups/${group.id}/join`, {
+                      method: 'POST',
+                    })
+                    if (response.ok) {
+                      alert('Successfully joined group!')
+                      loadNearbyGroups()
+                    } else {
+                      const errorData = await response.json()
+                      alert(errorData.error || 'Failed to join group')
+                    }
+                  } catch (error) {
+                    console.error('Error joining group:', error)
+                    alert('Failed to join group')
+                  }
+                }}
+                className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
                 Join Group
               </button>
             </div>

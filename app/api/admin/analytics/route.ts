@@ -68,7 +68,7 @@ export async function GET() {
     // Total giving this month
     let totalGiving = 0
     for (const user of allUsers) {
-      const givingSnapshot = await db.collection(COLLECTIONS.giving)
+      const givingSnapshot = await db.collection(COLLECTIONS.donations)
         .where('userId', '==', user.id)
         .where('createdAt', '>=', thisMonth)
         .get()

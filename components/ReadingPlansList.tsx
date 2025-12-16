@@ -146,8 +146,17 @@ export default function ReadingPlansList() {
       {/* Available Plans */}
       <div>
         <h2 className="text-2xl font-semibold mb-4">Available Reading Plans</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.map((plan) => (
+        {plans.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <div className="text-6xl mb-4">📖</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Reading Plans Available</h3>
+            <p className="text-gray-600">
+              Check back later for new reading plans, or ask your church admin to create some.
+            </p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.map((plan) => (
             <div
               key={plan.id}
               className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow"
@@ -213,7 +222,8 @@ export default function ReadingPlansList() {
               )}
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

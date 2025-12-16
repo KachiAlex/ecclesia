@@ -115,7 +115,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { content, type, imageUrl } = body
+    const { content, type, images } = body
 
     if (!content || !type) {
       return NextResponse.json(
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
       churchId: church.id,
       content,
       type,
-      imageUrl: imageUrl || undefined,
+      imageUrl: images && images.length > 0 ? images[0] : undefined,
     })
 
     // Get user data
@@ -156,4 +156,6 @@ export async function POST(request: Request) {
     )
   }
 }
+
+
 

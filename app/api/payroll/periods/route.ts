@@ -91,10 +91,15 @@ export async function POST(request: Request) {
       status: 'PENDING',
     })
 
-    // Generate payroll records if requested (simplified - would need full implementation)
+    // Generate payroll records if requested
     if (generateRecords) {
-      // TODO: Implement generatePayrollRecords for Firestore
-      console.log('Payroll record generation not yet implemented for Firestore')
+      const { generatePayrollRecords } = await import('@/lib/payroll')
+      try {
+        await generatePayrollRecords(period.id, church.id)
+      } catch (error: any) {
+        console.error('Error generating payroll records:', error)
+        // Continue even if generation fails - records can be generated later
+      }
     }
 
     // Get record count
