@@ -48,8 +48,15 @@ export async function GET(request: Request) {
         const registrationCount = await EventRegistrationService.countByEvent(event.id)
         const userRegistration = await EventRegistrationService.findByUserAndEvent(userId, event.id)
 
+        // Format dates for calendar display
+        const startDate = new Date(event.startDate)
+        const endDate = event.endDate ? new Date(event.endDate) : null
+
         return {
           ...event,
+          date: startDate.toISOString().split('T')[0], // Add date field for calendar
+          startTime: startDate.toTimeString().slice(0, 5), // Format: HH:MM
+          endTime: endDate ? endDate.toTimeString().slice(0, 5) : startDate.toTimeString().slice(0, 5),
           userRegistration: userRegistration ? {
             eventId: userRegistration.eventId,
             status: userRegistration.status,
