@@ -4,6 +4,7 @@ import { UserService } from '@/lib/services/user-service'
 import { ChurchService } from '@/lib/services/church-service'
 import { UserRole } from '@/types'
 import bcrypt from 'bcryptjs'
+import { logger } from '@/lib/logger'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,19 +17,19 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log('Authorize: Missing credentials')
+          logger.warn('auth.authorize.missing_credentials')
           return null
         }
 
         const user = await UserService.findByEmail(credentials.email)
 
         if (!user) {
-          console.log('Authorize: User not found for email:', credentials.email)
+          logger.warn('auth.authorize.user_not_found', { email: credentials.email })
           return null
         }
 
         if (!user.password) {
-          console.log('Authorize: User has no password set')
+          logger.warn('auth.authorize.no_password', { userId: user.id, email: user.email })
           return null
         }
 
@@ -38,7 +39,7 @@ export const authOptions: NextAuthOptions = {
         )
 
         if (!isPasswordValid) {
-          console.log('Authorize: Invalid password for user:', credentials.email)
+          logger.warn('auth.authorize.invalid_password', { email: credentials.email })
           return null
         }
 

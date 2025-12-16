@@ -3,6 +3,7 @@ import { ChurchService } from './services/church-service'
 import { UserService } from './services/user-service'
 import { db } from './firestore'
 import { COLLECTIONS } from './firestore-collections'
+import { logger } from '@/lib/logger'
 
 const CHURCH_COOKIE_NAME = 'ecclesia_church_id'
 
@@ -17,6 +18,7 @@ export async function getCurrentChurchId(userId?: string): Promise<string | null
     // Verify church exists
     const church = await ChurchService.findById(churchIdFromCookie)
     if (church) {
+      logger.info('tenant.current_church.from_cookie', { userId, churchId: churchIdFromCookie })
       return churchIdFromCookie
     }
   }
@@ -25,6 +27,7 @@ export async function getCurrentChurchId(userId?: string): Promise<string | null
   if (userId) {
     const user = await UserService.findById(userId)
     if (user?.churchId) {
+      logger.info('tenant.current_church.from_user_default', { userId, churchId: user.churchId })
       return user.churchId
     }
   }

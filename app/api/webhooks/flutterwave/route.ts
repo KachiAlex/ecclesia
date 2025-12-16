@@ -4,13 +4,17 @@ import { GivingService } from '@/lib/services/giving-service'
 import { EmailService } from '@/lib/services/email-service'
 import { db, FieldValue } from '@/lib/firestore'
 import { ReceiptService } from '@/lib/services/receipt-service'
+import { getCorrelationIdFromRequest, logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
+  const correlationId = getCorrelationIdFromRequest(request)
   try {
+    logger.info('webhook.flutterwave.request', { correlationId })
     const body = await request.json()
     const signature = request.headers.get('verif-hash')
 
     if (!signature) {
+      logger.warn('webhook.flutterwave.missing_signature', { correlationId })
       return NextResponse.json(
         { error: 'Missing signature' },
         { status: 400 }
@@ -21,7 +25,7 @@ export async function POST(request: Request) {
     const secretHash = process.env.FLUTTERWAVE_SECRET_HASH
 
     if (!secretHash) {
-      console.error('Flutterwave webhook received but FLUTTERWAVE_SECRET_HASH is not configured')
+      logger.error('webhook.flutterwave.missing_secret', { correlationId })
       return NextResponse.json(
         { error: 'Webhook not configured' },
         { status: 500 }
@@ -38,6 +42,7 @@ export async function POST(request: Request) {
     })()
 
     if (!sigOk) {
+      logger.warn('webhook.flutterwave.invalid_signature', { correlationId })
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
@@ -54,6 +59,7 @@ export async function POST(request: Request) {
       const markerRef = db.collection('webhook_events').doc(transactionKey)
       const markerSnap = await markerRef.get()
       if (markerSnap.exists) {
+        logger.info('webhook.flutterwave.duplicate', { correlationId, transactionKey })
         return NextResponse.json({ received: true, duplicate: true })
       }
       await markerRef.set({
@@ -71,8 +77,16 @@ export async function POST(request: Request) {
       const transactionId = data.id
       const metadata = data.meta || {}
 
+      logger.info('webhook.flutterwave.charge_completed', { correlationId, transactionId })
+
       // Verify payment
       const verification = await PaymentService.verifyPayment(transactionId)
+
+      logger.info('webhook.flutterwave.verify_done', {
+        correlationId,
+        transactionId,
+        success: verification.success,
+      })
 
       if (verification.success && verification.transactionId) {
         // Create giving record
@@ -113,7 +127,12 @@ export async function POST(request: Request) {
                   date: new Date(giving.createdAt),
                 })
               } catch (error) {
-                console.error('Error generating donation receipt (webhook):', error)
+                logger.error('webhook.flutterwave.receipt_error', {
+                  correlationId,
+                  transactionId,
+                  message: (error as any)?.message,
+                  name: (error as any)?.name,
+                })
               }
 
               await EmailService.sendDonationReceipt(
@@ -130,7 +149,12 @@ export async function POST(request: Request) {
               )
             }
           } catch (error) {
-            console.error('Error creating giving record or sending email:', error)
+            logger.error('webhook.flutterwave.giving_or_email_error', {
+              correlationId,
+              transactionId,
+              message: (error as any)?.message,
+              name: (error as any)?.name,
+            })
             // Don't fail webhook - payment is already successful
           }
         }
@@ -139,7 +163,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true })
   } catch (error: any) {
-    console.error('Error processing webhook:', error)
+    logger.error('webhook.flutterwave.error', {
+      correlationId,
+      message: error?.message,
+      name: error?.name,
+    })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

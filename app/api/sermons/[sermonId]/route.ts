@@ -4,15 +4,19 @@ import { authOptions } from '@/lib/auth-options'
 import { SermonService } from '@/lib/services/sermon-service'
 import { SermonViewService, SermonDownloadService } from '@/lib/services/sermon-view-service'
 import { ChurchService } from '@/lib/services/church-service'
+import { getCorrelationIdFromRequest, logger } from '@/lib/logger'
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ sermonId: string }> }
 ) {
+  const correlationId = getCorrelationIdFromRequest(request)
   try {
     const { sermonId } = await params
+    logger.info('sermons.detail.request', { correlationId, sermonId })
     const session = await getServerSession(authOptions)
     if (!session) {
+      logger.warn('sermons.detail.unauthorized', { correlationId, sermonId })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -21,6 +25,7 @@ export async function GET(
     const sermon = await SermonService.findById(sermonId)
 
     if (!sermon) {
+      logger.warn('sermons.detail.not_found', { correlationId, sermonId, userId })
       return NextResponse.json(
         { error: 'Sermon not found' },
         { status: 404 }
@@ -58,7 +63,11 @@ export async function GET(
       isDownloaded: !!userDownload,
     })
   } catch (error) {
-    console.error('Error fetching sermon:', error)
+    logger.error('sermons.detail.error', {
+      correlationId,
+      message: (error as any)?.message,
+      name: (error as any)?.name,
+    })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
