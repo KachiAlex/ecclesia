@@ -1,28 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
-import { getCurrentChurch } from '@/lib/church-context'
-import { requireRole } from '@/lib/auth'
 import { PayrollPositionService } from '@/lib/services/payroll-service'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import { guardApi } from '@/lib/api-guard'
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'PASTOR', 'SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
 
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { church } = guarded.ctx
 
     const positions = await PayrollPositionService.findByChurch(church.id, true)
 
@@ -75,16 +62,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await requireRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'])
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'PASTOR', 'SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
 
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { church } = guarded.ctx
 
     const body = await request.json()
     const { name, description, departmentId } = body

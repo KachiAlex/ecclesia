@@ -427,7 +427,7 @@ export default function Home() {
                       ))}
                     </div>
                     <p className="text-gray-700 mb-6 leading-relaxed text-base md:text-lg">
-                      "{testimonial.content}"
+                      &quot;{testimonial.content}&quot;
                     </p>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl">
@@ -636,7 +636,7 @@ function ChurchLoginForm() {
           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
           required
         />
-        <p className="mt-1 text-xs text-gray-500">Enter your church name (e.g., "grace-community-church")</p>
+        <p className="mt-1 text-xs text-gray-500">Enter your church name (e.g., &quot;grace-community-church&quot;)</p>
       </div>
       <button
         type="submit"

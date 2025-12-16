@@ -11,6 +11,7 @@ export interface Giving {
   paymentMethod?: string
   transactionId?: string
   notes?: string
+  receiptUrl?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -42,6 +43,20 @@ export class GivingService {
       createdAt: toDate(data.createdAt),
       updatedAt: toDate(data.updatedAt),
     } as Giving
+  }
+
+  static async update(id: string, data: Partial<Giving>): Promise<Giving> {
+    const updateData: any = {
+      ...data,
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    delete updateData.id
+    delete updateData.createdAt
+    delete updateData.updatedAt
+
+    await db.collection(COLLECTIONS.giving).doc(id).update(updateData)
+    return this.findById(id) as Promise<Giving>
   }
 
   static async create(data: Omit<Giving, 'id' | 'createdAt' | 'updatedAt'>): Promise<Giving> {

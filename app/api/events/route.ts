@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options'
 import { EventService } from '@/lib/services/event-service'
 import { EventRegistrationService } from '@/lib/services/event-registration-service'
 import { getCurrentChurch } from '@/lib/church-context'
+import { checkUsageLimit } from '@/lib/subscription'
 
 export async function GET(request: Request) {
   try {
@@ -141,6 +142,13 @@ export async function POST(request: Request) {
       )
     }
 
+    if (isRecurring && !endDate) {
+      return NextResponse.json(
+        { error: 'End date is required for recurring events' },
+        { status: 400 }
+      )
+    }
+
     // Create recurring events if specified
     if (isRecurring) {
       const events = []
@@ -152,6 +160,46 @@ export async function POST(request: Request) {
       const duration = end.getTime() - start.getTime()
       
       let currentDate = new Date(start)
+
+      const usageCheck = await checkUsageLimit(church.id, 'maxEvents')
+      if (usageCheck.limit) {
+        // Pre-count how many events will be created
+        let occurrences = 0
+        const countDate = new Date(start)
+        while (countDate <= recurrenceEnd) {
+          occurrences++
+          if (recurrencePattern === 'WEEKLY') {
+            countDate.setDate(countDate.getDate() + 7)
+          } else if (recurrencePattern === 'BIWEEKLY') {
+            countDate.setDate(countDate.getDate() + 14)
+          } else if (recurrencePattern === 'MONTHLY') {
+            countDate.setMonth(countDate.getMonth() + 1)
+          } else {
+            break
+          }
+        }
+
+        if (usageCheck.current + occurrences > usageCheck.limit) {
+          return NextResponse.json(
+            {
+              error: `Event limit reached. Creating ${occurrences} recurring events would exceed your plan limit of ${usageCheck.limit}.`,
+              limit: usageCheck.limit,
+              current: usageCheck.current,
+              requested: occurrences,
+            },
+            { status: 403 }
+          )
+        }
+      } else if (!usageCheck.allowed && usageCheck.limit) {
+        return NextResponse.json(
+          {
+            error: `Event limit reached. Maximum ${usageCheck.limit} events allowed on your plan.`,
+            limit: usageCheck.limit,
+            current: usageCheck.current,
+          },
+          { status: 403 }
+        )
+      }
       
       while (currentDate <= recurrenceEnd) {
         const eventStartDate = new Date(currentDate)
@@ -190,6 +238,18 @@ export async function POST(request: Request) {
         events: events.slice(0, 3), // Return first 3 as preview
         message: `${events.length} recurring events created successfully`
       }, { status: 201 })
+    }
+
+    const usageCheck = await checkUsageLimit(church.id, 'maxEvents')
+    if (!usageCheck.allowed && usageCheck.limit) {
+      return NextResponse.json(
+        {
+          error: `Event limit reached. Maximum ${usageCheck.limit} events allowed on your plan.`,
+          limit: usageCheck.limit,
+          current: usageCheck.current,
+        },
+        { status: 403 }
+      )
     }
 
     // Create single event

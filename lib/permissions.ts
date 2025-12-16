@@ -21,6 +21,7 @@ export type Permission =
 
 const rolePermissions: Record<UserRole, Permission[]> = {
   VISITOR: [],
+  VOLUNTEER: ['view_users'],
   MEMBER: ['view_users'],
   LEADER: [
     'view_users',
@@ -28,6 +29,20 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'manage_groups',
     'manage_volunteers',
     'view_analytics',
+  ],
+  BRANCH_ADMIN: [
+    'view_users',
+    'edit_users',
+    'view_payroll',
+    'view_analytics',
+    'manage_departments',
+    'manage_groups',
+    'manage_sermons',
+    'manage_events',
+    'manage_giving',
+    'send_broadcasts',
+    'approve_testimonies',
+    'manage_volunteers',
   ],
   PASTOR: [
     'view_users',
@@ -143,14 +158,19 @@ export function canManageUser(
   // Admin can manage anyone except super admin
   if (actorRole === 'ADMIN' && targetRole !== 'SUPER_ADMIN') return true
 
+  // Branch admin can manage members, leaders, volunteers, and visitors
+  if (actorRole === 'BRANCH_ADMIN') {
+    return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER'].includes(targetRole)
+  }
+
   // Pastor can manage members, leaders, and visitors
   if (actorRole === 'PASTOR') {
-    return ['VISITOR', 'MEMBER', 'LEADER'].includes(targetRole)
+    return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'BRANCH_ADMIN'].includes(targetRole)
   }
 
   // Leader can manage members and visitors
   if (actorRole === 'LEADER') {
-    return ['VISITOR', 'MEMBER'].includes(targetRole)
+    return ['VISITOR', 'MEMBER', 'VOLUNTEER'].includes(targetRole)
   }
 
   return false

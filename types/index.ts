@@ -1,9 +1,11 @@
 export type UserRole = 
   | 'MEMBER'
   | 'VISITOR'
+  | 'VOLUNTEER'
   | 'LEADER'
   | 'PASTOR'
   | 'ADMIN'
+  | 'BRANCH_ADMIN'
   | 'SUPER_ADMIN'
 
 export type SpiritualMaturityLevel =

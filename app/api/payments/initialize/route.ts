@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { PaymentService } from '@/lib/services/payment-service'
 import { UserService } from '@/lib/services/user-service'
+import { guardApi } from '@/lib/api-guard'
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi()
+    if (!guarded.ok) return guarded.response
 
-    const userId = (session.user as any).id
+    const { userId } = guarded.ctx
     const user = await UserService.findById(userId)
 
     if (!user) {

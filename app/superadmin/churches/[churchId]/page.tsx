@@ -76,8 +76,6 @@ export default async function ChurchDetailPage({
         storageUsedGB: 0,
         sermonsCount: 0,
         eventsCount: 0,
-        apiCalls: 0,
-        aiCoachingSessions: 0,
       }
       limits = plan ? {
         maxUsers: plan.maxUsers,

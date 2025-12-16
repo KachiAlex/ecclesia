@@ -1,34 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
-import { getCurrentChurch } from '@/lib/church-context'
 import { storage } from '@/lib/firestore'
 import { v4 as uuidv4 } from 'uuid'
+import { guardApi } from '@/lib/api-guard'
+import { checkStorageLimitForUpload, incrementUsage } from '@/lib/subscription'
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR'] })
+    if (!guarded.ok) return guarded.response
 
-    const userRole = (session.user as any).role
-    if (!['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
-
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { userId, church } = guarded.ctx
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -69,6 +50,19 @@ export async function POST(request: Request) {
       )
     }
 
+    const storageCheck = await checkStorageLimitForUpload(church.id, file.size)
+    if (!storageCheck.allowed && storageCheck.limit) {
+      return NextResponse.json(
+        {
+          error: `Storage limit reached. Uploading this file would exceed your plan limit of ${storageCheck.limit}GB.`,
+          limit: storageCheck.limit,
+          current: storageCheck.current,
+          projected: storageCheck.projected,
+        },
+        { status: 403 }
+      )
+    }
+
     // Generate unique filename
     const fileExtension = file.name.split('.').pop()
     const fileName = `${uuidv4()}.${fileExtension}`
@@ -96,6 +90,8 @@ export async function POST(request: Request) {
 
     // Make file publicly accessible
     await fileUpload.makePublic()
+
+    await incrementUsage(church.id, 'storageUsedGB', file.size / (1024 * 1024 * 1024))
 
     // Return public URL
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`

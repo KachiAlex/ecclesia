@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/auth-options'
 import { SermonService } from '@/lib/services/sermon-service'
 import { SermonViewService, SermonDownloadService } from '@/lib/services/sermon-view-service'
 import { ChurchService } from '@/lib/services/church-service'
-import { db } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function GET(
   request: Request,
@@ -32,12 +30,6 @@ export async function GET(
     // Get church info
     const church = await ChurchService.findById(sermon.churchId)
 
-    // Get counts
-    const [viewsCount, downloadsCount] = await Promise.all([
-      db.collection(COLLECTIONS.sermonViews).where('sermonId', '==', sermonId).count().get(),
-      db.collection(COLLECTIONS.sermonDownloads).where('sermonId', '==', sermonId).count().get(),
-    ])
-
     // Get user's watch progress
     const userView = await SermonViewService.findByUserAndSermon(userId, sermonId)
 
@@ -51,8 +43,8 @@ export async function GET(
         name: church.name,
       } : null,
       _count: {
-        views: viewsCount.data().count || 0,
-        downloads: downloadsCount.data().count || 0,
+        views: (sermon as any).viewsCount || 0,
+        downloads: (sermon as any).downloadsCount || 0,
       },
       userProgress: userView
         ? {

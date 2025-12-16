@@ -13,13 +13,58 @@ export interface UsageLimits {
   maxGroups?: number
 }
 
+export async function checkStorageLimitForUpload(
+  churchId: string,
+  uploadBytes: number
+): Promise<{ allowed: boolean; current: number; projected: number; limit?: number }> {
+  const church = await ChurchService.findById(churchId)
+  if (!church) {
+    return { allowed: false, current: 0, projected: 0 }
+  }
+
+  const subscription = await SubscriptionService.findByChurch(churchId)
+  if (!subscription) {
+    return { allowed: false, current: 0, projected: 0 }
+  }
+
+  const limits = await getPlanLimits(subscription.planId)
+  const usage = await getChurchUsage(churchId)
+
+  const limit = limits.maxStorageGB
+  const current = usage.storageUsedGB
+  const uploadGB = uploadBytes / (1024 * 1024 * 1024)
+  const projected = current + uploadGB
+
+  if (!limit) {
+    return { allowed: true, current, projected }
+  }
+
+  return {
+    allowed: projected < limit,
+    current,
+    projected,
+    limit,
+  }
+}
+
 export interface UsageStats {
   userCount: number
   storageUsedGB: number
   sermonsCount: number
   eventsCount: number
+  departmentsCount: number
+  groupsCount: number
   apiCalls: number
   aiCoachingSessions: number
+}
+
+const limitToUsageKey: Record<keyof UsageLimits, keyof UsageStats> = {
+  maxUsers: 'userCount',
+  maxStorageGB: 'storageUsedGB',
+  maxSermons: 'sermonsCount',
+  maxEvents: 'eventsCount',
+  maxDepartments: 'departmentsCount',
+  maxGroups: 'groupsCount',
 }
 
 /**
@@ -54,7 +99,7 @@ export async function getChurchUsage(churchId: string): Promise<UsageStats> {
   const currentPeriodMetrics = metrics.filter(m => m.period === period)
 
   // Calculate current usage
-  const [userCount, sermonsCount, eventsCount] = await Promise.all([
+  const [userCount, sermonsCount, eventsCount, departmentsCount, groupsCount] = await Promise.all([
     UserService.findByChurch(churchId).then(users => users.length),
     db.collection(COLLECTIONS.sermons).where('churchId', '==', churchId).count().get(),
     db.collection(COLLECTIONS.events)
@@ -63,20 +108,25 @@ export async function getChurchUsage(churchId: string): Promise<UsageStats> {
       .where('startDate', '<=', periodEnd)
       .count()
       .get(),
+    db.collection(COLLECTIONS.departments).where('churchId', '==', churchId).count().get(),
+    db.collection(COLLECTIONS.groups).where('churchId', '==', churchId).count().get(),
   ])
 
   // Get API calls and AI sessions from metrics
   const apiCallsMetric = currentPeriodMetrics.find(m => m.metricType === 'apiCalls')
   const aiSessionsMetric = currentPeriodMetrics.find(m => m.metricType === 'aiCoachingSessions')
 
-  // Calculate storage (simplified - would need actual file size tracking)
-  const storageUsedGB = 0 // TODO: Implement actual storage calculation
+  // Storage used for current period (best-effort; defaults to 0 if not tracked)
+  const storageMetric = currentPeriodMetrics.find(m => m.metricType === 'storageUsedGB')
+  const storageUsedGB = storageMetric?.value || 0
 
   return {
     userCount,
     storageUsedGB,
     sermonsCount: sermonsCount.data().count || 0,
     eventsCount: eventsCount.data().count || 0,
+    departmentsCount: departmentsCount.data().count || 0,
+    groupsCount: groupsCount.data().count || 0,
     apiCalls: apiCallsMetric?.value || 0,
     aiCoachingSessions: aiSessionsMetric?.value || 0,
   }
@@ -105,10 +155,10 @@ export async function checkUsageLimit(
   const limit = limits[limitType]
   if (!limit) {
     // Unlimited
-    return { allowed: true, current: usage[limitType as keyof UsageStats] as number }
+    return { allowed: true, current: usage[limitToUsageKey[limitType]] as number }
   }
 
-  const current = usage[limitType as keyof UsageStats] as number
+  const current = usage[limitToUsageKey[limitType]] as number
   return {
     allowed: current < limit,
     current,

@@ -5,6 +5,7 @@ import { getCurrentChurch } from '@/lib/church-context'
 import { GivingService } from '@/lib/services/giving-service'
 import { ProjectService } from '@/lib/services/giving-service'
 import { UserService } from '@/lib/services/user-service'
+import { ReceiptService } from '@/lib/services/receipt-service'
 
 export async function POST(request: Request) {
   try {
@@ -66,8 +67,23 @@ export async function POST(request: Request) {
     // Get user and project data
     const user = await UserService.findById(userId)
 
-    // TODO: Generate PDF receipt
-    // const receiptUrl = await generateReceipt(giving)
+    let receiptUrl: string | undefined
+    try {
+      receiptUrl = await ReceiptService.generateUploadAndAttachDonationReceipt({
+        givingId: giving.id,
+        userId,
+        userName: user ? `${user.firstName} ${user.lastName}` : undefined,
+        userEmail: user?.email,
+        amount: parseFloat(amount),
+        type,
+        projectName: project?.name,
+        transactionId: transactionId || giving.id,
+        date: new Date(giving.createdAt),
+        churchName: church?.name,
+      })
+    } catch (error) {
+      console.error('Error generating donation receipt:', error)
+    }
 
     // Send donation receipt email
     if (user) {
@@ -80,7 +96,7 @@ export async function POST(request: Request) {
           projectName: project?.name,
           transactionId: transactionId || giving.id,
           date: new Date(giving.createdAt),
-          receiptUrl: undefined, // Will be added when PDF generation is implemented
+          receiptUrl,
         },
         `${user.firstName} ${user.lastName}`
       )
@@ -98,7 +114,7 @@ export async function POST(request: Request) {
           lastName: user.lastName,
           email: user.email,
         } : null,
-        receiptUrl: null, // Will be generated
+        receiptUrl: receiptUrl || null,
       },
       { status: 201 }
     )

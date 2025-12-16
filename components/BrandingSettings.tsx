@@ -174,7 +174,7 @@ export default function BrandingSettings({ church }: BrandingSettingsProps) {
             placeholder="app.yourchurch.com"
           />
           <p className="mt-1 text-sm text-gray-500">
-            After setting your domain, you'll need to verify it by adding a DNS record.
+            After setting your domain, you&apos;ll need to verify it by adding a DNS record.
           </p>
           {church.domainVerified && (
             <p className="mt-1 text-sm text-green-600">✓ Domain verified</p>

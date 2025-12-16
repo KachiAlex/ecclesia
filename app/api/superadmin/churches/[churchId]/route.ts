@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { ChurchService } from '@/lib/services/church-service'
 import { SubscriptionService, SubscriptionPlanService } from '@/lib/services/subscription-service'
 import { db, FieldValue } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import { guardApi } from '@/lib/api-guard'
 
 // GET - Get church details with subscription info
 export async function GET(
@@ -13,16 +12,8 @@ export async function GET(
 ) {
   try {
     const { churchId } = await params
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userRole = (session.user as any)?.role
-    if (userRole !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const guarded = await guardApi({ allowedRoles: ['SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
 
     const church = await ChurchService.findById(churchId)
 
@@ -65,16 +56,8 @@ export async function PUT(
 ) {
   try {
     const { churchId } = await params
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userRole = (session.user as any)?.role
-    if (userRole !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const guarded = await guardApi({ allowedRoles: ['SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
     const body = await request.json()
     const { action, ...data } = body
 
@@ -204,16 +187,8 @@ export async function DELETE(
 ) {
   try {
     const { churchId } = await params
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userRole = (session.user as any)?.role
-    if (userRole !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const guarded = await guardApi({ allowedRoles: ['SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
     const subscription = await SubscriptionService.findByChurch(churchId)
 
     if (subscription) {

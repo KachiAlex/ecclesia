@@ -16,6 +16,7 @@ datasource db {
 enum UserRole {
   MEMBER
   VISITOR
+  VOLUNTEER
   LEADER
   PASTOR
   ADMIN

@@ -1,34 +1,30 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { SermonService } from '@/lib/services/sermon-service'
-import { getCurrentChurch } from '@/lib/church-context'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import { guardApi } from '@/lib/api-guard'
+import { checkUsageLimit } from '@/lib/subscription'
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true })
+    if (!guarded.ok) return guarded.response
 
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { userId, church } = guarded.ctx
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
     const tag = searchParams.get('tag')
-    const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
+    const cursor = searchParams.get('cursor')
+
+    if (search && tag) {
+      return NextResponse.json(
+        { error: 'Search cannot be combined with tag filter' },
+        { status: 400 }
+      )
+    }
 
     // Get sermons using service
     const sermons = await SermonService.findByChurch(church.id, {
@@ -36,6 +32,7 @@ export async function GET(request: Request) {
       search: search || undefined,
       tag: tag || undefined,
       limit,
+      lastDocId: cursor || undefined,
     })
 
     // Get user's watch progress
@@ -53,22 +50,10 @@ export async function GET(request: Request) {
       })
     )
 
-    // Get view and download counts
+    // Get view and download counts (cached on sermon docs)
     const sermonsWithDetails = await Promise.all(
       sermons.map(async (sermon) => {
         const view = viewMap.get(sermon.id)
-        
-        // Get view count
-        const viewsSnapshot = await db.collection(COLLECTIONS.sermonViews)
-          .where('sermonId', '==', sermon.id)
-          .count()
-          .get()
-        
-        // Get download count
-        const downloadsSnapshot = await db.collection(COLLECTIONS.sermonDownloads)
-          .where('sermonId', '==', sermon.id)
-          .count()
-          .get()
 
         return {
           ...sermon,
@@ -83,27 +68,20 @@ export async function GET(request: Request) {
               }
             : null,
           _count: {
-            views: viewsSnapshot.data().count || 0,
-            downloads: downloadsSnapshot.data().count || 0,
+            views: (sermon as any).viewsCount || 0,
+            downloads: (sermon as any).downloadsCount || 0,
           },
         }
       })
     )
 
-    // Get total count
-    const totalSnapshot = await db.collection(COLLECTIONS.sermons)
-      .where('churchId', '==', church.id)
-      .count()
-      .get()
-    const total = totalSnapshot.data().count || sermons.length
+    const nextCursor = sermons.length === limit ? sermons[sermons.length - 1].id : null
 
     return NextResponse.json({
       sermons: sermonsWithDetails,
       pagination: {
-        page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        nextCursor,
       },
     })
   } catch (error) {
@@ -117,28 +95,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR'] })
+    if (!guarded.ok) return guarded.response
 
-    const userRole = (session.user as any).role
-    if (!['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
-
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { userId, church } = guarded.ctx
 
     const body = await request.json()
     const {
@@ -157,6 +117,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Title and speaker are required' },
         { status: 400 }
+      )
+    }
+
+    const usageCheck = await checkUsageLimit(church.id, 'maxSermons')
+    if (!usageCheck.allowed && usageCheck.limit) {
+      return NextResponse.json(
+        {
+          error: `Sermon limit reached. Maximum ${usageCheck.limit} sermons allowed on your plan.`,
+          limit: usageCheck.limit,
+          current: usageCheck.current,
+        },
+        { status: 403 }
       )
     }
 

@@ -196,7 +196,7 @@ export default function AdminDashboard() {
           <div className="p-6 border-b">
             <h2 className="text-xl font-semibold">Disengaged Members</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Members who haven't logged in for 30+ days
+              Members who haven&apos;t logged in for 30+ days
             </p>
           </div>
           <div className="overflow-x-auto">

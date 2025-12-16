@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { PaymentService } from '@/lib/services/payment-service'
 import { GivingService } from '@/lib/services/giving-service'
 import { EmailService } from '@/lib/services/email-service'
+import { db, FieldValue } from '@/lib/firestore'
+import { ReceiptService } from '@/lib/services/receipt-service'
 
 export async function POST(request: Request) {
   try {
@@ -16,9 +18,26 @@ export async function POST(request: Request) {
     }
 
     // Verify webhook signature (Flutterwave uses verif-hash header)
-    const secretHash = process.env.FLUTTERWAVE_SECRET_HASH || process.env.FLUTTERWAVE_SECRET_KEY!
+    const secretHash = process.env.FLUTTERWAVE_SECRET_HASH
 
-    if (signature !== secretHash) {
+    if (!secretHash) {
+      console.error('Flutterwave webhook received but FLUTTERWAVE_SECRET_HASH is not configured')
+      return NextResponse.json(
+        { error: 'Webhook not configured' },
+        { status: 500 }
+      )
+    }
+
+    const { timingSafeEqual } = await import('crypto')
+    const sigOk = (() => {
+      try {
+        return timingSafeEqual(Buffer.from(signature), Buffer.from(secretHash))
+      } catch {
+        return false
+      }
+    })()
+
+    if (!sigOk) {
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
@@ -27,6 +46,25 @@ export async function POST(request: Request) {
 
     const event = body.event
     const data = body.data
+
+    // Idempotency: prevent duplicate processing for the same transaction
+    // Prefer Flutterwave transaction id; fallback to tx_ref.
+    const transactionKey = data?.id ? `flutterwave_${data.id}` : data?.tx_ref ? `flutterwave_txref_${data.tx_ref}` : null
+    if (transactionKey) {
+      const markerRef = db.collection('webhook_events').doc(transactionKey)
+      const markerSnap = await markerRef.get()
+      if (markerSnap.exists) {
+        return NextResponse.json({ received: true, duplicate: true })
+      }
+      await markerRef.set({
+        provider: 'flutterwave',
+        event,
+        tx_ref: data?.tx_ref || null,
+        transactionId: data?.id || null,
+        status: data?.status || null,
+        createdAt: FieldValue.serverTimestamp(),
+      })
+    }
 
     // Handle successful payment
     if (event === 'charge.completed' && data.status === 'successful') {
@@ -61,6 +99,23 @@ export async function POST(request: Request) {
                 project = await ProjectService.findById(metadata.projectId)
               }
 
+              let receiptUrl: string | undefined
+              try {
+                receiptUrl = await ReceiptService.generateUploadAndAttachDonationReceipt({
+                  givingId: giving.id,
+                  userId: metadata.userId,
+                  userName: `${user.firstName} ${user.lastName}`,
+                  userEmail: user.email,
+                  amount: verification.amount || data.amount,
+                  type: metadata.type,
+                  projectName: project?.name,
+                  transactionId: verification.transactionId,
+                  date: new Date(giving.createdAt),
+                })
+              } catch (error) {
+                console.error('Error generating donation receipt (webhook):', error)
+              }
+
               await EmailService.sendDonationReceipt(
                 user.email,
                 {
@@ -69,7 +124,7 @@ export async function POST(request: Request) {
                   projectName: project?.name,
                   transactionId: verification.transactionId,
                   date: new Date(giving.createdAt),
-                  receiptUrl: undefined, // Will be added when PDF generation is implemented
+                  receiptUrl,
                 },
                 `${user.firstName} ${user.lastName}`
               )

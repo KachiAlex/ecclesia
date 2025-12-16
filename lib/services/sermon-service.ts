@@ -17,12 +17,43 @@ export interface Sermon {
   tags: string[]
   topics: string[]
   aiSummary?: string
+  searchKeywords?: string[]
+  viewsCount?: number
+  downloadsCount?: number
   publishedAt: Date
   createdAt: Date
   updatedAt: Date
 }
 
 export class SermonService {
+  private static buildSearchKeywords(input: {
+    title?: string
+    description?: string
+    speaker?: string
+    tags?: string[]
+    topics?: string[]
+    category?: string
+  }): string[] {
+    const raw = [
+      input.title,
+      input.description,
+      input.speaker,
+      input.category,
+      ...(input.tags || []),
+      ...(input.topics || []),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    const tokens = raw
+      .split(/[^a-z0-9]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 2)
+
+    return Array.from(new Set(tokens)).slice(0, 100)
+  }
+
   static async findById(id: string): Promise<Sermon | null> {
     const doc = await db.collection(COLLECTIONS.sermons).doc(id).get()
     if (!doc.exists) return null
@@ -44,6 +75,16 @@ export class SermonService {
       ...data,
       tags: data.tags || [],
       topics: data.topics || [],
+      searchKeywords: this.buildSearchKeywords({
+        title: (data as any).title,
+        description: (data as any).description,
+        speaker: (data as any).speaker,
+        tags: (data as any).tags || [],
+        topics: (data as any).topics || [],
+        category: (data as any).category,
+      }),
+      viewsCount: (data as any).viewsCount ?? 0,
+      downloadsCount: (data as any).downloadsCount ?? 0,
       publishedAt: FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -84,6 +125,17 @@ export class SermonService {
       query = query.where('tags', 'array-contains', options.tag)
     }
 
+    if (options?.search) {
+      if (!options?.tag) {
+        const tokens = this.buildSearchKeywords({ title: options.search })
+        const searchTokens = tokens.slice(0, 10)
+
+        if (searchTokens.length > 0) {
+          query = query.where('searchKeywords', 'array-contains-any', searchTokens)
+        }
+      }
+    }
+
     query = query.orderBy('createdAt', 'desc').limit(options?.limit || 20)
 
     if (options?.lastDocId) {
@@ -105,17 +157,6 @@ export class SermonService {
       } as Sermon
     })
 
-    // Filter by search term if provided (Firestore doesn't support full-text search)
-    if (options?.search) {
-      const searchLower = options.search.toLowerCase()
-      sermons = sermons.filter((sermon: any) =>
-        sermon.title.toLowerCase().includes(searchLower) ||
-        sermon.description?.toLowerCase().includes(searchLower) ||
-        sermon.speaker.toLowerCase().includes(searchLower) ||
-        sermon.topics.some((topic: any) => topic.toLowerCase().includes(searchLower))
-      )
-    }
-
     return sermons
   }
 
@@ -123,6 +164,25 @@ export class SermonService {
     const updateData: any = {
       ...data,
       updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    if (
+      updateData.title !== undefined ||
+      updateData.description !== undefined ||
+      updateData.speaker !== undefined ||
+      updateData.category !== undefined ||
+      updateData.tags !== undefined ||
+      updateData.topics !== undefined
+    ) {
+      const existing = await this.findById(id)
+      updateData.searchKeywords = this.buildSearchKeywords({
+        title: updateData.title ?? existing?.title,
+        description: updateData.description ?? existing?.description,
+        speaker: updateData.speaker ?? existing?.speaker,
+        category: updateData.category ?? existing?.category,
+        tags: updateData.tags ?? existing?.tags,
+        topics: updateData.topics ?? existing?.topics,
+      })
     }
 
     // Remove id, createdAt, updatedAt from update

@@ -1,25 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
-import { getCurrentChurch } from '@/lib/church-context'
 import { getPayrollSummary } from '@/lib/payroll'
+import { guardApi } from '@/lib/api-guard'
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'PASTOR', 'SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
 
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { church } = guarded.ctx
 
     const summary = await getPayrollSummary(church.id)
 

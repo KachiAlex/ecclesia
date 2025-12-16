@@ -74,6 +74,10 @@ export class SermonViewService {
       const docRef = db.collection(COLLECTIONS.sermonViews).doc()
       await docRef.set(viewData)
 
+      await db.collection(COLLECTIONS.sermons).doc(sermonId).update({
+        viewsCount: FieldValue.increment(1),
+      })
+
       const created = await docRef.get()
       const createdData = created.data()!
       return {
@@ -139,6 +143,10 @@ export class SermonDownloadService {
 
     const docRef = db.collection(COLLECTIONS.sermonDownloads).doc()
     await docRef.set(downloadData)
+
+    await db.collection(COLLECTIONS.sermons).doc(sermonId).update({
+      downloadsCount: FieldValue.increment(1),
+    })
 
     const created = await docRef.get()
     const createdData = created.data()!

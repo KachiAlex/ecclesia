@@ -73,7 +73,7 @@ export default function SpiritualGrowthPlan() {
 
             <div>
               <label htmlFor="challenges" className="block text-sm font-medium text-gray-700 mb-2">
-                Challenges You're Facing (comma-separated)
+                Challenges You&apos;re Facing (comma-separated)
               </label>
               <textarea
                 id="challenges"

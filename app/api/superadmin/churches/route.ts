@@ -1,20 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { ChurchService } from '@/lib/services/church-service'
+import { guardApi } from '@/lib/api-guard'
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userRole = (session.user as any)?.role
-    if (userRole !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const guarded = await guardApi({ allowedRoles: ['SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
 
     const churches = await ChurchService.findAll()
 

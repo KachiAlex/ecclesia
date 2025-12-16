@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth-options'
-import { getCurrentChurch } from '@/lib/church-context'
-import { requireRole } from '@/lib/auth'
 import { generatePayrollRecords } from '@/lib/payroll'
+import { guardApi } from '@/lib/api-guard'
 
 export async function POST(
   request: Request,
@@ -11,16 +8,10 @@ export async function POST(
 ) {
   try {
     const { periodId } = await params
-    const session = await requireRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'])
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'PASTOR', 'SUPER_ADMIN'] })
+    if (!guarded.ok) return guarded.response
 
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { church } = guarded.ctx
 
     const records = await generatePayrollRecords(periodId, church.id)
 

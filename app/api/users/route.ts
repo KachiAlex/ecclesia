@@ -1,27 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { UserService } from '@/lib/services/user-service'
-import { getCurrentChurch } from '@/lib/church-context'
 import { canManageUser } from '@/lib/permissions'
 import { checkUsageLimit } from '@/lib/subscription'
+import { guardApi } from '@/lib/api-guard'
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true })
+    if (!guarded.ok) return guarded.response
 
-    const userId = (session.user as any).id
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
+    const { userId, church } = guarded.ctx
 
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
@@ -79,21 +67,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guarded = await guardApi({ requireChurch: true })
+    if (!guarded.ok) return guarded.response
 
-    const userId = (session.user as any).id
+    const { session, userId, church } = guarded.ctx
     const userRole = (session.user as any).role
-    const church = await getCurrentChurch(userId)
-
-    if (!church) {
-      return NextResponse.json(
-        { error: 'No church selected' },
-        { status: 400 }
-      )
-    }
 
     // Check if user has permission to create users (ADMIN, PASTOR, or SUPER_ADMIN)
     if (!['ADMIN', 'PASTOR', 'SUPER_ADMIN'].includes(userRole)) {

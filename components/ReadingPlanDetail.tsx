@@ -143,7 +143,7 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6 text-center">
-          <p className="text-gray-600 mb-4">You haven't started this reading plan yet.</p>
+          <p className="text-gray-600 mb-4">You haven&apos;t started this reading plan yet.</p>
           <button
             onClick={async () => {
               try {
@@ -171,13 +171,13 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
       {/* Daily Reading Section */}
       {progress && !progress.completed && (
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Today's Reading</h2>
+          <h2 className="text-xl font-semibold mb-4">Today&apos;s Reading</h2>
           <div className="mb-4">
             <p className="text-gray-600 mb-4">
               Day {progress.currentDay} of {plan.duration}
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              Mark today's reading as complete to advance to the next day.
+              Mark today&apos;s reading as complete to advance to the next day.
             </p>
           </div>
 

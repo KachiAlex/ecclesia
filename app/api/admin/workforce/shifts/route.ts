@@ -1,21 +1,22 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
-import { getCurrentChurch } from '@/lib/church-context'
-import { requirePermissionMiddleware } from '@/lib/middleware/rbac'
 import { VolunteerShiftService } from '@/lib/services/volunteer-service'
 import { UserService } from '@/lib/services/user-service'
+import { guardApi } from '@/lib/api-guard'
+import { hasPermission } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   try {
-    const { error: permError } = await requirePermissionMiddleware('manage_volunteers')
-    if (permError) {
-      return permError
-    }
+    const guarded = await guardApi({ requireChurch: true })
+    if (!guarded.ok) return guarded.response
 
-    const session = await getServerSession(authOptions)
-    const userId = (session?.user as any).id
-    const church = await getCurrentChurch(userId)
+    const { role, church } = guarded.ctx
+
+    if (!role || !hasPermission(role, 'manage_volunteers')) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
 
     if (!church) {
       return NextResponse.json(
@@ -63,14 +64,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { error: permError } = await requirePermissionMiddleware('manage_volunteers')
-    if (permError) {
-      return permError
-    }
+    const guarded = await guardApi({ requireChurch: true })
+    if (!guarded.ok) return guarded.response
 
-    const session = await getServerSession(authOptions)
-    const userId = (session?.user as any).id
-    const church = await getCurrentChurch(userId)
+    const { role, church } = guarded.ctx
+
+    if (!role || !hasPermission(role, 'manage_volunteers')) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
 
     if (!church) {
       return NextResponse.json(
@@ -83,12 +87,12 @@ export async function POST(request: Request) {
     const {
       userId: assignUserId,
       departmentId,
-      role,
+      role: shiftRole,
       startTime,
       endTime,
     } = body
 
-    if (!assignUserId || !role || !startTime) {
+    if (!assignUserId || !shiftRole || !startTime) {
       return NextResponse.json(
         { error: 'User ID, role, and start time are required' },
         { status: 400 }
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
     const shift = await VolunteerShiftService.create({
       userId: assignUserId,
       departmentId: departmentId || undefined,
-      role,
+      role: shiftRole,
       startTime: new Date(startTime),
       endTime: endTime ? new Date(endTime) : undefined,
       status: 'Scheduled',

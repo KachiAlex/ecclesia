@@ -133,7 +133,7 @@ export default function OnboardingPage() {
               </span>
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to Ecclesia!</h1>
-            <p className="text-lg text-gray-600">Let's set up your church profile</p>
+            <p className="text-lg text-gray-600">Let&apos;s set up your church profile</p>
           </div>
 
           {/* Progress indicator */}

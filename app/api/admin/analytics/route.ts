@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
-import { getCurrentChurch } from '@/lib/church-context'
-import { requirePermissionMiddleware } from '@/lib/middleware/rbac'
+import { hasPermission } from '@/lib/permissions'
 import { UserService } from '@/lib/services/user-service'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { CheckInService } from '@/lib/services/checkin-service'
+import { guardApi } from '@/lib/api-guard'
 
 export async function GET() {
   try {
-    const { error: permError } = await requirePermissionMiddleware('view_analytics')
-    if (permError) {
-      return permError
-    }
+    const guarded = await guardApi({ requireChurch: true })
+    if (!guarded.ok) return guarded.response
 
-    const session = await getServerSession(authOptions)
-    const userId = (session?.user as any).id
-    const church = await getCurrentChurch(userId)
+    const { role, userId, church } = guarded.ctx
+
+    if (!role || !hasPermission(role, 'view_analytics')) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
 
     if (!church) {
       return NextResponse.json(
