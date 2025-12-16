@@ -29,6 +29,9 @@ export default function EventsCalendar() {
     endTime: '10:00',
     location: '',
     type: 'SERVICE',
+    isRecurring: false,
+    recurrencePattern: 'WEEKLY' as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY',
+    recurrenceEndDate: '',
   })
 
   useEffect(() => {
@@ -110,18 +113,35 @@ export default function EventsCalendar() {
     }
 
     try {
+      // Combine date and time into proper datetime format
+      const startDateTime = new Date(selectedDate)
+      const [startHour, startMinute] = newEvent.startTime.split(':')
+      startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0)
+
+      const endDateTime = new Date(selectedDate)
+      const [endHour, endMinute] = newEvent.endTime.split(':')
+      endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0, 0)
+
+      const requestBody: any = {
+        title: newEvent.title,
+        description: newEvent.description,
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
+        location: newEvent.location,
+        type: newEvent.type,
+      }
+
+      // Add recurring event data if enabled
+      if (newEvent.isRecurring && newEvent.recurrenceEndDate) {
+        requestBody.isRecurring = true
+        requestBody.recurrencePattern = newEvent.recurrencePattern
+        requestBody.recurrenceEndDate = new Date(newEvent.recurrenceEndDate).toISOString()
+      }
+
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newEvent.title,
-          description: newEvent.description,
-          date: selectedDate.toISOString().split('T')[0],
-          startTime: newEvent.startTime,
-          endTime: newEvent.endTime,
-          location: newEvent.location,
-          type: newEvent.type,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
@@ -133,10 +153,15 @@ export default function EventsCalendar() {
           endTime: '10:00',
           location: '',
           type: 'SERVICE',
+          isRecurring: false,
+          recurrencePattern: 'WEEKLY',
+          recurrenceEndDate: '',
         })
         loadEvents()
+        alert(newEvent.isRecurring ? 'Recurring events created successfully!' : 'Event created successfully!')
       } else {
-        alert('Failed to create event')
+        const error = await response.json()
+        alert(error.error || 'Failed to create event')
       }
     } catch (error) {
       console.error('Error creating event:', error)
@@ -380,6 +405,58 @@ export default function EventsCalendar() {
                     <option value="CONFERENCE">Conference</option>
                     <option value="OTHER">Other</option>
                   </select>
+                </div>
+
+                {/* Recurring Event Options */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      id="isRecurring"
+                      checked={newEvent.isRecurring}
+                      onChange={(e) => setNewEvent({ ...newEvent, isRecurring: e.target.checked })}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                      Recurring Event
+                    </label>
+                  </div>
+
+                  {newEvent.isRecurring && (
+                    <div className="space-y-3 ml-7">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Repeat Pattern
+                        </label>
+                        <select
+                          value={newEvent.recurrencePattern}
+                          onChange={(e) => setNewEvent({ ...newEvent, recurrencePattern: e.target.value as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="WEEKLY">Weekly (every week)</option>
+                          <option value="BIWEEKLY">Bi-weekly (every 2 weeks)</option>
+                          <option value="MONTHLY">Monthly (same day each month)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          End Date *
+                        </label>
+                        <input
+                          type="date"
+                          value={newEvent.recurrenceEndDate}
+                          onChange={(e) => setNewEvent({ ...newEvent, recurrenceEndDate: e.target.value })}
+                          min={selectedDate?.toISOString().split('T')[0]}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                          required={newEvent.isRecurring}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Events will be created up to this date
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

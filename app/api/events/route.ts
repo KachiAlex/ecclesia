@@ -114,6 +114,9 @@ export async function POST(request: Request) {
       isTicketed,
       ticketPrice,
       imageUrl,
+      isRecurring,
+      recurrencePattern,
+      recurrenceEndDate,
     } = body
 
     if (!title || !startDate || !type) {
@@ -123,6 +126,66 @@ export async function POST(request: Request) {
       )
     }
 
+    // If recurring event, validate recurrence fields
+    if (isRecurring && (!recurrencePattern || !recurrenceEndDate)) {
+      return NextResponse.json(
+        { error: 'Recurrence pattern and end date are required for recurring events' },
+        { status: 400 }
+      )
+    }
+
+    // Create recurring events if specified
+    if (isRecurring) {
+      const events = []
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const recurrenceEnd = new Date(recurrenceEndDate)
+      
+      // Calculate duration
+      const duration = end.getTime() - start.getTime()
+      
+      let currentDate = new Date(start)
+      
+      while (currentDate <= recurrenceEnd) {
+        const eventStartDate = new Date(currentDate)
+        const eventEndDate = new Date(eventStartDate.getTime() + duration)
+        
+        const event = await EventService.create({
+          title,
+          description,
+          type,
+          churchId: church.id,
+          groupId: groupId || undefined,
+          location,
+          startDate: eventStartDate,
+          endDate: eventEndDate,
+          maxAttendees: maxAttendees || undefined,
+          isTicketed: isTicketed || false,
+          ticketPrice: ticketPrice || undefined,
+          imageUrl: imageUrl || undefined,
+        })
+        
+        events.push(event)
+        
+        // Calculate next occurrence
+        if (recurrencePattern === 'WEEKLY') {
+          currentDate.setDate(currentDate.getDate() + 7)
+        } else if (recurrencePattern === 'BIWEEKLY') {
+          currentDate.setDate(currentDate.getDate() + 14)
+        } else if (recurrencePattern === 'MONTHLY') {
+          currentDate.setMonth(currentDate.getMonth() + 1)
+        }
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        count: events.length,
+        events: events.slice(0, 3), // Return first 3 as preview
+        message: `${events.length} recurring events created successfully`
+      }, { status: 201 })
+    }
+
+    // Create single event
     const event = await EventService.create({
       title,
       description,
