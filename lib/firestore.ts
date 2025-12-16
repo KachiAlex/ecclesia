@@ -51,10 +51,14 @@ export function initFirebase() {
     }
 
     _db = getFirestore(app)
+    // Enable ignoreUndefinedProperties to handle optional fields
+    _db.settings({ ignoreUndefinedProperties: true })
     _storage = getStorage(app)
   } else {
     app = getApps()[0]
     _db = getFirestore(app)
+    // Enable ignoreUndefinedProperties to handle optional fields
+    _db.settings({ ignoreUndefinedProperties: true })
     _storage = getStorage(app)
   }
 

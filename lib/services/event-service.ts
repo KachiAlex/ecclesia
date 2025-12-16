@@ -38,10 +38,26 @@ export class EventService {
   }
 
   static async create(data: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>): Promise<Event> {
-    const eventData = {
-      ...data,
+    // Remove undefined values to avoid Firestore errors
+    const cleanedData: any = {
+      churchId: data.churchId,
+      title: data.title,
+      type: data.type,
+      isTicketed: data.isTicketed,
       startDate: data.startDate instanceof Date ? data.startDate : new Date(data.startDate),
-      endDate: data.endDate ? (data.endDate instanceof Date ? data.endDate : new Date(data.endDate)) : null,
+    }
+
+    // Only add optional fields if they have values
+    if (data.groupId) cleanedData.groupId = data.groupId
+    if (data.description) cleanedData.description = data.description
+    if (data.location) cleanedData.location = data.location
+    if (data.endDate) cleanedData.endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate)
+    if (data.maxAttendees) cleanedData.maxAttendees = data.maxAttendees
+    if (data.ticketPrice) cleanedData.ticketPrice = data.ticketPrice
+    if (data.imageUrl) cleanedData.imageUrl = data.imageUrl
+
+    const eventData = {
+      ...cleanedData,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }
