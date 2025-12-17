@@ -29,10 +29,89 @@ interface User {
   profileImage?: string
 }
 
+interface Comment {
+  id: string
+  postId: string
+  content: string
+  createdAt: string
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    profileImage?: string
+  } | null
+}
+
 export default function CommunityFeed() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null)
+  const [commentsByPostId, setCommentsByPostId] = useState<Record<string, Comment[]>>({})
+  const [commentDraftByPostId, setCommentDraftByPostId] = useState<Record<string, string>>({})
+  const [commentsLoadingByPostId, setCommentsLoadingByPostId] = useState<Record<string, boolean>>({})
+  const [commentPostingByPostId, setCommentPostingByPostId] = useState<Record<string, boolean>>({})
+
+  const loadComments = async (postId: string) => {
+    setCommentsLoadingByPostId((p) => ({ ...p, [postId]: true }))
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, { cache: 'no-store' })
+      if (!res.ok) {
+        setCommentsByPostId((p) => ({ ...p, [postId]: [] }))
+        return
+      }
+      const data = await res.json()
+      const comments = Array.isArray(data) ? data : []
+      setCommentsByPostId((p) => ({ ...p, [postId]: comments }))
+    } catch (error) {
+      console.error('Error loading comments:', error)
+      setCommentsByPostId((p) => ({ ...p, [postId]: [] }))
+    } finally {
+      setCommentsLoadingByPostId((p) => ({ ...p, [postId]: false }))
+    }
+  }
+
+  const submitComment = async (postId: string) => {
+    const content = (commentDraftByPostId[postId] || '').trim()
+    if (!content) return
+
+    setCommentPostingByPostId((p) => ({ ...p, [postId]: true }))
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+
+      if (!res.ok) return
+
+      const created = await res.json()
+      setCommentsByPostId((p) => ({
+        ...p,
+        [postId]: [...(p[postId] || []), created],
+      }))
+      setCommentDraftByPostId((p) => ({ ...p, [postId]: '' }))
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                _count: {
+                  ...post._count,
+                  comments: post._count.comments + 1,
+                },
+              }
+            : post
+        )
+      )
+    } catch (error) {
+      console.error('Error creating comment:', error)
+    } finally {
+      setCommentPostingByPostId((p) => ({ ...p, [postId]: false }))
+    }
+  }
   
   // Post creation states
   const [postContent, setPostContent] = useState('')
@@ -410,13 +489,75 @@ export default function CommunityFeed() {
                   >
                     {post.isLiked ? '' : ''} Like
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-all">
-                     Comment
+                  <button
+                    onClick={async () => {
+                      const next = openCommentsPostId === post.id ? null : post.id
+                      setOpenCommentsPostId(next)
+                      if (next) {
+                        await loadComments(post.id)
+                      }
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium transition-all ${
+                      openCommentsPostId === post.id ? 'text-primary-600 bg-primary-50 hover:bg-primary-100' : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Comment
                   </button>
                   <button className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-all">
                      Share
                   </button>
                 </div>
+
+                {openCommentsPostId === post.id && (
+                  <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
+                    {commentsLoadingByPostId[post.id] ? (
+                      <div className="text-sm text-gray-500">Loading comments...</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {(commentsByPostId[post.id] || []).length === 0 ? (
+                          <div className="text-sm text-gray-500">No comments yet.</div>
+                        ) : (
+                          (commentsByPostId[post.id] || []).map((c) => (
+                            <div key={c.id} className="flex gap-3">
+                              <div className="flex-shrink-0">
+                                {c.user?.profileImage ? (
+                                  <img src={c.user.profileImage} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gray-200" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm">
+                                  <span className="font-semibold text-gray-900">
+                                    {c.user ? `${c.user.firstName} ${c.user.lastName}` : 'Unknown'}
+                                  </span>
+                                  <span className="text-gray-700">{' '}{c.content}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">{formatDate(c.createdAt)}</div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <input
+                        value={commentDraftByPostId[post.id] || ''}
+                        onChange={(e) => setCommentDraftByPostId((p) => ({ ...p, [post.id]: e.target.value }))}
+                        placeholder="Write a comment..."
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <button
+                        onClick={() => submitComment(post.id)}
+                        disabled={commentPostingByPostId[post.id] || !(commentDraftByPostId[post.id] || '').trim()}
+                        className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                      >
+                        {commentPostingByPostId[post.id] ? 'Posting...' : 'Post'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
