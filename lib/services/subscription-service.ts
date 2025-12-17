@@ -159,16 +159,13 @@ export class SubscriptionService {
 
 export class UsageMetricService {
   static async findByChurch(churchId: string, metricType?: string): Promise<UsageMetric[]> {
-    let query: Query = db.collection(COLLECTIONS.usageMetrics)
+    // NOTE: Avoid composite index requirements by not combining `where(churchId == ...)`
+    // with `orderBy(createdAt)` or additional filters.
+    const snapshot = await db.collection(COLLECTIONS.usageMetrics)
       .where('churchId', '==', churchId)
-    
-    if (metricType) {
-      query = query.where('metricType', '==', metricType)
-    }
+      .get()
 
-    const snapshot = await query.orderBy('createdAt', 'desc').limit(100).get()
-
-    return snapshot.docs.map((doc: any) => {
+    const all = snapshot.docs.map((doc: any) => {
       const data = doc.data()
       return {
         id: doc.id,
@@ -176,6 +173,13 @@ export class UsageMetricService {
         createdAt: toDate(data.createdAt),
       } as UsageMetric
     })
+
+    const filtered = metricType
+      ? all.filter(m => String((m as any).metricType) === metricType)
+      : all
+
+    filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    return filtered.slice(0, 100)
   }
 
   static async create(data: Omit<UsageMetric, 'id' | 'createdAt'>): Promise<UsageMetric> {
