@@ -29,6 +29,9 @@ export async function POST(request: Request) {
     }
 
     const effectiveBranchId = role === 'BRANCH_ADMIN' ? ((user as any)?.branchId || null) : (branchId || null)
+    if (role !== 'BRANCH_ADMIN' && !effectiveBranchId) {
+      return NextResponse.json({ error: 'branchId is required' }, { status: 400 })
+    }
     if (role === 'BRANCH_ADMIN' && branchId && branchId !== effectiveBranchId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

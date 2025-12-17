@@ -6,6 +6,10 @@ export async function GET(request: Request) {
   if (!guarded.ok) return guarded.response
 
   const url = new URL(request.url)
+  const branchId = url.searchParams.get('branchId')
+  if (!branchId) {
+    return NextResponse.json({ error: 'branchId is required for balance sheet export' }, { status: 400 })
+  }
   const ledgerUrl = new URL('/api/accounting/ledger', url.origin)
   ledgerUrl.search = url.search
 
@@ -21,30 +25,50 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: text || 'Failed to export' }, { status: 500 })
   }
 
-  const { items } = await res.json()
+  const { items, totals } = await res.json()
 
-  const header = ['kind', 'date', 'title', 'amount', 'currency', 'branchId', 'id']
-  const rows = [header.join(',')]
+  const incomeItems = (items as any[]).filter((x) => x.kind === 'income')
+  const expenseItems = (items as any[]).filter((x) => x.kind === 'expense')
+  const maxRows = Math.max(incomeItems.length, expenseItems.length)
 
-  for (const it of items as any[]) {
+  const header = [
+    'income_date',
+    'income_title',
+    'income_amount',
+    'income_currency',
+    'expense_date',
+    'expense_title',
+    'expense_amount',
+    'expense_currency',
+  ]
+  const rows: string[] = [header.join(',')]
+
+  for (let i = 0; i < maxRows; i++) {
+    const inc = incomeItems[i]
+    const exp = expenseItems[i]
+
     const cols = [
-      it.kind,
-      it.date,
-      (it.title || '').replaceAll('"', '""'),
-      String(it.amount ?? ''),
-      it.currency || '',
-      it.branchId || '',
-      it.id,
+      inc ? inc.date : '',
+      inc ? (inc.title || '').replaceAll('"', '""') : '',
+      inc ? String(inc.amount ?? '') : '',
+      inc ? (inc.currency || '') : '',
+      exp ? exp.date : '',
+      exp ? (exp.title || '').replaceAll('"', '""') : '',
+      exp ? String(exp.amount ?? '') : '',
+      exp ? (exp.currency || '') : '',
     ]
     rows.push(cols.map((c) => `"${String(c)}"`).join(','))
   }
+
+  rows.push('')
+  rows.push(`"TOTAL INCOME","${totals?.income ?? 0}","TOTAL EXPENSES","${totals?.expenses ?? 0}","NET","${totals?.net ?? 0}"`)
 
   const csv = rows.join('\n')
   return new NextResponse(csv, {
     status: 200,
     headers: {
       'content-type': 'text/csv; charset=utf-8',
-      'content-disposition': 'attachment; filename="accounting-ledger.csv"',
+      'content-disposition': 'attachment; filename="accounting-balance-sheet.csv"',
     },
   })
 }

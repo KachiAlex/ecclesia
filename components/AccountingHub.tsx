@@ -140,6 +140,10 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
   }, [queryString])
 
   async function createExpense() {
+    if (!branchId.trim()) {
+      setError('Please select a branch before adding an expense.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -168,6 +172,10 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
   }
 
   async function createIncome() {
+    if (!branchId.trim()) {
+      setError('Please select a branch before adding income.')
+      return
+    }
     setIncomeSaving(true)
     setError(null)
     try {
@@ -258,9 +266,20 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
         <div className="bg-white rounded-xl border p-4 flex flex-col justify-between">
           <div className="text-xs font-semibold text-gray-600">Exports</div>
           <div className="mt-2 flex gap-2">
-            <a className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50" href={`/api/accounting/export/csv${queryString}`}>Excel (CSV)</a>
-            <a className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-50" href={`/api/accounting/export/pdf${queryString}`}>PDF</a>
+            <a
+              className={`px-3 py-2 rounded-lg border text-sm ${branchId.trim() ? 'hover:bg-gray-50' : 'opacity-50 pointer-events-none'}`}
+              href={`/api/accounting/export/csv${queryString}`}
+            >
+              Excel (CSV)
+            </a>
+            <a
+              className={`px-3 py-2 rounded-lg border text-sm ${branchId.trim() ? 'hover:bg-gray-50' : 'opacity-50 pointer-events-none'}`}
+              href={`/api/accounting/export/pdf${queryString}`}
+            >
+              PDF
+            </a>
           </div>
+          {!branchId.trim() && <div className="text-xs text-gray-500 mt-2">Select a branch to export.</div>}
         </div>
       </div>
 
