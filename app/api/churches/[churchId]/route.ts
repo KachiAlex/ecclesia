@@ -85,6 +85,7 @@ export async function PATCH(
       country,
       phone,
       website,
+      timezone,
     } = body
 
     const updateData: any = {}
@@ -97,6 +98,7 @@ export async function PATCH(
     if (country !== undefined) updateData.country = country
     if (phone !== undefined) updateData.phone = phone
     if (website !== undefined) updateData.website = website
+    if (timezone !== undefined) updateData.timezone = timezone
 
     const updatedChurch = await ChurchService.update(churchId, updateData)
 

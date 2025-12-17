@@ -92,7 +92,7 @@ export default async function DashboardLayout({
                 <span>Plan</span>
               </Link>
               <Link
-                href="/settings/branding"
+                href="/settings"
                 className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50"
               >
                 <span>⚙️</span>
