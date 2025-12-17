@@ -60,13 +60,27 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     return s ? `?${s}` : ''
   }, [branchId, start, end])
 
+  async function readApiError(res: Response) {
+    try {
+      const json = await res.json()
+      return json?.error || 'Request failed'
+    } catch {
+      try {
+        const text = await res.text()
+        return text || 'Request failed'
+      } catch {
+        return 'Request failed'
+      }
+    }
+  }
+
   async function loadSessions() {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch(`/api/attendance/sessions${queryString}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error(await readApiError(res))
       const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Failed to load sessions')
       setSessions(json.sessions || [])
     } catch (e: any) {
       setError(e?.message || 'Failed to load')
@@ -79,8 +93,8 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     setError(null)
     try {
       const res = await fetch(`/api/attendance/sessions/${sessionId}/records`, { cache: 'no-store' })
+      if (!res.ok) throw new Error(await readApiError(res))
       const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Failed to load records')
       setRecords(json.records || [])
     } catch (e: any) {
       setError(e?.message || 'Failed to load records')
@@ -118,8 +132,7 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
           notes: createForm.notes || null,
         }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Failed to create session')
+      if (!res.ok) throw new Error(await readApiError(res))
       setCreateForm((p) => ({ ...p, title: '', location: '', notes: '' }))
       await loadSessions()
     } catch (e: any) {
@@ -145,8 +158,8 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ headcount: payload }),
       })
+      if (!res.ok) throw new Error(await readApiError(res))
       const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Failed to save headcount')
 
       const updated = json.session
       setSelectedSession((prev) => (prev ? { ...prev, headcount: updated.headcount } : prev))
@@ -172,8 +185,7 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
           channel: checkInForm.channel,
         }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Failed to check in')
+      if (!res.ok) throw new Error(await readApiError(res))
       setCheckInForm((p) => ({ ...p, userId: '', guestName: '' }))
       await loadRecords(selectedSession.id)
       await loadSessions()

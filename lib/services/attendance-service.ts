@@ -99,11 +99,7 @@ export class AttendanceService {
       query = query.where('branchId', '==', options.branchId)
     }
 
-    if (options?.startAt) {
-      query = query.where('startAt', '>=', options.startAt)
-    }
-
-    query = query.orderBy('startAt', 'desc').limit(options?.limit || 100)
+    query = query.limit(options?.limit || 200)
 
     const snapshot = await query.get()
     let sessions = snapshot.docs.map((doc: any) => {
@@ -118,11 +114,15 @@ export class AttendanceService {
       } as AttendanceSession
     })
 
+    if (options?.startAt) {
+      sessions = sessions.filter((s) => s.startAt >= options.startAt!)
+    }
+
     if (options?.endAt) {
       sessions = sessions.filter((s) => s.startAt <= options.endAt!)
     }
 
-    return sessions
+    return sessions.sort((a, b) => b.startAt.getTime() - a.startAt.getTime())
   }
 
   static async upsertHeadcount(
