@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
+type Branch = {
+  id: string
+  name: string
+}
+
 type LedgerItem = {
   kind: 'income' | 'expense'
   id: string
@@ -27,6 +32,7 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [branches, setBranches] = useState<Branch[]>([])
   const [branchId, setBranchId] = useState<string>('')
   const [start, setStart] = useState<string>('')
   const [end, setEnd] = useState<string>('')
@@ -52,6 +58,37 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     return s ? `?${s}` : ''
   }, [branchId, start, end])
 
+  async function readApiError(res: Response) {
+    try {
+      const json = await res.json()
+      return json?.error || 'Request failed'
+    } catch {
+      try {
+        const text = await res.text()
+        return text || 'Request failed'
+      } catch {
+        return 'Request failed'
+      }
+    }
+  }
+
+  async function loadBranches() {
+    try {
+      const cur = await fetch('/api/churches/switch', { cache: 'no-store' })
+      if (!cur.ok) return
+      const curJson = await cur.json()
+      const churchId = curJson?.churchId as string | undefined
+      if (!churchId) return
+
+      const res = await fetch(`/api/churches/${churchId}/branches`, { cache: 'no-store' })
+      if (!res.ok) return
+      const json = await res.json()
+      setBranches((json || []).map((b: any) => ({ id: b.id, name: b.name })))
+    } catch {
+      // ignore
+    }
+  }
+
   async function loadAll() {
     setLoading(true)
     setError(null)
@@ -61,8 +98,8 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
         fetch(`/api/accounting/expenses${queryString}`, { cache: 'no-store' }),
       ])
 
-      if (!ledgerRes.ok) throw new Error((await ledgerRes.json())?.error || 'Failed to load ledger')
-      if (!expensesRes.ok) throw new Error((await expensesRes.json())?.error || 'Failed to load expenses')
+      if (!ledgerRes.ok) throw new Error(await readApiError(ledgerRes))
+      if (!expensesRes.ok) throw new Error(await readApiError(expensesRes))
 
       const ledgerJson = await ledgerRes.json()
       const expensesJson = await expensesRes.json()
@@ -86,6 +123,7 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
   }
 
   useEffect(() => {
+    loadBranches()
     loadAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString])
@@ -107,8 +145,7 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
         }),
       })
 
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Failed to save expense')
+      if (!res.ok) throw new Error(await readApiError(res))
 
       setExpenseForm((p) => ({ ...p, amount: '', description: '' }))
       await loadAll()
@@ -139,8 +176,13 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border p-4">
-          <label className="text-xs font-semibold text-gray-600">Branch ID (optional)</label>
-          <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={branchId} onChange={(e) => setBranchId(e.target.value)} />
+          <label className="text-xs font-semibold text-gray-600">Branch (optional)</label>
+          <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+            <option value="">All branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <label className="text-xs font-semibold text-gray-600">Start (optional)</label>

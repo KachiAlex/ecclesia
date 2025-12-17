@@ -81,8 +81,9 @@ export class AccountingExpenseService {
       query = query.where('branchId', '==', options.branchId)
     }
 
-    // NOTE: Avoid range filters on expenseDate to prevent composite index requirements.
-    query = query.orderBy('expenseDate', 'desc').limit(options?.limit || 200)
+    // NOTE: Avoid orderBy + equality filters to prevent composite index requirements.
+    // Fetch a limited set and sort/filter in-memory.
+    query = query.limit(options?.limit || 200)
 
     const snapshot = await query.get()
     let expenses = snapshot.docs.map((doc: any) => {
@@ -103,6 +104,8 @@ export class AccountingExpenseService {
     if (options?.endDate) {
       expenses = expenses.filter((e) => e.expenseDate <= options.endDate!)
     }
+
+    expenses = expenses.sort((a, b) => b.expenseDate.getTime() - a.expenseDate.getTime())
 
     return expenses
   }
