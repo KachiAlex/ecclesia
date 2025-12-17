@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
+type Branch = {
+  id: string
+  name: string
+}
+
 type AttendanceSession = {
   id: string
   branchId?: string
@@ -26,6 +31,9 @@ type AttendanceRecord = {
 export default function AttendanceHub({ isManager }: { isManager: boolean }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [didInitBranch, setDidInitBranch] = useState(false)
 
   const [branchId, setBranchId] = useState('')
   const [start, setStart] = useState('')
@@ -74,6 +82,29 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     }
   }
 
+  async function loadBranchesAndDefault() {
+    try {
+      const userRes = await fetch('/api/users/me', { cache: 'no-store' })
+      if (!userRes.ok) return
+      const user = await userRes.json()
+      const churchId = user?.churchId as string | null | undefined
+      const userBranchId = user?.branchId as string | null | undefined
+      if (!churchId) return
+
+      const res = await fetch(`/api/churches/${churchId}/branches`, { cache: 'no-store' })
+      if (!res.ok) return
+      const json = await res.json()
+      setBranches((json || []).map((b: any) => ({ id: b.id, name: b.name })))
+
+      if (!didInitBranch) {
+        setBranchId(userBranchId || '')
+        setDidInitBranch(true)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   async function loadSessions() {
     setLoading(true)
     setError(null)
@@ -100,6 +131,11 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
       setError(e?.message || 'Failed to load records')
     }
   }
+
+  useEffect(() => {
+    loadBranchesAndDefault()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     loadSessions()
@@ -205,8 +241,15 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border p-4">
-          <label className="text-xs font-semibold text-gray-600">Branch ID (optional)</label>
-          <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={branchId} onChange={(e) => setBranchId(e.target.value)} />
+          <label className="text-xs font-semibold text-gray-600">Branch (optional)</label>
+          <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+            <option value="">All branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <label className="text-xs font-semibold text-gray-600">Start (optional)</label>
