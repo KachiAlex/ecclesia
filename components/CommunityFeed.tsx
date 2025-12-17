@@ -76,10 +76,27 @@ export default function CommunityFeed() {
       const response = await fetch('/api/posts')
       if (response.ok) {
         const data = await response.json()
-        setPosts(data.posts)
+        const rawPosts = Array.isArray(data?.posts) ? data.posts : []
+        const normalized = rawPosts.map((p: any) => {
+          const images = Array.isArray(p?.images) ? p.images : []
+          const count = p?._count || {}
+          return {
+            ...p,
+            images,
+            isLiked: Boolean(p?.isLiked),
+            _count: {
+              likes: Number(count.likes || 0),
+              comments: Number(count.comments || 0),
+            },
+          } as Post
+        })
+        setPosts(normalized)
+      } else {
+        setPosts([])
       }
     } catch (error) {
       console.error('Error loading posts:', error)
+      setPosts([])
     } finally {
       setLoading(false)
     }
@@ -354,19 +371,19 @@ export default function CommunityFeed() {
               </div>
 
               {/* Post Images */}
-              {post.images.length > 0 && (
-                <div className={`grid ${post.images.length === 1 ? 'grid-cols-1' : post.images.length === 2 ? 'grid-cols-2' : 'grid-cols-2'} gap-1`}>
-                  {post.images.slice(0, 4).map((img, idx) => (
+              {((post as any)?.images || []).length > 0 && (
+                <div className={`grid ${((post as any)?.images || []).length === 1 ? 'grid-cols-1' : ((post as any)?.images || []).length === 2 ? 'grid-cols-2' : 'grid-cols-2'} gap-1`}>
+                  {((post as any)?.images || []).slice(0, 4).map((img: string, idx: number) => (
                     <div key={idx} className="relative aspect-square">
                       <img
                         src={img}
                         alt={`Post image ${idx + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      {idx === 3 && post.images.length > 4 && (
+                      {idx === 3 && ((post as any)?.images || []).length > 4 && (
                         <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
                           <span className="text-white text-2xl font-bold">
-                            +{post.images.length - 4}
+                            +{((post as any)?.images || []).length - 4}
                           </span>
                         </div>
                       )}
