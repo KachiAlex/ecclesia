@@ -3,15 +3,16 @@ import { PaymentService } from '@/lib/services/payment-service'
 import { UserService } from '@/lib/services/user-service'
 import { guardApi } from '@/lib/api-guard'
 import { getCorrelationIdFromRequest, logger } from '@/lib/logger'
+import { GivingConfigService } from '@/lib/services/giving-config-service'
 
 export async function POST(request: Request) {
   const correlationId = getCorrelationIdFromRequest(request)
   try {
     logger.info('payments.initialize.request', { correlationId })
-    const guarded = await guardApi()
+    const guarded = await guardApi({ requireChurch: true })
     if (!guarded.ok) return guarded.response
 
-    const { userId } = guarded.ctx
+    const { userId, church } = guarded.ctx
     logger.info('payments.initialize.guarded', { correlationId, userId })
     const user = await UserService.findById(userId)
 
@@ -31,6 +32,12 @@ export async function POST(request: Request) {
       )
     }
 
+    const givingConfig = await GivingConfigService.findByChurch(church.id)
+    const flutterwaveConfig = givingConfig?.paymentMethods?.flutterwave
+    const flutterwaveCreds = flutterwaveConfig?.enabled && flutterwaveConfig.publicKey && flutterwaveConfig.secretKey
+      ? { publicKey: flutterwaveConfig.publicKey, secretKey: flutterwaveConfig.secretKey }
+      : undefined
+
     // Initialize payment
     const result = await PaymentService.initializePayment({
       amount: amount, // Flutterwave uses actual amount, not smallest unit
@@ -44,7 +51,7 @@ export async function POST(request: Request) {
         projectId: projectId || null,
         notes: notes || null,
       },
-    })
+    }, flutterwaveCreds)
 
     if (!result.success) {
       logger.warn('payments.initialize.failed', { correlationId, userId, error: result.error })

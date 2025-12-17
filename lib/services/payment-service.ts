@@ -23,6 +23,11 @@ interface PaymentVerificationResult {
   error?: string
 }
 
+type FlutterwaveCredentials = {
+  publicKey: string
+  secretKey: string
+}
+
 export class PaymentService {
   private static provider: 'flutterwave' | null = null
 
@@ -43,13 +48,14 @@ export class PaymentService {
    */
   static async initializePayment(
     options: PaymentIntentOptions
+    , creds?: FlutterwaveCredentials
   ): Promise<{ success: boolean; authorizationUrl?: string; reference?: string; error?: string }> {
     // Initialize if not done
     if (this.provider === null) {
       this.initialize()
     }
 
-    if (!this.provider) {
+    if (!this.provider && !creds) {
       return {
         success: false,
         error: 'Payment gateway not configured',
@@ -57,7 +63,7 @@ export class PaymentService {
     }
 
     try {
-      return await this.initializeFlutterwavePayment(options)
+      return await this.initializeFlutterwavePayment(options, creds)
     } catch (error: any) {
       console.error('Error initializing payment:', error)
       return {
@@ -70,12 +76,12 @@ export class PaymentService {
   /**
    * Verify payment (after webhook or callback)
    */
-  static async verifyPayment(transactionId: string): Promise<PaymentVerificationResult> {
+  static async verifyPayment(transactionId: string, creds?: FlutterwaveCredentials): Promise<PaymentVerificationResult> {
     if (this.provider === null) {
       this.initialize()
     }
 
-    if (!this.provider) {
+    if (!this.provider && !creds) {
       return {
         success: false,
         error: 'Payment gateway not configured',
@@ -83,7 +89,7 @@ export class PaymentService {
     }
 
     try {
-      return await this.verifyFlutterwavePayment(transactionId)
+      return await this.verifyFlutterwavePayment(transactionId, creds)
     } catch (error: any) {
       console.error('Error verifying payment:', error)
       return {
@@ -98,12 +104,13 @@ export class PaymentService {
    */
   private static async initializeFlutterwavePayment(
     options: PaymentIntentOptions
+    , creds?: FlutterwaveCredentials
   ): Promise<{ success: boolean; authorizationUrl?: string; reference?: string; error?: string }> {
     try {
       const Flutterwave = (await import('flutterwave-node-v3')).default
       const flw = new Flutterwave(
-        process.env.FLUTTERWAVE_PUBLIC_KEY!,
-        process.env.FLUTTERWAVE_SECRET_KEY!
+        creds?.publicKey || process.env.FLUTTERWAVE_PUBLIC_KEY!,
+        creds?.secretKey || process.env.FLUTTERWAVE_SECRET_KEY!
       )
 
       const reference = options.reference || `ecclesia_${Date.now()}_${Math.random().toString(36).substring(7)}`
@@ -146,12 +153,12 @@ export class PaymentService {
   /**
    * Verify Flutterwave payment
    */
-  private static async verifyFlutterwavePayment(transactionId: string): Promise<PaymentVerificationResult> {
+  private static async verifyFlutterwavePayment(transactionId: string, creds?: FlutterwaveCredentials): Promise<PaymentVerificationResult> {
     try {
       const Flutterwave = (await import('flutterwave-node-v3')).default
       const flw = new Flutterwave(
-        process.env.FLUTTERWAVE_PUBLIC_KEY!,
-        process.env.FLUTTERWAVE_SECRET_KEY!
+        creds?.publicKey || process.env.FLUTTERWAVE_PUBLIC_KEY!,
+        creds?.secretKey || process.env.FLUTTERWAVE_SECRET_KEY!
       )
 
       const response = await flw.Transaction.verify({ id: transactionId })

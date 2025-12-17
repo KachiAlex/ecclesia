@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 interface Project {
   id: string
   name: string
+  currency?: string
   goalAmount: number
   currentAmount: number
 }
@@ -21,6 +22,7 @@ export default function DonateModal({
   onClose,
   onSuccess,
 }: DonateModalProps) {
+  const currency = project?.currency || 'NGN'
   const [amount, setAmount] = useState('')
   const [type, setType] = useState(project ? 'PROJECT' : 'TITHE')
   const [selectedProject, setSelectedProject] = useState(project?.id || '')
@@ -52,7 +54,7 @@ export default function DonateModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parseFloat(amount),
-          currency: 'NGN',
+          currency,
           type,
           projectId: type === 'PROJECT' ? selectedProject : null,
           notes,
@@ -151,7 +153,7 @@ export default function DonateModal({
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    {formatCurrency(quickAmount)}
+                    {formatCurrency(quickAmount, currency)}
                   </button>
                 ))}
               </div>

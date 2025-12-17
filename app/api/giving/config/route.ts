@@ -62,14 +62,49 @@ export async function POST(request: Request) {
     // Check if config already exists
     const existing = await GivingConfigService.findByChurch(church.id)
 
+    const mergedBody = (() => {
+      if (!existing) return body
+
+      const incomingFw = body?.paymentMethods?.flutterwave
+      const existingFw = (existing as any)?.paymentMethods?.flutterwave
+
+      if (!incomingFw) return body
+
+      const isMasked = (v: any) => typeof v === 'string' && v.trim() === '********'
+      const isEmpty = (v: any) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '')
+
+      const mergedFw = {
+        ...existingFw,
+        ...incomingFw,
+      }
+
+      if (isMasked(incomingFw.publicKey) || isEmpty(incomingFw.publicKey)) {
+        if (existingFw?.publicKey) mergedFw.publicKey = existingFw.publicKey
+      }
+      if (isMasked(incomingFw.secretKey) || isEmpty(incomingFw.secretKey)) {
+        if (existingFw?.secretKey) mergedFw.secretKey = existingFw.secretKey
+      }
+      if (isMasked(incomingFw.webhookSecretHash) || isEmpty(incomingFw.webhookSecretHash)) {
+        if (existingFw?.webhookSecretHash) mergedFw.webhookSecretHash = existingFw.webhookSecretHash
+      }
+
+      return {
+        ...body,
+        paymentMethods: {
+          ...(body.paymentMethods || {}),
+          flutterwave: mergedFw,
+        },
+      }
+    })()
+
     let config
     if (existing) {
       // Update existing config
-      config = await GivingConfigService.update(existing.id, body)
+      config = await GivingConfigService.update(existing.id, mergedBody)
     } else {
       // Create new config
       config = await GivingConfigService.create({
-        ...body,
+        ...mergedBody,
         churchId: church.id,
       })
     }

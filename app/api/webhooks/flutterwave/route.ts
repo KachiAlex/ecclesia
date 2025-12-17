@@ -5,6 +5,8 @@ import { EmailService } from '@/lib/services/email-service'
 import { db, FieldValue } from '@/lib/firestore'
 import { ReceiptService } from '@/lib/services/receipt-service'
 import { getCorrelationIdFromRequest, logger } from '@/lib/logger'
+import { GivingConfigService } from '@/lib/services/giving-config-service'
+import { getCurrentChurch } from '@/lib/church-context'
 
 export async function POST(request: Request) {
   const correlationId = getCorrelationIdFromRequest(request)
@@ -22,7 +24,11 @@ export async function POST(request: Request) {
     }
 
     // Verify webhook signature (Flutterwave uses verif-hash header)
-    const secretHash = process.env.FLUTTERWAVE_SECRET_HASH
+    // Prefer per-church config if available, fallback to env.
+    const metadataUserId = body?.data?.meta?.userId
+    const church = metadataUserId ? await getCurrentChurch(metadataUserId) : null
+    const config = church ? await GivingConfigService.findByChurch(church.id) : null
+    const secretHash = config?.paymentMethods?.flutterwave?.webhookSecretHash || process.env.FLUTTERWAVE_SECRET_HASH
 
     if (!secretHash) {
       logger.error('webhook.flutterwave.missing_secret', { correlationId })
@@ -80,7 +86,9 @@ export async function POST(request: Request) {
       logger.info('webhook.flutterwave.charge_completed', { correlationId, transactionId })
 
       // Verify payment
-      const verification = await PaymentService.verifyPayment(transactionId)
+      const fw = config?.paymentMethods?.flutterwave
+      const flutterwaveCreds = fw?.enabled && fw.publicKey && fw.secretKey ? { publicKey: fw.publicKey, secretKey: fw.secretKey } : undefined
+      const verification = await PaymentService.verifyPayment(transactionId, flutterwaveCreds)
 
       logger.info('webhook.flutterwave.verify_done', {
         correlationId,

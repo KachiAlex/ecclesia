@@ -21,6 +21,7 @@ export interface Project {
   churchId: string
   name: string
   description?: string
+  currency?: string
   goalAmount: number
   currentAmount: number
   imageUrl?: string

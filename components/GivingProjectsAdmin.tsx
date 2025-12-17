@@ -8,6 +8,7 @@ interface Project {
   id: string
   name: string
   description?: string
+  currency?: string
   goalAmount: number
   currentAmount: number
   imageUrl?: string
@@ -26,6 +27,7 @@ export default function GivingProjectsAdmin() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    currency: 'USD',
     goalAmount: '',
     imageUrl: '',
     startDate: '',
@@ -70,6 +72,7 @@ export default function GivingProjectsAdmin() {
         setFormData({
           name: '',
           description: '',
+          currency: 'USD',
           goalAmount: '',
           imageUrl: '',
           startDate: '',
@@ -164,15 +167,15 @@ export default function GivingProjectsAdmin() {
                   ></div>
                 </div>
                 <div className="flex justify-between text-sm mt-2 text-gray-600">
-                  <span>{formatCurrency(project.currentAmount)}</span>
-                  <span>{formatCurrency(project.goalAmount)}</span>
+                  <span>{formatCurrency(project.currentAmount, project.currency || 'USD')}</span>
+                  <span>{formatCurrency(project.goalAmount, project.currency || 'USD')}</span>
                 </div>
               </div>
 
               <div className="text-sm text-gray-600 mb-4">
                 <FiDollarSign className="inline mr-1" />
                 {project._count.giving} donors •{' '}
-                {formatCurrency(project.remainingAmount)} remaining
+                {formatCurrency(project.remainingAmount, project.currency || 'USD')} remaining
               </div>
 
               {/* Action Buttons */}
@@ -262,6 +265,26 @@ export default function GivingProjectsAdmin() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="10000"
                   />
+                </div>
+
+                {/* Currency */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Currency
+                  </label>
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="NGN">NGN</option>
+                    <option value="GHS">GHS</option>
+                    <option value="KES">KES</option>
+                    <option value="ZAR">ZAR</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
                 </div>
 
                 {/* Image URL */}

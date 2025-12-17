@@ -16,6 +16,12 @@ export interface GivingConfig {
       publicKey?: string
       secretKey?: string
     }
+    flutterwave?: {
+      enabled: boolean
+      publicKey?: string
+      secretKey?: string
+      webhookSecretHash?: string
+    }
     bankTransfer?: {
       enabled: boolean
       banks: Array<{

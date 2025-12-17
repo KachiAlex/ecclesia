@@ -87,6 +87,7 @@ export async function POST(request: Request) {
     const {
       name,
       description,
+      currency,
       goalAmount,
       imageUrl,
       startDate,
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
     const project = await ProjectService.create({
       name,
       description,
+      currency: currency || undefined,
       goalAmount: parseFloat(goalAmount),
       churchId: church.id,
       imageUrl: imageUrl || undefined,

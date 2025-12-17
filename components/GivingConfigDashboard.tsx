@@ -24,6 +24,12 @@ interface GivingConfig {
       publicKey?: string
       secretKey?: string
     }
+    flutterwave?: {
+      enabled: boolean
+      publicKey?: string
+      secretKey?: string
+      webhookSecretHash?: string
+    }
     bankTransfer?: {
       enabled: boolean
       banks: BankAccount[]
@@ -38,12 +44,14 @@ export default function GivingConfigDashboard() {
     paymentMethods: {
       stripe: { enabled: false },
       paystack: { enabled: false },
+      flutterwave: { enabled: false },
       bankTransfer: { enabled: false, banks: [] },
     },
     currency: 'USD',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [editingFlutterwave, setEditingFlutterwave] = useState(false)
   const [showAddBank, setShowAddBank] = useState(false)
   const [newBank, setNewBank] = useState<Partial<BankAccount>>({
     bankName: '',
@@ -63,7 +71,32 @@ export default function GivingConfigDashboard() {
       if (response.ok) {
         const data = await response.json()
         if (data) {
-          setConfig(data)
+          const fw = data?.paymentMethods?.flutterwave
+          if (fw?.publicKey || fw?.secretKey || fw?.webhookSecretHash) {
+            setEditingFlutterwave(false)
+            setConfig({
+              ...data,
+              paymentMethods: {
+                ...(data.paymentMethods || {}),
+                flutterwave: {
+                  ...(data.paymentMethods?.flutterwave || { enabled: false }),
+                  publicKey: fw?.publicKey ? '********' : '',
+                  secretKey: fw?.secretKey ? '********' : '',
+                  webhookSecretHash: fw?.webhookSecretHash ? '********' : '',
+                },
+              },
+            })
+          } else {
+            setConfig({
+              ...data,
+              paymentMethods: {
+                stripe: { enabled: false, ...(data.paymentMethods?.stripe || {}) },
+                paystack: { enabled: false, ...(data.paymentMethods?.paystack || {}) },
+                flutterwave: { enabled: false, ...(data.paymentMethods?.flutterwave || {}) },
+                bankTransfer: { enabled: false, banks: [], ...(data.paymentMethods?.bankTransfer || {}) },
+              },
+            })
+          }
         }
       }
     } catch (error) {
@@ -186,7 +219,6 @@ export default function GivingConfigDashboard() {
                 <option value="GBP">GBP - British Pound</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Default Payment Method
@@ -199,6 +231,7 @@ export default function GivingConfigDashboard() {
                 <option value="">None</option>
                 <option value="stripe">Stripe</option>
                 <option value="paystack">Paystack</option>
+                <option value="flutterwave">Flutterwave</option>
                 <option value="bankTransfer">Bank Transfer</option>
               </select>
             </div>
@@ -380,6 +413,155 @@ export default function GivingConfigDashboard() {
                   </a>{' '}
                   and find your API keys in Settings → API Keys & Webhooks.
                 </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Flutterwave Configuration */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold">Flutterwave Payment Gateway</h2>
+              <p className="text-sm text-gray-600">Accept payments via Flutterwave</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.paymentMethods.flutterwave?.enabled || false}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    paymentMethods: {
+                      ...config.paymentMethods,
+                      flutterwave: {
+                        ...config.paymentMethods.flutterwave,
+                        enabled: e.target.checked,
+                      },
+                    },
+                  })
+                }
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+            </label>
+          </div>
+
+          {config.paymentMethods.flutterwave?.enabled && (
+            <div className="space-y-4">
+              <div className="flex justify-end gap-2">
+                {editingFlutterwave ? (
+                  <button
+                    onClick={() => {
+                      setEditingFlutterwave(false)
+                      loadConfig()
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel Edit
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingFlutterwave(true)
+                      setConfig({
+                        ...config,
+                        paymentMethods: {
+                          ...config.paymentMethods,
+                          flutterwave: {
+                            ...(config.paymentMethods.flutterwave || { enabled: true }),
+                            enabled: config.paymentMethods.flutterwave?.enabled ?? true,
+                            publicKey: '',
+                            secretKey: '',
+                            webhookSecretHash: '',
+                          },
+                        },
+                      })
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  >
+                    Edit Keys
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Public Key</label>
+                <input
+                  type="text"
+                  disabled={!editingFlutterwave}
+                  value={config.paymentMethods.flutterwave?.publicKey || ''}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      paymentMethods: {
+                        ...config.paymentMethods,
+                        flutterwave: {
+                          ...config.paymentMethods.flutterwave!,
+                          publicKey: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="FLWPUBK_..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+                <input
+                  type="password"
+                  disabled={!editingFlutterwave}
+                  value={config.paymentMethods.flutterwave?.secretKey || ''}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      paymentMethods: {
+                        ...config.paymentMethods,
+                        flutterwave: {
+                          ...config.paymentMethods.flutterwave!,
+                          secretKey: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="FLWSECK_..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret Hash</label>
+                <input
+                  type="password"
+                  disabled={!editingFlutterwave}
+                  value={config.paymentMethods.flutterwave?.webhookSecretHash || ''}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      paymentMethods: {
+                        ...config.paymentMethods,
+                        flutterwave: {
+                          ...config.paymentMethods.flutterwave!,
+                          webhookSecretHash: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  placeholder="Your verif-hash secret"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Flutterwave Settings'}
+                </button>
               </div>
             </div>
           )}
