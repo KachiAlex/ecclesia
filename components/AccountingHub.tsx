@@ -292,7 +292,12 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600">Currency (optional)</label>
-                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.currency} onChange={(e) => setExpenseForm((p) => ({ ...p, currency: e.target.value }))} />
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.currency} onChange={(e) => setExpenseForm((p) => ({ ...p, currency: e.target.value }))}>
+                  <option value="">Default</option>
+                  {['NGN','USD','GBP','EUR','CAD','AUD','ZAR','GHS','KES'].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600">Category</label>
