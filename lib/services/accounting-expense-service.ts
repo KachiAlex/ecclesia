@@ -81,10 +81,7 @@ export class AccountingExpenseService {
       query = query.where('branchId', '==', options.branchId)
     }
 
-    if (options?.startDate) {
-      query = query.where('expenseDate', '>=', options.startDate)
-    }
-
+    // NOTE: Avoid range filters on expenseDate to prevent composite index requirements.
     query = query.orderBy('expenseDate', 'desc').limit(options?.limit || 200)
 
     const snapshot = await query.get()
@@ -98,6 +95,10 @@ export class AccountingExpenseService {
         updatedAt: toDate(data.updatedAt),
       } as AccountingExpense
     })
+
+    if (options?.startDate) {
+      expenses = expenses.filter((e) => e.expenseDate >= options.startDate!)
+    }
 
     if (options?.endDate) {
       expenses = expenses.filter((e) => e.expenseDate <= options.endDate!)
