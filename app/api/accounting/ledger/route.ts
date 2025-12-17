@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import { UserService } from '@/lib/services/user-service'
 import { AccountingExpenseService } from '@/lib/services/accounting-expense-service'
+import { AccountingIncomeService } from '@/lib/services/accounting-income-service'
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 
@@ -43,9 +44,15 @@ export async function GET(request: Request) {
     if (effectiveBranchId) donationsQuery = donationsQuery.where('branchId', '==', effectiveBranchId)
     donationsQuery = donationsQuery.limit(500)
 
-    const [donationsSnap, expenses] = await Promise.all([
+    const [donationsSnap, expenses, manualIncome] = await Promise.all([
       donationsQuery.get(),
       AccountingExpenseService.findByChurch(church.id, {
+        branchId: effectiveBranchId,
+        startDate,
+        endDate,
+        limit: 500,
+      }),
+      AccountingIncomeService.findByChurch(church.id, {
         branchId: effectiveBranchId,
         startDate,
         endDate,
@@ -66,6 +73,7 @@ export async function GET(request: Request) {
           title: data.type ? `Giving: ${data.type}` : 'Giving',
           date: createdAt.toISOString(),
           meta: {
+            source: 'GIVING',
             userId: data.userId,
             projectId: data.projectId || null,
             transactionId: data.transactionId || null,
@@ -79,6 +87,23 @@ export async function GET(request: Request) {
         return true
       })
 
+    const manualIncomeItems: LedgerItem[] = manualIncome
+      .map((m) => ({
+        kind: 'income',
+        id: m.id,
+        branchId: m.branchId,
+        currency: m.currency,
+        amount: Number(m.amount || 0),
+        title: `Manual: ${m.source}${m.description ? ` - ${m.description}` : ''}`,
+        date: m.incomeDate.toISOString(),
+        meta: {
+          source: 'MANUAL',
+          createdBy: m.createdBy,
+          attachmentUrl: m.attachmentUrl || null,
+          voidsIncomeId: (m as any).voidsIncomeId || null,
+        },
+      }))
+
     const expenseItems: LedgerItem[] = expenses.map((e) => ({
       kind: 'expense',
       id: e.id,
@@ -90,7 +115,9 @@ export async function GET(request: Request) {
       meta: { createdBy: e.createdBy },
     }))
 
-    const items = [...income, ...expenseItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const items = [...income, ...manualIncomeItems, ...expenseItems].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
 
     const totals = items.reduce(
       (acc, it) => {

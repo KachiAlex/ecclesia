@@ -43,6 +43,7 @@ export const COLLECTIONS = {
   livestreams: 'livestreams',
 
   accountingExpenses: 'accounting_expenses',
+  accountingIncome: 'accounting_income',
 
   attendanceSessions: 'attendance_sessions',
   attendanceRecords: 'attendance_records',

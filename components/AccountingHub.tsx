@@ -15,6 +15,7 @@ type LedgerItem = {
   amount: number
   title: string
   date: string
+  meta?: any
 }
 
 type Expense = {
@@ -40,6 +41,16 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
   const [ledger, setLedger] = useState<LedgerItem[]>([])
   const [totals, setTotals] = useState<{ income: number; expenses: number; net: number } | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
+
+  const [incomeSaving, setIncomeSaving] = useState(false)
+  const [incomeForm, setIncomeForm] = useState({
+    amount: '',
+    currency: '',
+    source: 'Other',
+    description: '',
+    incomeDate: new Date().toISOString().slice(0, 10),
+  })
+  const [incomeReceipt, setIncomeReceipt] = useState<File | null>(null)
 
   const [expenseForm, setExpenseForm] = useState({
     amount: '',
@@ -156,6 +167,52 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
+  async function createIncome() {
+    setIncomeSaving(true)
+    setError(null)
+    try {
+      const fd = new FormData()
+      fd.set('branchId', branchId.trim() || '')
+      fd.set('amount', incomeForm.amount)
+      fd.set('currency', incomeForm.currency || '')
+      fd.set('source', incomeForm.source)
+      fd.set('description', incomeForm.description || '')
+      fd.set('incomeDate', new Date(incomeForm.incomeDate).toISOString())
+      if (incomeReceipt) fd.set('file', incomeReceipt)
+
+      const res = await fetch('/api/accounting/income', {
+        method: 'POST',
+        body: fd,
+      })
+
+      if (!res.ok) throw new Error(await readApiError(res))
+
+      setIncomeForm((p) => ({ ...p, amount: '', description: '' }))
+      setIncomeReceipt(null)
+      await loadAll()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save income')
+    } finally {
+      setIncomeSaving(false)
+    }
+  }
+
+  async function voidManualIncome(incomeId: string) {
+    setError(null)
+    const reason = window.prompt('Reason for void (optional):') || ''
+    try {
+      const res = await fetch(`/api/accounting/income/${incomeId}/void`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      })
+      if (!res.ok) throw new Error(await readApiError(res))
+      await loadAll()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to void')
+    }
+  }
+
   if (!isAdmin) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -164,6 +221,12 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
       </div>
     )
   }
+
+  const voidedIds = new Set(
+    ledger
+      .filter((x) => x.kind === 'income' && x.meta?.source === 'MANUAL' && x.meta?.voidsIncomeId)
+      .map((x) => x.meta.voidsIncomeId as string)
+  )
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -219,37 +282,76 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <h2 className="text-lg font-semibold">Add Expense</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-600">Amount</label>
-              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} />
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border p-5 space-y-3">
+            <h2 className="text-lg font-semibold">Add Expense</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Amount</label>
+                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Currency (optional)</label>
+                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.currency} onChange={(e) => setExpenseForm((p) => ({ ...p, currency: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Category</label>
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.category} onChange={(e) => setExpenseForm((p) => ({ ...p, category: e.target.value }))}>
+                  {['Rent','Utilities','Welfare','Transport','Media','Maintenance','Salaries','Missions','Other'].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Date</label>
+                <input type="date" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.expenseDate} onChange={(e) => setExpenseForm((p) => ({ ...p, expenseDate: e.target.value }))} />
+              </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-600">Currency (optional)</label>
-              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.currency} onChange={(e) => setExpenseForm((p) => ({ ...p, currency: e.target.value }))} />
+              <label className="text-xs font-semibold text-gray-600">Description (optional)</label>
+              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.description} onChange={(e) => setExpenseForm((p) => ({ ...p, description: e.target.value }))} />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600">Category</label>
-              <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.category} onChange={(e) => setExpenseForm((p) => ({ ...p, category: e.target.value }))}>
-                {['Rent','Utilities','Welfare','Transport','Media','Maintenance','Salaries','Missions','Other'].map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600">Date</label>
-              <input type="date" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.expenseDate} onChange={(e) => setExpenseForm((p) => ({ ...p, expenseDate: e.target.value }))} />
-            </div>
+            <button disabled={saving} onClick={createExpense} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm disabled:opacity-60">
+              {saving ? 'Saving...' : 'Save Expense'}
+            </button>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-600">Description (optional)</label>
-            <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={expenseForm.description} onChange={(e) => setExpenseForm((p) => ({ ...p, description: e.target.value }))} />
+
+          <div className="bg-white rounded-xl border p-5 space-y-3">
+            <h2 className="text-lg font-semibold">Add Income (Manual)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Amount</label>
+                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={incomeForm.amount} onChange={(e) => setIncomeForm((p) => ({ ...p, amount: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Currency (optional)</label>
+                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={incomeForm.currency} onChange={(e) => setIncomeForm((p) => ({ ...p, currency: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Source</label>
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={incomeForm.source} onChange={(e) => setIncomeForm((p) => ({ ...p, source: e.target.value }))}>
+                  {['Cash Offering','Bank Transfer','Grant','Fundraising','Sponsorship','Venue Rental','Other'].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Date</label>
+                <input type="date" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={incomeForm.incomeDate} onChange={(e) => setIncomeForm((p) => ({ ...p, incomeDate: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600">Description (optional)</label>
+              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={incomeForm.description} onChange={(e) => setIncomeForm((p) => ({ ...p, description: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600">Receipt (optional: PDF/JPG/PNG/WebP, max 10MB)</label>
+              <input type="file" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" accept="application/pdf,image/*" onChange={(e) => setIncomeReceipt(e.target.files?.[0] || null)} />
+            </div>
+            <button disabled={incomeSaving} onClick={createIncome} className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-sm disabled:opacity-60">
+              {incomeSaving ? 'Saving...' : 'Save Income'}
+            </button>
           </div>
-          <button disabled={saving} onClick={createExpense} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm disabled:opacity-60">
-            {saving ? 'Saving...' : 'Save Expense'}
-          </button>
         </div>
 
         <div className="bg-white rounded-xl border p-5">
@@ -266,6 +368,29 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
                     <div>
                       <div className="text-sm font-semibold">{it.title}</div>
                       <div className="text-xs text-gray-600">{new Date(it.date).toLocaleString()} {it.branchId ? `• Branch: ${it.branchId}` : ''}</div>
+
+                      {it.kind === 'income' && it.meta?.source && (
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${it.meta.source === 'GIVING' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
+                            {it.meta.source}
+                          </span>
+                          {it.meta?.attachmentUrl && (
+                            <a className="text-xs underline text-gray-700" href={it.meta.attachmentUrl} target="_blank" rel="noreferrer">
+                              Receipt
+                            </a>
+                          )}
+                          {it.meta?.voidsIncomeId && (
+                            <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-50 text-gray-700 border-gray-200">
+                              Reversal
+                            </span>
+                          )}
+                          {it.meta.source === 'MANUAL' && it.amount > 0 && !voidedIds.has(it.id) && (
+                            <button type="button" onClick={() => voidManualIncome(it.id)} className="text-xs px-2 py-1 rounded-lg border hover:bg-gray-50">
+                              Void
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className={`text-sm font-bold ${it.kind === 'income' ? 'text-green-700' : 'text-red-700'}`}>
                       {it.kind === 'income' ? '+' : '-'}{it.amount} {it.currency || ''}
