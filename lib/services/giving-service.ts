@@ -5,7 +5,10 @@ import { FieldValue } from 'firebase-admin/firestore'
 export interface Giving {
   id: string
   userId: string
+  churchId: string
+  branchId?: string
   amount: number
+  currency?: string
   type: string
   projectId?: string
   paymentMethod?: string

@@ -17,7 +17,7 @@ export const COLLECTIONS = {
   // Event collections
   events: 'events',
   eventRegistrations: 'event_registrations',
-  eventAttendances: 'event_registrations', // Alias for event_registrations
+  eventAttendances: 'event_attendances', // Alias for event_registrations
   
   // Giving collections
   givingProjects: 'giving_projects',
@@ -41,6 +41,11 @@ export const COLLECTIONS = {
 
   // Livestream collections
   livestreams: 'livestreams',
+
+  accountingExpenses: 'accounting_expenses',
+
+  attendanceSessions: 'attendance_sessions',
+  attendanceRecords: 'attendance_records',
   
   // Children collections
   children: 'children',

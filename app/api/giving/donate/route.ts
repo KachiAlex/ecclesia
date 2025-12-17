@@ -54,9 +54,13 @@ export async function POST(request: Request) {
     }
 
     // Create giving record (ProjectService.incrementAmount is called automatically)
+    const user = await UserService.findById(userId)
     const giving = await GivingService.create({
       userId,
+      churchId: church.id,
+      branchId: (user as any)?.branchId || undefined,
       amount: parseFloat(amount),
+      currency: project?.currency || undefined,
       type,
       projectId: projectId || undefined,
       paymentMethod: paymentMethod || undefined,
@@ -65,7 +69,6 @@ export async function POST(request: Request) {
     })
 
     // Get user and project data
-    const user = await UserService.findById(userId)
 
     let receiptUrl: string | undefined
     try {

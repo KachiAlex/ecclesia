@@ -100,9 +100,17 @@ export async function POST(request: Request) {
         // Create giving record
         if (metadata.userId && metadata.type) {
           try {
+            const { UserService } = await import('@/lib/services/user-service')
+            const { ProjectService } = await import('@/lib/services/giving-service')
+            const user = await UserService.findById(metadata.userId)
+            const project = metadata.projectId ? await ProjectService.findById(metadata.projectId) : null
+
             const giving = await GivingService.create({
               userId: metadata.userId,
+              churchId: church?.id || (user as any)?.churchId,
+              branchId: (user as any)?.branchId || undefined,
               amount: verification.amount || data.amount,
+              currency: verification.currency || project?.currency || undefined,
               type: metadata.type,
               projectId: metadata.projectId || undefined,
               paymentMethod: 'Card',
@@ -111,16 +119,7 @@ export async function POST(request: Request) {
             })
 
             // Send donation receipt email
-            const { UserService } = await import('@/lib/services/user-service')
-            const { ProjectService } = await import('@/lib/services/giving-service')
-            const user = await UserService.findById(metadata.userId)
-            
             if (user) {
-              let project = null
-              if (metadata.projectId) {
-                project = await ProjectService.findById(metadata.projectId)
-              }
-
               let receiptUrl: string | undefined
               try {
                 receiptUrl = await ReceiptService.generateUploadAndAttachDonationReceipt({

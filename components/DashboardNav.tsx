@@ -10,6 +10,8 @@ const navigation = [
   { name: 'Sermons', href: '/sermons', icon: '📺', gradient: 'from-purple-500 to-violet-600' },
   { name: 'Prayer', href: '/prayer', icon: '🙏', gradient: 'from-blue-500 to-cyan-600' },
   { name: 'Giving', href: '/giving', icon: '💰', gradient: 'from-green-500 to-emerald-600' },
+  { name: 'Accounting', href: '/accounting', icon: '🧾', gradient: 'from-slate-600 to-gray-700' },
+  { name: 'Attendance', href: '/attendance', icon: '🧍', gradient: 'from-teal-600 to-cyan-700' },
   { name: 'Events', href: '/events', icon: '📅', gradient: 'from-orange-500 to-amber-600' },
   { name: 'Community', href: '/community', icon: '💬', gradient: 'from-pink-500 to-rose-600' },
   { name: 'Messages', href: '/messages', icon: '✉️', gradient: 'from-indigo-500 to-purple-600' },
