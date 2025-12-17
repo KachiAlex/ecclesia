@@ -138,7 +138,7 @@ export default function SermonHub() {
               .map((sermon) => (
                 <Link
                   key={sermon.id}
-                  href={`/dashboard/sermons/${sermon.id}`}
+                  href={`/sermons/${sermon.id}`}
                   className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
                 >
                   {sermon.thumbnailUrl ? (

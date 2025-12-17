@@ -193,5 +193,9 @@ export class SermonService {
     await db.collection(COLLECTIONS.sermons).doc(id).update(updateData)
     return this.findById(id) as Promise<Sermon>
   }
+
+  static async delete(id: string): Promise<void> {
+    await db.collection(COLLECTIONS.sermons).doc(id).delete()
+  }
 }
 

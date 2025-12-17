@@ -89,6 +89,12 @@ export default function SermonUploadForm() {
 
     // Telegram
     if (url.includes('t.me/') || url.includes('telegram.')) {
+      // Private/internal Telegram links (t.me/c/<id>/<postId>) cannot be embedded publicly
+      if (/t\.me\/c\/\d+\/\d+/.test(url)) {
+        return {
+          type: 'telegram',
+        }
+      }
       return {
         type: 'telegram',
         embedUrl: url,
@@ -133,6 +139,11 @@ export default function SermonUploadForm() {
         // For URL method, convert YouTube/Vimeo/Telegram URLs to embed URLs
         if (finalVideoUrl) {
           const parsed = parseMediaUrl(finalVideoUrl)
+          if (parsed.type === 'telegram' && !parsed.embedUrl) {
+            throw new Error(
+              'This Telegram link cannot be embedded (t.me/c/...). Please copy the public link in the format t.me/<channel>/<postId>.'
+            )
+          }
           if (parsed.embedUrl) {
             finalVideoUrl = parsed.embedUrl
           }
@@ -163,7 +174,7 @@ export default function SermonUploadForm() {
 
       const sermon = await response.json()
       alert('Sermon uploaded successfully!')
-      router.push(`/dashboard/sermons/${sermon.id}`)
+      router.push('/sermons')
     } catch (error: any) {
       console.error('Error uploading sermon:', error)
       alert(error.message || 'Failed to upload sermon')

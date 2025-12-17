@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { formatDate, formatDuration } from '@/lib/utils'
 import Link from 'next/link'
 import MediaPlayer from './MediaPlayer'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 interface SermonPlayerProps {
   sermonId: string
@@ -36,9 +38,21 @@ interface Sermon {
 }
 
 export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
+  const router = useRouter()
+  const { data: session } = useSession()
   const [sermon, setSermon] = useState<Sermon | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const [editTitle, setEditTitle] = useState('')
+  const [editSpeaker, setEditSpeaker] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [editDurationMinutes, setEditDurationMinutes] = useState('')
+  const [editTags, setEditTags] = useState('')
 
   useEffect(() => {
     loadSermon()
@@ -50,11 +64,75 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
       if (response.ok) {
         const data = await response.json()
         setSermon(data)
+
+        setEditTitle(data.title || '')
+        setEditSpeaker(data.speaker || '')
+        setEditDescription(data.description || '')
+        setEditCategory(data.category || '')
+        setEditDurationMinutes(data.duration ? String(Math.round(data.duration / 60)) : '')
+        setEditTags(Array.isArray(data.tags) ? data.tags.join(', ') : '')
       }
     } catch (error) {
       console.error('Error loading sermon:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const role = (session?.user as any)?.role as string | undefined
+  const canManage = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PASTOR'
+
+  const handleSave = async () => {
+    if (!sermon) return
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/sermons/${sermonId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          speaker: editSpeaker,
+          description: editDescription || undefined,
+          category: editCategory || undefined,
+          duration: editDurationMinutes ? String(parseInt(editDurationMinutes) * 60) : undefined,
+          tags: editTags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => null)
+        throw new Error(err?.error || 'Failed to update sermon')
+      }
+
+      const updated = await response.json()
+      setSermon(updated)
+      setEditing(false)
+    } catch (e: any) {
+      alert(e?.message || 'Failed to update sermon')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Delete this sermon? This cannot be undone.')) return
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/sermons/${sermonId}`, { method: 'DELETE' })
+      if (!response.ok) {
+        const err = await response.json().catch(() => null)
+        throw new Error(err?.error || 'Failed to delete sermon')
+      }
+
+      router.push('/sermons')
+      router.refresh()
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete sermon')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -147,8 +225,59 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{sermon.title}</h1>
-              <p className="text-gray-600 mb-2">By {sermon.speaker}</p>
+              {editing ? (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Title"
+                  />
+                  <input
+                    type="text"
+                    value={editSpeaker}
+                    onChange={(e) => setEditSpeaker(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Speaker"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    rows={4}
+                    placeholder="Description"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Category"
+                    />
+                    <input
+                      type="number"
+                      value={editDurationMinutes}
+                      onChange={(e) => setEditDurationMinutes(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Duration (minutes)"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={editTags}
+                    onChange={(e) => setEditTags(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Tags (comma separated)"
+                  />
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-bold mb-2">{sermon.title}</h1>
+                  <p className="text-gray-600 mb-2">By {sermon.speaker}</p>
+                </>
+              )}
               <div className="flex gap-4 text-sm text-gray-500">
                 <span>{formatDate(sermon.createdAt)}</span>
                 {sermon.duration && <span>{formatDuration(sermon.duration)}</span>}
@@ -156,6 +285,44 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
               </div>
             </div>
             <div className="flex gap-2">
+              {canManage && (
+                <>
+                  {editing ? (
+                    <>
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                      >
+                        {saving ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setEditing(false)}
+                        disabled={saving}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setEditing(true)}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleting ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
               <button
                 onClick={handleDownload}
                 disabled={downloading || sermon.isDownloaded}

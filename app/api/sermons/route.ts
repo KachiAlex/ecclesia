@@ -74,7 +74,6 @@ export async function GET(request: Request) {
         }
       })
     )
-
     const nextCursor = sermons.length === limit ? sermons[sermons.length - 1].id : null
 
     return NextResponse.json({

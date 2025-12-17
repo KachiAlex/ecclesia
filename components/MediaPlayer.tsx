@@ -23,16 +23,22 @@ export default function MediaPlayer({
   const audioRef = useRef<HTMLAudioElement>(null)
   const [mediaType, setMediaType] = useState<'video' | 'audio'>('video')
   const [embedType, setEmbedType] = useState<'youtube' | 'vimeo' | 'telegram' | 'direct' | null>(null)
+  const [unsupportedTelegram, setUnsupportedTelegram] = useState(false)
 
   useEffect(() => {
     // Determine media type and embed type
     if (videoUrl) {
       setMediaType('video')
+      setUnsupportedTelegram(false)
       const type = detectEmbedType(videoUrl)
       setEmbedType(type)
+      if (type === 'direct' && isTelegramUrl(videoUrl)) {
+        setUnsupportedTelegram(true)
+      }
     } else if (audioUrl) {
       setMediaType('audio')
       setEmbedType('direct')
+      setUnsupportedTelegram(false)
     }
   }, [videoUrl, audioUrl])
 
@@ -54,6 +60,13 @@ export default function MediaPlayer({
     }
   }, [embedType, mediaType, initialTime])
 
+  const isTelegramUrl = (url: string) => url.includes('t.me/') || url.includes('telegram.')
+
+  const isPublicTelegramPostUrl = (url: string) => {
+    if (!url.includes('t.me/')) return false
+    return /t\.me\/(?!c\/)[^\/]+\/\d+/.test(url)
+  }
+
   const detectEmbedType = (url: string): 'youtube' | 'vimeo' | 'telegram' | 'direct' => {
     if (url.includes('youtube.com/embed/') || url.includes('youtu.be')) {
       return 'youtube'
@@ -61,7 +74,7 @@ export default function MediaPlayer({
     if (url.includes('vimeo.com') || url.includes('player.vimeo.com')) {
       return 'vimeo'
     }
-    if (url.includes('t.me/') || url.includes('telegram.')) {
+    if (isPublicTelegramPostUrl(url)) {
       return 'telegram'
     }
     return 'direct'
@@ -110,7 +123,7 @@ export default function MediaPlayer({
     // Telegram embed format
     if (url.includes('t.me/')) {
       // Convert t.me links to embed format if needed
-      const match = url.match(/t\.me\/([^\/]+)\/(\d+)/)
+      const match = url.match(/t\.me\/(?!c\/)([^\/]+)\/(\d+)/)
       if (match) {
         return `https://t.me/${match[1]}/${match[2]}?embed=1`
       }
@@ -128,6 +141,20 @@ export default function MediaPlayer({
 
   // Render based on embed type
   if (mediaType === 'video' && videoUrl) {
+    if (unsupportedTelegram) {
+      return (
+        <div className="w-full h-96 bg-black flex items-center justify-center text-white px-6 text-center">
+          <p>
+            This Telegram link can’t be embedded. Please use a public post link in the format
+            {' '}
+            <span className="font-mono">t.me/&lt;channel&gt;/&lt;postId&gt;</span>
+            {' '}
+            or upload the video/audio file directly.
+          </p>
+        </div>
+      )
+    }
+
     if (embedType === 'youtube') {
       return (
         <div className="relative w-full" style={{ paddingBottom: '56.25%' /* 16:9 */ }}>
