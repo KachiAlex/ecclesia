@@ -99,25 +99,35 @@ export class SubscriptionPlanService {
 
 export class SubscriptionService {
   static async findByChurch(churchId: string): Promise<Subscription | null> {
+    // NOTE: Avoid composite index requirements by not combining `where(churchId == ...)`
+    // with `orderBy(startDate)`.
     const snapshot = await db.collection(COLLECTIONS.subscriptions)
       .where('churchId', '==', churchId)
-      .orderBy('startDate', 'desc')
-      .limit(1)
       .get()
 
     if (snapshot.empty) return null
 
-    const doc = snapshot.docs[0]
-    const data = doc.data()
-    return {
-      id: doc.id,
-      ...data,
-      startDate: toDate(data.startDate),
-      endDate: data.endDate ? toDate(data.endDate) : undefined,
-      trialEndsAt: data.trialEndsAt ? toDate(data.trialEndsAt) : undefined,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as Subscription
+    const docs = snapshot.docs
+      .map((doc: any) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          startDate: toDate(data.startDate),
+          endDate: data.endDate ? toDate(data.endDate) : undefined,
+          trialEndsAt: data.trialEndsAt ? toDate(data.trialEndsAt) : undefined,
+          createdAt: toDate(data.createdAt),
+          updatedAt: toDate(data.updatedAt),
+        } as Subscription
+      })
+
+    const activeStatuses = new Set(['ACTIVE', 'TRIAL'])
+    const active = docs.filter(s => activeStatuses.has(String((s as any).status)))
+    const candidates = active.length > 0 ? active : docs
+
+    return candidates.reduce((latest, cur) => {
+      return cur.startDate > latest.startDate ? cur : latest
+    }, candidates[0])
   }
 
   static async create(data: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subscription> {
