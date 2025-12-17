@@ -38,6 +38,9 @@ export const COLLECTIONS = {
   sermons: 'sermons',
   sermonViews: 'sermon_views',
   sermonDownloads: 'sermon_downloads',
+
+  // Livestream collections
+  livestreams: 'livestreams',
   
   // Children collections
   children: 'children',
