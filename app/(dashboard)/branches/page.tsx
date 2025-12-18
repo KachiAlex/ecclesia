@@ -25,6 +25,8 @@ interface Branch {
 
 export default function BranchesPage() {
   const { data: session } = useSession()
+  const role = (session?.user as any)?.role as string | undefined
+  const isMember = role === 'MEMBER'
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -73,6 +75,7 @@ export default function BranchesPage() {
   }
 
   const handleManageAdmins = (branch: Branch) => {
+    if (isMember) return
     setSelectedBranch(branch)
     setShowAdminModal(true)
   }
@@ -93,7 +96,7 @@ export default function BranchesPage() {
           <h1 className="text-3xl font-bold text-gray-900">Church Branches</h1>
           <p className="text-gray-600 mt-1">Manage your church branches and their admins</p>
         </div>
-        {churchId && (
+        {churchId && !isMember && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
@@ -124,7 +127,7 @@ export default function BranchesPage() {
           <p className="text-gray-600 mb-6">
             Create your first branch to start managing multiple locations or campuses.
           </p>
-          {churchId && (
+          {churchId && !isMember && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
@@ -141,6 +144,7 @@ export default function BranchesPage() {
               branch={branch}
               onDelete={handleBranchDeleted}
               onManageAdmins={() => handleManageAdmins(branch)}
+              canManage={!isMember}
             />
           ))}
         </div>

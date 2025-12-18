@@ -22,7 +22,7 @@ export type Permission =
 const rolePermissions: Record<UserRole, Permission[]> = {
   VISITOR: [],
   VOLUNTEER: ['view_users'],
-  MEMBER: ['view_users'],
+  MEMBER: [],
   LEADER: [
     'view_users',
     'edit_users',

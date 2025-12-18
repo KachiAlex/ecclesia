@@ -142,14 +142,8 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString])
 
-  if (!isManager) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold">Attendance</h1>
-        <p className="text-gray-600 mt-2">You do not have access to Attendance management.</p>
-      </div>
-    )
-  }
+  // Members should be able to view sessions and check in.
+  // Only managers can create sessions and update headcount.
 
   async function createSession() {
     setCreating(true)
@@ -236,7 +230,7 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Attendance</h1>
-        <p className="text-gray-600 mt-1">Create sessions and track headcount + member check-ins.</p>
+        <p className="text-gray-600 mt-1">View sessions and check in.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -264,47 +258,49 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <h2 className="text-lg font-semibold">Create Session</h2>
-          <div>
-            <label className="text-xs font-semibold text-gray-600">Title</label>
-            <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.title} onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {isManager && (
+          <div className="bg-white rounded-xl border p-5 space-y-3">
+            <h2 className="text-lg font-semibold">Create Session</h2>
             <div>
-              <label className="text-xs font-semibold text-gray-600">Type</label>
-              <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.type} onChange={(e) => setCreateForm((p) => ({ ...p, type: e.target.value }))}>
-                <option value="SERVICE">SERVICE</option>
-                <option value="MEETING">MEETING</option>
-              </select>
+              <label className="text-xs font-semibold text-gray-600">Title</label>
+              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.title} onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Type</label>
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.type} onChange={(e) => setCreateForm((p) => ({ ...p, type: e.target.value }))}>
+                  <option value="SERVICE">SERVICE</option>
+                  <option value="MEETING">MEETING</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Mode</label>
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.mode} onChange={(e) => setCreateForm((p) => ({ ...p, mode: e.target.value }))}>
+                  <option value="OFFLINE">OFFLINE</option>
+                  <option value="ONLINE">ONLINE</option>
+                  <option value="HYBRID">HYBRID</option>
+                </select>
+              </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-600">Mode</label>
-              <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.mode} onChange={(e) => setCreateForm((p) => ({ ...p, mode: e.target.value }))}>
-                <option value="OFFLINE">OFFLINE</option>
-                <option value="ONLINE">ONLINE</option>
-                <option value="HYBRID">HYBRID</option>
-              </select>
+              <label className="text-xs font-semibold text-gray-600">Start at</label>
+              <input type="datetime-local" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.startAt} onChange={(e) => setCreateForm((p) => ({ ...p, startAt: e.target.value }))} />
             </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-600">Start at</label>
-            <input type="datetime-local" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.startAt} onChange={(e) => setCreateForm((p) => ({ ...p, startAt: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-600">Location (optional)</label>
-              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.location} onChange={(e) => setCreateForm((p) => ({ ...p, location: e.target.value }))} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Location (optional)</label>
+                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.location} onChange={(e) => setCreateForm((p) => ({ ...p, location: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Notes (optional)</label>
+                <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.notes} onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))} />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600">Notes (optional)</label>
-              <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={createForm.notes} onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))} />
-            </div>
+            <button disabled={creating} onClick={createSession} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm disabled:opacity-60">
+              {creating ? 'Creating...' : 'Create'}
+            </button>
           </div>
-          <button disabled={creating} onClick={createSession} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm disabled:opacity-60">
-            {creating ? 'Creating...' : 'Create'}
-          </button>
-        </div>
+        )}
 
         <div className="bg-white rounded-xl border p-5">
           <h2 className="text-lg font-semibold mb-3">Sessions</h2>
@@ -344,20 +340,22 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
 
       {selectedSession && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border p-5 space-y-3">
-            <h2 className="text-lg font-semibold">Headcount</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(['total','men','women','children','firstTimers'] as const).map((k) => (
-                <div key={k}>
-                  <label className="text-xs font-semibold text-gray-600">{k}</label>
-                  <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={headcount[k]} onChange={(e) => setHeadcount((p) => ({ ...p, [k]: e.target.value }))} />
-                </div>
-              ))}
+          {isManager && (
+            <div className="bg-white rounded-xl border p-5 space-y-3">
+              <h2 className="text-lg font-semibold">Headcount</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(['total','men','women','children','firstTimers'] as const).map((k) => (
+                  <div key={k}>
+                    <label className="text-xs font-semibold text-gray-600">{k}</label>
+                    <input className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value={headcount[k]} onChange={(e) => setHeadcount((p) => ({ ...p, [k]: e.target.value }))} />
+                  </div>
+                ))}
+              </div>
+              <button disabled={headcountSaving} onClick={saveHeadcount} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm disabled:opacity-60">
+                {headcountSaving ? 'Saving...' : 'Save Headcount'}
+              </button>
             </div>
-            <button disabled={headcountSaving} onClick={saveHeadcount} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm disabled:opacity-60">
-              {headcountSaving ? 'Saving...' : 'Save Headcount'}
-            </button>
-          </div>
+          )}
 
           <div className="bg-white rounded-xl border p-5 space-y-3">
             <h2 className="text-lg font-semibold">Member / Guest Check-in</h2>

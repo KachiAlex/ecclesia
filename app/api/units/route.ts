@@ -25,6 +25,10 @@ export async function POST(request: Request) {
   const { church, userId, role } = guarded.ctx
   const body = await request.json()
 
+  if (String(role) === 'MEMBER') {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  }
+
   const unitTypeId = String(body?.unitTypeId || '').trim()
   const name = String(body?.name || '').trim()
   const description = body?.description ? String(body.description) : undefined

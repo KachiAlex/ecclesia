@@ -48,6 +48,7 @@ export default function GroupsHub() {
   const [invites, setInvites] = useState<Invite[]>([])
 
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isMember, setIsMember] = useState(false)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editUnitId, setEditUnitId] = useState<string | null>(null)
@@ -96,6 +97,7 @@ export default function GroupsHub() {
         const me = await meRes.json().catch(() => null)
         const role = String(me?.role || '')
         setIsAdmin(role === 'ADMIN' || role === 'SUPER_ADMIN')
+        setIsMember(role === 'MEMBER')
       }
 
       if (!typesRes.ok) throw new Error((await typesRes.json())?.error || 'Failed to load unit types')
@@ -287,62 +289,66 @@ export default function GroupsHub() {
         >
           Invites
         </button>
-        <button
-          onClick={() => setActiveTab('admin')}
-          className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'admin' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-        >
-          Admin
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'admin' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+          >
+            Admin
+          </button>
+        )}
       </div>
 
       {activeTab === 'units' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Create Unit</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
-                <select
-                  value={createUnitTypeId}
-                  onChange={(e) => setCreateUnitTypeId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2"
-                >
-                  {unitTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+          {!isMember && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">Create Unit</h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
+                  <select
+                    value={createUnitTypeId}
+                    onChange={(e) => setCreateUnitTypeId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                  >
+                    {unitTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    value={newUnitName}
+                    onChange={(e) => setNewUnitName(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                    placeholder="e.g. Cell Group A"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <input
-                  value={newUnitName}
-                  onChange={(e) => setNewUnitName(e.target.value)}
+                  value={newUnitDescription}
+                  onChange={(e) => setNewUnitDescription(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2"
-                  placeholder="e.g. Cell Group A"
+                  placeholder="Optional"
                 />
               </div>
+              <div className="mt-4">
+                <button
+                  disabled={savingUnit || !createUnitTypeId || !newUnitName.trim()}
+                  onClick={createUnit}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60"
+                >
+                  {savingUnit ? 'Creating...' : 'Create Unit'}
+                </button>
+              </div>
             </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <input
-                value={newUnitDescription}
-                onChange={(e) => setNewUnitDescription(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2"
-                placeholder="Optional"
-              />
-            </div>
-            <div className="mt-4">
-              <button
-                disabled={savingUnit || !createUnitTypeId || !newUnitName.trim()}
-                onClick={createUnit}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60"
-              >
-                {savingUnit ? 'Creating...' : 'Create Unit'}
-              </button>
-            </div>
-          </div>
+          )}
 
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Units</h2>

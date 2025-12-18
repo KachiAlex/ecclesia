@@ -33,10 +33,26 @@ export default function SermonHub() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [categories, setCategories] = useState<string[]>([])
+  const [canUpload, setCanUpload] = useState(false)
 
   useEffect(() => {
     loadSermons()
   }, [search, category])
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const res = await fetch('/api/users/me')
+        if (!res.ok) return
+        const me = await res.json().catch(() => null)
+        const role = String(me?.role || '')
+        setCanUpload(role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PASTOR')
+      } catch {
+        // ignore
+      }
+    }
+    loadMe()
+  }, [])
 
   useEffect(() => {
     // Extract unique categories from sermons after they're loaded
@@ -92,12 +108,14 @@ export default function SermonHub() {
             Watch sermons, continue where you left off, and download for offline listening
           </p>
         </div>
-        <Link
-          href="/sermons/upload"
-          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium flex items-center gap-2"
-        >
-          <span>📤</span> Upload Sermon
-        </Link>
+        {canUpload && (
+          <Link
+            href="/sermons/upload"
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium flex items-center gap-2"
+          >
+            <span>📤</span> Upload Sermon
+          </Link>
+        )}
       </div>
 
       {/* Search and Filters */}

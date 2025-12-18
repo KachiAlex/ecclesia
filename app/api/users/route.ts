@@ -9,10 +9,17 @@ export async function GET(request: Request) {
     const guarded = await guardApi({ requireChurch: true })
     if (!guarded.ok) return guarded.response
 
-    const { userId, church } = guarded.ctx
+    const { userId, church, role } = guarded.ctx
+
+    if (role === 'MEMBER') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
 
     const { searchParams } = new URL(request.url)
-    const role = searchParams.get('role')
+    const roleFilter = searchParams.get('role')
     const search = searchParams.get('search')
     const branchId = searchParams.get('branchId')
     const page = parseInt(searchParams.get('page') || '1')
@@ -27,8 +34,8 @@ export async function GET(request: Request) {
     }
 
     // Filter by role
-    if (role) {
-      users = users.filter(user => user.role === role)
+    if (roleFilter) {
+      users = users.filter(user => user.role === roleFilter)
     }
 
     // Filter by search

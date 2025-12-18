@@ -30,6 +30,9 @@ interface DashboardNavProps {
 export default function DashboardNav({ userRole }: DashboardNavProps) {
   const pathname = usePathname()
 
+  const canSeeUsers = userRole !== 'MEMBER'
+  const canSeePayroll = userRole !== 'MEMBER'
+
   const isActive = (href: string) => {
     if (href === '/dashboard') {
       return pathname === '/dashboard'
@@ -40,7 +43,13 @@ export default function DashboardNav({ userRole }: DashboardNavProps) {
   return (
     <nav className="px-4 py-6 space-y-1.5">
       {/* Main Navigation */}
-      {navigation.map((item) => {
+      {navigation
+        .filter((item) => {
+          if (item.href === '/users') return canSeeUsers
+          if (item.href === '/payroll') return canSeePayroll
+          return true
+        })
+        .map((item) => {
         const active = isActive(item.href)
         return (
           <Link

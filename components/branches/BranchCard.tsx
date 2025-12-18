@@ -22,9 +22,10 @@ interface BranchCardProps {
   branch: Branch
   onDelete: () => void
   onManageAdmins: () => void
+  canManage?: boolean
 }
 
-export default function BranchCard({ branch, onDelete, onManageAdmins }: BranchCardProps) {
+export default function BranchCard({ branch, onDelete, onManageAdmins, canManage = true }: BranchCardProps) {
   const [deleting, setDeleting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -118,37 +119,43 @@ export default function BranchCard({ branch, onDelete, onManageAdmins }: BranchC
 
       {/* Actions */}
       <div className="flex items-center space-x-2 pt-4 border-t border-gray-200">
-        <button
-          onClick={onManageAdmins}
-          className="flex-1 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-semibold hover:bg-blue-100 transition-colors text-sm"
-        >
-          Manage Admins
-        </button>
-        {showConfirm ? (
+        {canManage ? (
           <>
             <button
-              onClick={() => setShowConfirm(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors text-sm"
-              disabled={deleting}
+              onClick={onManageAdmins}
+              className="flex-1 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-semibold hover:bg-blue-100 transition-colors text-sm"
             >
-              Cancel
+              Manage Admins
             </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
-            >
-              {deleting ? 'Deleting...' : 'Confirm'}
-            </button>
+            {showConfirm ? (
+              <>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {deleting ? 'Deleting...' : 'Confirm'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 border border-red-300 text-red-700 rounded-lg font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 text-sm"
+              >
+                Delete
+              </button>
+            )}
           </>
         ) : (
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="px-4 py-2 border border-red-300 text-red-700 rounded-lg font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 text-sm"
-          >
-            Delete
-          </button>
+          <div className="text-sm text-gray-500">No management access.</div>
         )}
       </div>
     </div>
