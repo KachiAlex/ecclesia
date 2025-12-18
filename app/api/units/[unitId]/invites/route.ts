@@ -14,7 +14,11 @@ export async function POST(request: Request, { params }: { params: { unitId: str
   }
 
   const inviterMembership = await UnitMembershipService.findByUserAndUnit(userId, unit.id)
-  if (!inviterMembership || inviterMembership.role !== 'HEAD') {
+  const invitePolicy = unit.permissions?.invitePolicy || 'HEAD_ONLY'
+  if (!inviterMembership) {
+    return NextResponse.json({ error: 'Only unit members can invite' }, { status: 403 })
+  }
+  if (invitePolicy === 'HEAD_ONLY' && inviterMembership.role !== 'HEAD') {
     return NextResponse.json({ error: 'Only unit heads can invite members' }, { status: 403 })
   }
 

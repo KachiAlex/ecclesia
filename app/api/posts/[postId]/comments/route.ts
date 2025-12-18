@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth-options'
 import { CommentService } from '@/lib/services/comment-service'
 import { UserService } from '@/lib/services/user-service'
+import { db } from '@/lib/firestore'
+import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function GET(
   request: Request,
@@ -14,14 +16,31 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const userId = (session.user as any).id
+
     const { postId } = params
 
     const comments = await CommentService.findByPost(postId)
 
-    // Get user data for each comment
+    // Get user data + like status/count for each comment
     const commentsWithUsers = await Promise.all(
       comments.map(async (comment) => {
         const user = await UserService.findById(comment.userId)
+
+        const likeDoc = await db
+          .collection(COLLECTIONS.comments)
+          .doc(comment.id)
+          .collection('likes')
+          .doc(userId)
+          .get()
+
+        const likesCountSnap = await db
+          .collection(COLLECTIONS.comments)
+          .doc(comment.id)
+          .collection('likes')
+          .count()
+          .get()
+
         return {
           ...comment,
           user: user ? {
@@ -30,6 +49,10 @@ export async function GET(
             lastName: user.lastName,
             profileImage: user.profileImage,
           } : null,
+          isLiked: likeDoc.exists,
+          _count: {
+            likes: likesCountSnap.data().count || 0,
+          },
         }
       })
     )
@@ -57,7 +80,7 @@ export async function POST(
     const userId = (session.user as any).id
     const { postId } = params
     const body = await request.json()
-    const { content } = body
+    const { content, parentCommentId } = body
 
     if (!content) {
       return NextResponse.json(
@@ -70,6 +93,7 @@ export async function POST(
       userId,
       postId,
       content,
+      parentCommentId: parentCommentId ? String(parentCommentId) : undefined,
     })
 
     // Get user data
@@ -83,6 +107,10 @@ export async function POST(
         lastName: user.lastName,
         profileImage: user.profileImage,
       } : null,
+      isLiked: false,
+      _count: {
+        likes: 0,
+      },
     }, { status: 201 })
   } catch (error: any) {
     console.error('Error creating comment:', error)

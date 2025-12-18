@@ -7,6 +7,7 @@ export interface Comment {
   postId: string
   userId: string
   content: string
+  parentCommentId?: string
   createdAt: Date
   updatedAt: Date
 }

@@ -10,6 +10,9 @@ export interface Unit {
   description?: string
   headUserId: string
   branchId?: string
+  permissions?: {
+    invitePolicy?: 'HEAD_ONLY' | 'ANY_MEMBER'
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -96,7 +99,10 @@ export class UnitService {
     })
   }
 
-  static async update(id: string, patch: Partial<Pick<Unit, 'name' | 'description' | 'headUserId' | 'branchId'>>): Promise<Unit> {
+  static async update(
+    id: string,
+    patch: Partial<Pick<Unit, 'name' | 'description' | 'headUserId' | 'branchId' | 'permissions'>>
+  ): Promise<Unit> {
     await db.collection(COLLECTIONS.units).doc(id).update({
       ...patch,
       updatedAt: FieldValue.serverTimestamp(),

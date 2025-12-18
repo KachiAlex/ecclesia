@@ -21,6 +21,9 @@ type Unit = {
   description?: string
   headUserId: string
   branchId?: string
+  permissions?: {
+    invitePolicy?: 'HEAD_ONLY' | 'ANY_MEMBER'
+  }
 }
 
 type Invite = {
@@ -43,6 +46,15 @@ export default function GroupsHub() {
   const [unitTypes, setUnitTypes] = useState<UnitType[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
+
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editUnitId, setEditUnitId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editInvitePolicy, setEditInvitePolicy] = useState<'HEAD_ONLY' | 'ANY_MEMBER'>('HEAD_ONLY')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -73,11 +85,18 @@ export default function GroupsHub() {
     setError('')
     setLoading(true)
     try {
-      const [typesRes, unitsRes, invitesRes] = await Promise.all([
+      const [meRes, typesRes, unitsRes, invitesRes] = await Promise.all([
+        fetch('/api/users/me'),
         fetch('/api/unit-types'),
         fetch('/api/units'),
         fetch('/api/unit-invites'),
       ])
+
+      if (meRes.ok) {
+        const me = await meRes.json().catch(() => null)
+        const role = String(me?.role || '')
+        setIsAdmin(role === 'ADMIN' || role === 'SUPER_ADMIN')
+      }
 
       if (!typesRes.ok) throw new Error((await typesRes.json())?.error || 'Failed to load unit types')
       if (!unitsRes.ok) throw new Error((await unitsRes.json())?.error || 'Failed to load units')
@@ -187,6 +206,40 @@ export default function GroupsHub() {
       await loadAll()
     } catch (e: any) {
       setError(parseApiError(e))
+    }
+  }
+
+  const openEdit = (u: Unit) => {
+    setEditUnitId(u.id)
+    setEditName(u.name || '')
+    setEditDescription(u.description || '')
+    setEditInvitePolicy((u.permissions?.invitePolicy as any) || 'HEAD_ONLY')
+    setEditOpen(true)
+  }
+
+  const saveEdit = async () => {
+    if (!editUnitId) return
+    setSavingEdit(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/units/${editUnitId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription || undefined,
+          permissions: isAdmin ? { invitePolicy: editInvitePolicy } : undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to update unit')
+      setEditOpen(false)
+      setEditUnitId(null)
+      await loadAll()
+    } catch (e: any) {
+      setError(parseApiError(e))
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -305,6 +358,14 @@ export default function GroupsHub() {
                         <div className="text-sm text-gray-600">{unitTypeById[u.unitTypeId]?.name || 'Unit'}</div>
                         {u.description && <div className="text-sm text-gray-700 mt-1">{u.description}</div>}
                       </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </div>
                     <div className="mt-3">
                       <a
@@ -318,6 +379,90 @@ export default function GroupsHub() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => {
+              if (savingEdit) return
+              setEditOpen(false)
+              setEditUnitId(null)
+            }}
+          />
+          <div className="relative bg-white w-full max-w-lg mx-4 rounded-xl shadow-xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <div className="text-lg font-semibold text-gray-900">Edit Unit</div>
+                <div className="text-sm text-gray-600">Update name, description, and permissions.</div>
+              </div>
+              <button
+                onClick={() => {
+                  if (savingEdit) return
+                  setEditOpen(false)
+                  setEditUnitId(null)
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              {isAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Invite Permission</label>
+                  <select
+                    value={editInvitePolicy}
+                    onChange={(e) => setEditInvitePolicy(e.target.value as any)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="HEAD_ONLY">Only Unit Head can invite</option>
+                    <option value="ANY_MEMBER">Any Member can invite</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-6">
+              <button
+                onClick={() => {
+                  if (savingEdit) return
+                  setEditOpen(false)
+                  setEditUnitId(null)
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={savingEdit || !editName.trim()}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm disabled:opacity-60"
+              >
+                {savingEdit ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
       )}

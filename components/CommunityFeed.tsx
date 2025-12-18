@@ -34,12 +34,18 @@ interface Comment {
   postId: string
   content: string
   createdAt: string
+  parentCommentId?: string
   user: {
     id: string
     firstName: string
     lastName: string
     profileImage?: string
   } | null
+
+  isLiked?: boolean
+  _count?: {
+    likes: number
+  }
 }
 
 interface ShareUnit {
@@ -69,6 +75,10 @@ export default function CommunityFeed() {
   const [commentsLoadingByPostId, setCommentsLoadingByPostId] = useState<Record<string, boolean>>({})
   const [commentPostingByPostId, setCommentPostingByPostId] = useState<Record<string, boolean>>({})
 
+  const [replyDraftByCommentId, setReplyDraftByCommentId] = useState<Record<string, string>>({})
+  const [replyPostingByCommentId, setReplyPostingByCommentId] = useState<Record<string, boolean>>({})
+  const [openReplyCommentId, setOpenReplyCommentId] = useState<string | null>(null)
+
   const loadComments = async (postId: string) => {
     setCommentsLoadingByPostId((p) => ({ ...p, [postId]: true }))
     try {
@@ -79,7 +89,18 @@ export default function CommunityFeed() {
       }
       const data = await res.json()
       const comments = Array.isArray(data) ? data : []
-      setCommentsByPostId((p) => ({ ...p, [postId]: comments }))
+      const normalized = comments.map((c: any) => {
+        const count = c?._count || {}
+        return {
+          ...c,
+          parentCommentId: c?.parentCommentId || undefined,
+          isLiked: Boolean(c?.isLiked),
+          _count: {
+            likes: Number(count.likes || 0),
+          },
+        } as Comment
+      })
+      setCommentsByPostId((p) => ({ ...p, [postId]: normalized }))
     } catch (error) {
       console.error('Error loading comments:', error)
       setCommentsByPostId((p) => ({ ...p, [postId]: [] }))
@@ -102,7 +123,13 @@ export default function CommunityFeed() {
 
       if (!res.ok) return
 
-      const created = await res.json()
+      const createdRaw = await res.json()
+      const created: Comment = {
+        ...createdRaw,
+        parentCommentId: createdRaw?.parentCommentId || undefined,
+        isLiked: Boolean(createdRaw?.isLiked),
+        _count: { likes: Number(createdRaw?._count?.likes || 0) },
+      }
       setCommentsByPostId((p) => ({
         ...p,
         [postId]: [...(p[postId] || []), created],
@@ -126,6 +153,85 @@ export default function CommunityFeed() {
       console.error('Error creating comment:', error)
     } finally {
       setCommentPostingByPostId((p) => ({ ...p, [postId]: false }))
+    }
+  }
+
+  const submitReply = async (postId: string, parentCommentId: string) => {
+    const content = (replyDraftByCommentId[parentCommentId] || '').trim()
+    if (!content) return
+
+    setReplyPostingByCommentId((p) => ({ ...p, [parentCommentId]: true }))
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ content, parentCommentId }),
+      })
+
+      if (!res.ok) return
+
+      const createdRaw = await res.json()
+      const created: Comment = {
+        ...createdRaw,
+        parentCommentId: createdRaw?.parentCommentId || undefined,
+        isLiked: Boolean(createdRaw?.isLiked),
+        _count: { likes: Number(createdRaw?._count?.likes || 0) },
+      }
+
+      setCommentsByPostId((p) => ({
+        ...p,
+        [postId]: [...(p[postId] || []), created],
+      }))
+
+      setReplyDraftByCommentId((p) => ({ ...p, [parentCommentId]: '' }))
+      setOpenReplyCommentId(null)
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                _count: {
+                  ...post._count,
+                  comments: post._count.comments + 1,
+                },
+              }
+            : post
+        )
+      )
+    } catch (error) {
+      console.error('Error creating reply:', error)
+    } finally {
+      setReplyPostingByCommentId((p) => ({ ...p, [parentCommentId]: false }))
+    }
+  }
+
+  const toggleCommentLike = async (postId: string, commentId: string) => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments/${commentId}/like`, { method: 'POST' })
+      if (!res.ok) return
+      const data = await res.json().catch(() => ({}))
+      const liked = Boolean(data?.liked)
+
+      setCommentsByPostId((prev) => {
+        const list = prev[postId] || []
+        return {
+          ...prev,
+          [postId]: list.map((c) =>
+            c.id === commentId
+              ? {
+                  ...c,
+                  isLiked: liked,
+                  _count: {
+                    likes: (c._count?.likes || 0) + (liked ? 1 : -1),
+                  },
+                }
+              : c
+          ),
+        }
+      })
+    } catch (error) {
+      console.error('Error toggling comment like:', error)
     }
   }
   
@@ -585,26 +691,126 @@ export default function CommunityFeed() {
                         {(commentsByPostId[post.id] || []).length === 0 ? (
                           <div className="text-sm text-gray-500">No comments yet.</div>
                         ) : (
-                          (commentsByPostId[post.id] || []).map((c) => (
-                            <div key={c.id} className="flex gap-3">
-                              <div className="flex-shrink-0">
-                                {c.user?.profileImage ? (
-                                  <img src={c.user.profileImage} className="w-8 h-8 rounded-full object-cover" alt="" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gray-200" />
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm">
-                                  <span className="font-semibold text-gray-900">
-                                    {c.user ? `${c.user.firstName} ${c.user.lastName}` : 'Unknown'}
-                                  </span>
-                                  <span className="text-gray-700">{' '}{c.content}</span>
+                          (() => {
+                            const all = commentsByPostId[post.id] || []
+                            const roots = all.filter((c) => !c.parentCommentId)
+                            const repliesByParentId = all.reduce((acc: Record<string, Comment[]>, c) => {
+                              if (!c.parentCommentId) return acc
+                              acc[c.parentCommentId] = acc[c.parentCommentId] || []
+                              acc[c.parentCommentId].push(c)
+                              return acc
+                            }, {})
+
+                            return roots.map((c) => (
+                              <div key={c.id} className="space-y-2">
+                                <div className="flex gap-3">
+                                  <div className="flex-shrink-0">
+                                    {c.user?.profileImage ? (
+                                      <img src={c.user.profileImage} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-gray-200" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="text-sm">
+                                      <span className="font-semibold text-gray-900">
+                                        {c.user ? `${c.user.firstName} ${c.user.lastName}` : 'Unknown'}
+                                      </span>
+                                      <span className="text-gray-700">{' '}{c.content}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500">{formatDate(c.createdAt)}</div>
+
+                                    <div className="mt-1 flex items-center gap-3 text-xs">
+                                      <button
+                                        onClick={() => toggleCommentLike(post.id, c.id)}
+                                        className={`font-medium ${c.isLiked ? 'text-primary-700' : 'text-gray-600'} hover:underline`}
+                                      >
+                                        Like{(c._count?.likes || 0) > 0 ? ` (${c._count?.likes || 0})` : ''}
+                                      </button>
+                                      <button
+                                        onClick={() => setOpenReplyCommentId((prev) => (prev === c.id ? null : c.id))}
+                                        className="font-medium text-gray-600 hover:underline"
+                                      >
+                                        Reply
+                                      </button>
+                                    </div>
+
+                                    {openReplyCommentId === c.id && (
+                                      <div className="mt-2 flex gap-2">
+                                        <input
+                                          value={replyDraftByCommentId[c.id] || ''}
+                                          onChange={(e) => setReplyDraftByCommentId((p) => ({ ...p, [c.id]: e.target.value }))}
+                                          placeholder="Write a reply..."
+                                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                        <button
+                                          onClick={() => submitReply(post.id, c.id)}
+                                          disabled={replyPostingByCommentId[c.id] || !(replyDraftByCommentId[c.id] || '').trim()}
+                                          className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                                        >
+                                          {replyPostingByCommentId[c.id] ? 'Posting...' : 'Reply'}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-500">{formatDate(c.createdAt)}</div>
+
+                                {(repliesByParentId[c.id] || []).map((r) => (
+                                  <div key={r.id} className="flex gap-3 pl-11">
+                                    <div className="flex-shrink-0">
+                                      {r.user?.profileImage ? (
+                                        <img src={r.user.profileImage} className="w-7 h-7 rounded-full object-cover" alt="" />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-full bg-gray-200" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="text-sm">
+                                        <span className="font-semibold text-gray-900">
+                                          {r.user ? `${r.user.firstName} ${r.user.lastName}` : 'Unknown'}
+                                        </span>
+                                        <span className="text-gray-700">{' '}{r.content}</span>
+                                      </div>
+                                      <div className="text-xs text-gray-500">{formatDate(r.createdAt)}</div>
+
+                                      <div className="mt-1 flex items-center gap-3 text-xs">
+                                        <button
+                                          onClick={() => toggleCommentLike(post.id, r.id)}
+                                          className={`font-medium ${r.isLiked ? 'text-primary-700' : 'text-gray-600'} hover:underline`}
+                                        >
+                                          Like{(r._count?.likes || 0) > 0 ? ` (${r._count?.likes || 0})` : ''}
+                                        </button>
+                                        <button
+                                          onClick={() => setOpenReplyCommentId((prev) => (prev === r.id ? null : r.id))}
+                                          className="font-medium text-gray-600 hover:underline"
+                                        >
+                                          Reply
+                                        </button>
+                                      </div>
+
+                                      {openReplyCommentId === r.id && (
+                                        <div className="mt-2 flex gap-2">
+                                          <input
+                                            value={replyDraftByCommentId[r.id] || ''}
+                                            onChange={(e) => setReplyDraftByCommentId((p) => ({ ...p, [r.id]: e.target.value }))}
+                                            placeholder="Write a reply..."
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                          />
+                                          <button
+                                            onClick={() => submitReply(post.id, r.id)}
+                                            disabled={replyPostingByCommentId[r.id] || !(replyDraftByCommentId[r.id] || '').trim()}
+                                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                                          >
+                                            {replyPostingByCommentId[r.id] ? 'Posting...' : 'Reply'}
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            </div>
-                          ))
+                            ))
+                          })()
                         )}
                       </div>
                     )}
