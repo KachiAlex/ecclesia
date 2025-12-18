@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import { MeetingService, MeetingRecurrence } from '@/lib/services/meeting-service'
 import { UserService } from '@/lib/services/user-service'
+import { ChurchGoogleService } from '@/lib/services/church-google-service'
+import { updateCalendarEvent } from '@/lib/services/google-calendar-service'
 
 function parseDate(v: any): Date | null {
   if (!v) return null
@@ -102,5 +104,45 @@ export async function PATCH(request: Request, { params }: { params: { meetingId:
     branchId,
   })
 
-  return NextResponse.json({ meeting: updated })
+  let googleSyncError: string | null = null
+
+  try {
+    const calendarEventId = existing.google?.calendarEventId
+    const calendarId = existing.google?.calendarId || 'primary'
+
+    if (calendarEventId) {
+      const client = await ChurchGoogleService.getAuthorizedCalendarClient(church.id)
+      if (!client) {
+        googleSyncError = 'Google is not connected'
+      } else {
+        const g = await updateCalendarEvent({
+          calendar: client.calendar,
+          calendarId: client.tokens.calendarId || calendarId,
+          eventId: calendarEventId,
+          title: updated.title,
+          description: updated.description,
+          startAt: updated.startAt,
+          endAt: updated.endAt,
+          timezone: updated.timezone,
+          recurrence: updated.recurrence,
+        })
+
+        const meetUrl = g.meetUrl || existing.google?.meetUrl
+        const persisted = await MeetingService.updateGoogle({
+          meetingId: updated.id,
+          google: {
+            calendarId: client.tokens.calendarId || calendarId,
+            calendarEventId,
+            meetUrl,
+          },
+        })
+
+        return NextResponse.json({ meeting: persisted, googleSyncError })
+      }
+    }
+  } catch (e: any) {
+    googleSyncError = e?.message || 'Failed to sync Google Calendar event'
+  }
+
+  return NextResponse.json({ meeting: updated, googleSyncError })
 }

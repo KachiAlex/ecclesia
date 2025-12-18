@@ -90,3 +90,48 @@ export async function createCalendarEventWithMeet(params: {
     meetUrl: meetUrl ? String(meetUrl) : undefined,
   }
 }
+
+export async function updateCalendarEvent(params: {
+  calendar: calendar_v3.Calendar
+  calendarId: string
+  eventId: string
+  title: string
+  description?: string
+  startAt: Date
+  endAt?: Date
+  timezone?: string
+  recurrence?: MeetingRecurrence
+}): Promise<{ meetUrl?: string }> {
+  const durationMs = params.endAt ? params.endAt.getTime() - params.startAt.getTime() : 60 * 60 * 1000
+  const endAt = params.endAt ? params.endAt : new Date(params.startAt.getTime() + Math.max(5 * 60 * 1000, durationMs))
+
+  const rrule = params.recurrence ? buildRRule(params.recurrence) : null
+
+  const res = await params.calendar.events.patch({
+    calendarId: params.calendarId,
+    eventId: params.eventId,
+    conferenceDataVersion: 1,
+    sendUpdates: 'none',
+    requestBody: {
+      summary: params.title,
+      description: params.description,
+      start: {
+        dateTime: params.startAt.toISOString(),
+        timeZone: params.timezone || undefined,
+      },
+      end: {
+        dateTime: endAt.toISOString(),
+        timeZone: params.timezone || undefined,
+      },
+      // To clear recurrence in Google Calendar, set empty array.
+      recurrence: rrule ? [rrule] : [],
+    },
+  })
+
+  const event = res.data
+  const meetUrl = (event.conferenceData as any)?.entryPoints?.find((e: any) => e?.entryPointType === 'video')?.uri
+
+  return {
+    meetUrl: meetUrl ? String(meetUrl) : undefined,
+  }
+}
