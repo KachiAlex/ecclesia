@@ -247,7 +247,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
-                          href={`/dashboard/users/${user.id}`}
+                          href={`/users/${user.id}`}
                           className="text-primary-600 hover:underline text-sm"
                         >
                           View Profile
@@ -336,7 +336,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
-                          href={`/dashboard/users/${user.id}`}
+                          href={`/users/${user.id}`}
                           className="text-primary-600 hover:underline text-sm"
                         >
                           View

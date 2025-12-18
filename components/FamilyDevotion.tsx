@@ -173,7 +173,7 @@ export default function FamilyDevotion() {
 
             <div className="mt-4">
               <Link
-                href={`/dashboard/users/${member.id}`}
+                href={`/users/${member.id}`}
                 className="text-primary-600 hover:underline text-sm"
               >
                 View Full Profile →

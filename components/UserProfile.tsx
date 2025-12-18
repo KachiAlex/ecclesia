@@ -101,7 +101,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <Link
-          href="/dashboard/users"
+          href="/users"
           className="text-primary-600 hover:underline"
         >
           ← Back to Directory
@@ -317,7 +317,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
           {/* Actions */}
           <div className="mt-8 flex gap-4">
             <Link
-              href={`/dashboard/users/${userId}/edit`}
+              href={`/users/${userId}/edit`}
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               Edit Profile

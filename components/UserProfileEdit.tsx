@@ -116,7 +116,7 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
 
       setSuccess(true)
       setTimeout(() => {
-        router.push(`/dashboard/users/${userId}`)
+        router.push(`/users/${userId}`)
       }, 1500)
     } catch (err: any) {
       setError(err.message)
