@@ -8,6 +8,7 @@ export const COLLECTIONS = {
   branches: 'branches',
   churchAdmins: 'church_admins',
   branchAdmins: 'branch_admins',
+  churchInvites: 'church_invites',
   
   // Subscription collections
   subscriptions: 'subscriptions',

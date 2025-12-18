@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { firstName, lastName, email, phone, password, role: newUserRole } = body
+    const { firstName, lastName, email, phone, password, role: newUserRole, branchId, address, dateOfBirth, employmentStatus } = body
 
     // Validate input
     if (!firstName || !lastName || !email || !password) {
@@ -136,11 +136,15 @@ export async function POST(request: Request) {
       firstName,
       lastName,
       email,
-      phone: phone || null,
+      phone: phone || undefined,
       password,
       role: finalRole,
       churchId: church.id,
-    })
+      branchId: branchId || undefined,
+      address: address || undefined,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      employmentStatus: employmentStatus || undefined,
+    } as any)
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user

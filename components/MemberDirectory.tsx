@@ -44,6 +44,13 @@ export default function MemberDirectory() {
     total: 0,
     totalPages: 0,
   })
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteSubmitting, setInviteSubmitting] = useState(false)
+  const [invite, setInvite] = useState<any>(null)
+  const [inviteToken, setInviteToken] = useState<string>('')
+  const [inviteUrl, setInviteUrl] = useState<string>('')
+
+  const inviteLink = inviteUrl || (typeof window !== 'undefined' && inviteToken ? `${process.env.NEXT_PUBLIC_APP_URL}/invite/${inviteToken}` : '')
 
   useEffect(() => {
     loadBranches()

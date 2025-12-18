@@ -14,8 +14,15 @@ export interface User {
   branchId?: string
   profileImage?: string
   phone?: string
-  dateOfBirth?: string
+  dateOfBirth?: Date | string
   address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  country?: string
+  bio?: string
+  spiritualMaturity?: string
+  employmentStatus?: string
   parentId?: string
   spouseId?: string
   xp?: number
