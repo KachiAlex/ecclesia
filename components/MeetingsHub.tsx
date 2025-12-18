@@ -25,7 +25,9 @@ export default function MeetingsHub({
           type="button"
           onClick={() => setTab('schedule')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === 'schedule' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'
+            tab === 'schedule'
+              ? 'bg-gray-900 text-white hover:bg-gray-800'
+              : 'bg-white text-gray-900 hover:bg-gray-100'
           }`}
         >
           Schedule
@@ -34,7 +36,9 @@ export default function MeetingsHub({
           type="button"
           onClick={() => setTab('livestream')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === 'livestream' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'
+            tab === 'livestream'
+              ? 'bg-gray-900 text-white hover:bg-gray-800'
+              : 'bg-white text-gray-900 hover:bg-gray-100'
           }`}
         >
           Livestream

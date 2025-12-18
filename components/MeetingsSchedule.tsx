@@ -267,7 +267,7 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
               type="button"
               disabled={connectingGoogle || !!googleStatus?.connected}
               onClick={connectGoogle}
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-semibold disabled:opacity-60"
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-semibold disabled:opacity-60 disabled:text-white disabled:bg-gray-900"
             >
               {googleStatus?.connected ? 'Connected' : connectingGoogle ? 'Connecting...' : 'Connect Google'}
             </button>
