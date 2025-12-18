@@ -1,0 +1,68 @@
+import { NextResponse } from 'next/server'
+import { guardApi } from '@/lib/api-guard'
+import { UnitService, UnitMembershipService } from '@/lib/services/unit-service'
+import { UnitTypeService } from '@/lib/services/unit-type-service'
+
+export async function GET(request: Request) {
+  const guarded = await guardApi({ requireChurch: true })
+  if (!guarded.ok) return guarded.response
+
+  const { church } = guarded.ctx
+  const { searchParams } = new URL(request.url)
+  const unitTypeId = searchParams.get('unitTypeId') || undefined
+
+  const units = unitTypeId
+    ? await UnitService.findByUnitType(church.id, unitTypeId)
+    : await UnitService.findByChurch(church.id)
+
+  return NextResponse.json({ units })
+}
+
+export async function POST(request: Request) {
+  const guarded = await guardApi({ requireChurch: true })
+  if (!guarded.ok) return guarded.response
+
+  const { church, userId, role } = guarded.ctx
+  const body = await request.json()
+
+  const unitTypeId = String(body?.unitTypeId || '').trim()
+  const name = String(body?.name || '').trim()
+  const description = body?.description ? String(body.description) : undefined
+  const branchId = body?.branchId ? String(body.branchId) : undefined
+
+  if (!unitTypeId) return NextResponse.json({ error: 'unitTypeId is required' }, { status: 400 })
+  if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
+
+  const unitType = await UnitTypeService.findById(unitTypeId)
+  if (!unitType || unitType.churchId !== church.id) {
+    return NextResponse.json({ error: 'Invalid unit type' }, { status: 400 })
+  }
+
+  // If ADMIN_ONLY, only admins can create.
+  if (unitType.creationPolicy === 'ADMIN_ONLY') {
+    const allowed = ['ADMIN', 'SUPER_ADMIN']
+    if (!allowed.includes(String(role))) {
+      return NextResponse.json({ error: 'Not allowed to create units for this type' }, { status: 403 })
+    }
+  }
+
+  const unit = await UnitService.create({
+    churchId: church.id,
+    unitTypeId,
+    name,
+    description,
+    headUserId: userId,
+    branchId,
+  })
+
+  // Create head membership
+  await UnitMembershipService.create({
+    churchId: church.id,
+    unitId: unit.id,
+    unitTypeId,
+    userId,
+    role: 'HEAD',
+  })
+
+  return NextResponse.json({ unit }, { status: 201 })
+}

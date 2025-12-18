@@ -57,6 +57,11 @@ export const COLLECTIONS = {
   groups: 'groups',
   groupMembers: 'group_members',
   groupMemberships: 'group_members', // Alias for group_members
+
+  unitTypes: 'unit_types',
+  units: 'units',
+  unitMemberships: 'unit_memberships',
+  unitInvites: 'unit_invites',
   
   // Volunteer collections
   volunteers: 'volunteers',

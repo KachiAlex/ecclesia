@@ -42,10 +42,26 @@ interface Comment {
   } | null
 }
 
+interface ShareUnit {
+  id: string
+  name: string
+  unitTypeId: string
+  myRole?: string
+}
+
 export default function CommunityFeed() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  const [shareOpen, setShareOpen] = useState(false)
+  const [sharePostId, setSharePostId] = useState<string | null>(null)
+  const [shareUnits, setShareUnits] = useState<ShareUnit[]>([])
+  const [shareSelectedUnitIds, setShareSelectedUnitIds] = useState<string[]>([])
+  const [shareNote, setShareNote] = useState('')
+  const [shareLoadingUnits, setShareLoadingUnits] = useState(false)
+  const [shareSubmitting, setShareSubmitting] = useState(false)
+  const [shareError, setShareError] = useState('')
 
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null)
   const [commentsByPostId, setCommentsByPostId] = useState<Record<string, Comment[]>>({})
@@ -128,6 +144,55 @@ export default function CommunityFeed() {
     loadCurrentUser()
     loadPosts()
   }, [])
+
+  const loadMyUnits = async () => {
+    setShareLoadingUnits(true)
+    setShareError('')
+    try {
+      const res = await fetch('/api/units/mine')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to load units')
+      }
+      setShareUnits(Array.isArray(data?.units) ? data.units : [])
+    } catch (e: any) {
+      setShareUnits([])
+      setShareError(e?.message || 'Failed to load units')
+    } finally {
+      setShareLoadingUnits(false)
+    }
+  }
+
+  const openShare = async (postId: string) => {
+    setSharePostId(postId)
+    setShareSelectedUnitIds([])
+    setShareNote('')
+    setShareError('')
+    setShareOpen(true)
+    await loadMyUnits()
+  }
+
+  const submitShare = async () => {
+    if (!sharePostId) return
+    if (shareSelectedUnitIds.length === 0) return
+    setShareSubmitting(true)
+    setShareError('')
+    try {
+      const res = await fetch(`/api/posts/${sharePostId}/share`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ unitIds: shareSelectedUnitIds, note: shareNote || undefined }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to share')
+      setShareOpen(false)
+      setSharePostId(null)
+    } catch (e: any) {
+      setShareError(e?.message || 'Failed to share')
+    } finally {
+      setShareSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     setCharCount(postContent.length)
@@ -503,8 +568,11 @@ export default function CommunityFeed() {
                   >
                     Comment
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-all">
-                     Share
+                  <button
+                    onClick={() => openShare(post.id)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-all"
+                  >
+                    Share
                   </button>
                 </div>
 
@@ -563,6 +631,115 @@ export default function CommunityFeed() {
           ))
         )}
       </div>
+
+      {shareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => {
+              if (shareSubmitting) return
+              setShareOpen(false)
+              setSharePostId(null)
+            }}
+          />
+          <div className="relative bg-white w-full max-w-lg mx-4 rounded-xl shadow-xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <div className="text-lg font-semibold text-gray-900">Share to Groups</div>
+                <div className="text-sm text-gray-600">Select one or more units to share this post.</div>
+              </div>
+              <button
+                onClick={() => {
+                  if (shareSubmitting) return
+                  setShareOpen(false)
+                  setSharePostId(null)
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {shareError && (
+              <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                {shareError}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Message (optional)</label>
+              <input
+                value={shareNote}
+                onChange={(e) => setShareNote(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="Add a note for the group..."
+              />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-gray-700">Your Units</div>
+                <button
+                  onClick={loadMyUnits}
+                  disabled={shareLoadingUnits}
+                  className="text-xs text-primary-700 hover:underline disabled:opacity-60"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {shareLoadingUnits ? (
+                <div className="text-sm text-gray-600">Loading units...</div>
+              ) : shareUnits.length === 0 ? (
+                <div className="text-sm text-gray-600">You are not a member of any units yet.</div>
+              ) : (
+                <div className="max-h-60 overflow-auto border border-gray-200 rounded-lg">
+                  {shareUnits.map((u) => {
+                    const checked = shareSelectedUnitIds.includes(u.id)
+                    return (
+                      <label key={u.id} className="flex items-center gap-3 px-3 py-2 border-b border-gray-100 last:border-b-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setShareSelectedUnitIds((prev) =>
+                              e.target.checked ? Array.from(new Set([...prev, u.id])) : prev.filter((id) => id !== u.id)
+                            )
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{u.name}</div>
+                          {u.myRole && <div className="text-xs text-gray-500">Role: {u.myRole}</div>}
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  if (shareSubmitting) return
+                  setShareOpen(false)
+                  setSharePostId(null)
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitShare}
+                disabled={shareSubmitting || shareSelectedUnitIds.length === 0}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm disabled:opacity-60"
+              >
+                {shareSubmitting ? 'Sharing...' : 'Share'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

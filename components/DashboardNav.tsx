@@ -15,7 +15,7 @@ const navigation = [
   { name: 'Events', href: '/events', icon: '📅', gradient: 'from-orange-500 to-amber-600' },
   { name: 'Community', href: '/community', icon: '💬', gradient: 'from-pink-500 to-rose-600' },
   { name: 'Messages', href: '/messages', icon: '✉️', gradient: 'from-indigo-500 to-purple-600' },
-  { name: 'Groups', href: '/groups/nearby', icon: '👥', gradient: 'from-teal-500 to-cyan-600' },
+  { name: 'Groups', href: '/groups', icon: '👥', gradient: 'from-teal-500 to-cyan-600' },
   { name: 'Reading Plans', href: '/reading-plans', icon: '📖', gradient: 'from-amber-500 to-orange-600' },
   { name: 'Leaderboard', href: '/leaderboard', icon: '🏆', gradient: 'from-yellow-500 to-orange-600' },
   { name: 'Users', href: '/users', icon: '👤', gradient: 'from-gray-600 to-gray-700' },
