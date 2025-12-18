@@ -2,8 +2,15 @@
 
 import { useState } from 'react'
 import LivestreamHub from '@/components/LivestreamHub'
+import MeetingsSchedule from '@/components/MeetingsSchedule'
 
-export default function MeetingsHub({ isAdmin }: { isAdmin: boolean }) {
+export default function MeetingsHub({
+  isAdmin,
+  canManageMeetings,
+}: {
+  isAdmin: boolean
+  canManageMeetings: boolean
+}) {
   const [tab, setTab] = useState<'schedule' | 'livestream'>('schedule')
 
   return (
@@ -35,12 +42,7 @@ export default function MeetingsHub({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       {tab === 'schedule' ? (
-        <div className="bg-white rounded-xl border p-6">
-          <h2 className="text-lg font-semibold">Scheduled Meetings</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Coming next: recurring meetings, branch scope, and Google Meet + Calendar integration.
-          </p>
-        </div>
+        <MeetingsSchedule canManageMeetings={canManageMeetings} />
       ) : (
         <LivestreamHub isAdmin={isAdmin} />
       )}

@@ -13,5 +13,12 @@ export default async function MeetingsPage() {
   const userRole = (session.user as any).role
   const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)
 
-  return <MeetingsHub isAdmin={isAdmin} />
+  const canManageMeetings =
+    userRole === 'ADMIN' ||
+    userRole === 'SUPER_ADMIN' ||
+    userRole === 'PASTOR' ||
+    userRole === 'BRANCH_ADMIN' ||
+    userRole === 'LEADER'
+
+  return <MeetingsHub isAdmin={isAdmin} canManageMeetings={canManageMeetings} />
 }

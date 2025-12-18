@@ -43,6 +43,12 @@ export const COLLECTIONS = {
   // Livestream collections
   livestreams: 'livestreams',
 
+  meetings: 'meetings',
+
+  churchGoogleTokens: 'church_google_tokens',
+
+  churchGoogleOauthStates: 'church_google_oauth_states',
+
   accountingExpenses: 'accounting_expenses',
   accountingIncome: 'accounting_income',
 
