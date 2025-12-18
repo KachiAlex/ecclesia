@@ -12,7 +12,23 @@ export async function POST() {
 
   const { church, userId } = guarded.ctx
 
-  const oauth = getGoogleOAuthClient()
+  let oauth: ReturnType<typeof getGoogleOAuthClient>
+  try {
+    oauth = getGoogleOAuthClient()
+  } catch (e: any) {
+    const missing = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI'].filter(
+      (k) => !process.env[k]
+    )
+
+    return NextResponse.json(
+      {
+        error: 'Google OAuth is not configured',
+        message: e?.message || 'Failed to initialize Google OAuth client',
+        missingEnv: missing,
+      },
+      { status: 500 }
+    )
+  }
 
   const state = crypto.randomBytes(24).toString('hex')
 
