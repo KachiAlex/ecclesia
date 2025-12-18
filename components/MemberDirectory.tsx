@@ -38,6 +38,19 @@ export default function MemberDirectory() {
   const [branchFilter, setBranchFilter] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [addTab, setAddTab] = useState<'manual' | 'invite'>('manual')
+  const [addError, setAddError] = useState('')
+
+  const [savingManual, setSavingManual] = useState(false)
+  const [manualForm, setManualForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
+    role: 'MEMBER',
+  })
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 20,
@@ -49,8 +62,102 @@ export default function MemberDirectory() {
   const [invite, setInvite] = useState<any>(null)
   const [inviteToken, setInviteToken] = useState<string>('')
   const [inviteUrl, setInviteUrl] = useState<string>('')
+  const [inviteBranchId, setInviteBranchId] = useState<string>('')
 
-  const inviteLink = inviteUrl || (typeof window !== 'undefined' && inviteToken ? `${process.env.NEXT_PUBLIC_APP_URL}/invite/${inviteToken}` : '')
+  const openAdd = async () => {
+    setAddError('')
+    setAddTab('manual')
+    setAddOpen(true)
+    await loadInvite()
+  }
+
+  const createManual = async () => {
+    setSavingManual(true)
+    setAddError('')
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: manualForm.firstName,
+          lastName: manualForm.lastName,
+          email: manualForm.email,
+          password: manualForm.password,
+          phone: manualForm.phone || undefined,
+          role: manualForm.role,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to create user')
+
+      setManualForm({ firstName: '', lastName: '', email: '', password: '', phone: '', role: 'MEMBER' })
+      await loadUsers()
+      setAddOpen(false)
+    } catch (e: any) {
+      setAddError(e?.message || 'Failed to create user')
+    } finally {
+      setSavingManual(false)
+    }
+  }
+
+  const inviteLink = inviteUrl || (typeof window !== 'undefined' && inviteToken ? `${window.location.origin}/invite/${inviteToken}` : '')
+
+  const loadInvite = async () => {
+    setInviteLoading(true)
+    try {
+      const res = await fetch('/api/church-invites')
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setInvite(data.invite || null)
+        setInviteToken('')
+        setInviteUrl('')
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  const createInvite = async () => {
+    setInviteSubmitting(true)
+    setAddError('')
+    try {
+      const res = await fetch('/api/church-invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branchId: inviteBranchId || undefined }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to create invite')
+      setInvite(data.invite)
+      setInviteToken(String(data.token || ''))
+      setInviteUrl(String(data.url || ''))
+    } catch (e: any) {
+      setAddError(e?.message || 'Failed to create invite')
+    } finally {
+      setInviteSubmitting(false)
+    }
+  }
+
+  const revokeInvite = async () => {
+    if (!invite?.id) return
+    setInviteSubmitting(true)
+    setAddError('')
+    try {
+      const res = await fetch(`/api/church-invites/${invite.id}/revoke`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to revoke invite')
+      setInvite(null)
+      setInviteToken('')
+      setInviteUrl('')
+      await loadInvite()
+    } catch (e: any) {
+      setAddError(e?.message || 'Failed to revoke invite')
+    } finally {
+      setInviteSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     loadBranches()
@@ -110,13 +217,195 @@ export default function MemberDirectory() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Member Directory</h1>
-        <Link
-          href="/dashboard/users/new"
+        <button
+          type="button"
+          onClick={openAdd}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
-          Add Member
-        </Link>
+          Add Members
+        </button>
       </div>
+
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div className="text-lg font-semibold">Add Members</div>
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-5">
+              {addError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+                  {addError}
+                </div>
+              )}
+
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setAddTab('manual')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${addTab === 'manual' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                >
+                  Manual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddTab('invite')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${addTab === 'invite' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                >
+                  Invite Link
+                </button>
+              </div>
+
+              {addTab === 'manual' ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      value={manualForm.firstName}
+                      onChange={(e) => setManualForm((p) => ({ ...p, firstName: e.target.value }))}
+                      placeholder="First name"
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <input
+                      value={manualForm.lastName}
+                      onChange={(e) => setManualForm((p) => ({ ...p, lastName: e.target.value }))}
+                      placeholder="Last name"
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="email"
+                      value={manualForm.email}
+                      onChange={(e) => setManualForm((p) => ({ ...p, email: e.target.value }))}
+                      placeholder="Email"
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <input
+                      value={manualForm.phone}
+                      onChange={(e) => setManualForm((p) => ({ ...p, phone: e.target.value }))}
+                      placeholder="Phone (optional)"
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="password"
+                      value={manualForm.password}
+                      onChange={(e) => setManualForm((p) => ({ ...p, password: e.target.value }))}
+                      placeholder="Temporary password"
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <select
+                      value={manualForm.role}
+                      onChange={(e) => setManualForm((p) => ({ ...p, role: e.target.value }))}
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="MEMBER">Member</option>
+                      <option value="LEADER">Leader</option>
+                      <option value="PASTOR">Pastor</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="BRANCH_ADMIN">Branch Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={createManual}
+                      disabled={savingManual || !manualForm.firstName || !manualForm.lastName || !manualForm.email || !manualForm.password}
+                      className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      {savingManual ? 'Saving...' : 'Create Member'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-700">
+                    Create a link members can use to sign up and join your church. You can revoke it anytime.
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={inviteBranchId}
+                      onChange={(e) => setInviteBranchId(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">Default branch (optional)</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={createInvite}
+                      disabled={inviteSubmitting}
+                      className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      {inviteSubmitting ? 'Generating...' : 'Generate Link'}
+                    </button>
+                  </div>
+
+                  {inviteLoading ? (
+                    <div className="text-sm text-gray-500">Loading invite...</div>
+                  ) : (
+                    <>
+                      {(inviteToken || invite) ? (
+                        <div className="space-y-2">
+                          <div className="text-xs text-gray-500">Share this link</div>
+                          <div className="flex gap-2">
+                            <input
+                              readOnly
+                              value={inviteLink || 'Generate a new link to copy'}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!inviteLink) return
+                                await navigator.clipboard.writeText(inviteLink)
+                              }}
+                              disabled={!inviteLink}
+                              className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm disabled:opacity-50"
+                            >
+                              Copy
+                            </button>
+                          </div>
+
+                          {invite?.id && (
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={revokeInvite}
+                                disabled={inviteSubmitting}
+                                className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm disabled:opacity-50"
+                              >
+                                Revoke Link
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500">No active invite link.</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -254,7 +543,7 @@ export default function MemberDirectory() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <Link
-                          href={`/dashboard/users/${user.id}`}
+                          href={`/users/${user.id}`}
                           className="text-primary-600 hover:text-primary-900"
                         >
                           View
