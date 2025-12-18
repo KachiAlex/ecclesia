@@ -239,6 +239,12 @@ export function expandMeetingSeries(params: {
 }
 
 export class MeetingService {
+  static async findById(meetingId: string): Promise<MeetingSeries | null> {
+    const doc = await db.collection(COLLECTIONS.meetings).doc(meetingId).get()
+    if (!doc.exists) return null
+    return this.mapDoc(doc.id, doc.data()!)
+  }
+
   static async create(params: {
     churchId: string
     createdBy: string
@@ -283,6 +289,36 @@ export class MeetingService {
       createdAt: toDate(data.createdAt),
       updatedAt: toDate(data.updatedAt),
     } as MeetingSeries
+  }
+
+  static async update(
+    meetingId: string,
+    patch: {
+      title?: string
+      description?: string
+      startAt?: Date
+      endAt?: Date | null
+      timezone?: string | null
+      recurrence?: MeetingRecurrence | null
+      branchId?: string | null
+    }
+  ): Promise<MeetingSeries> {
+    const payload: any = {
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    if (patch.title !== undefined) payload.title = patch.title
+    if (patch.description !== undefined) payload.description = patch.description || undefined
+    if (patch.startAt !== undefined) payload.startAt = patch.startAt
+    if (patch.endAt !== undefined) payload.endAt = patch.endAt || undefined
+    if (patch.timezone !== undefined) payload.timezone = patch.timezone || undefined
+    if (patch.recurrence !== undefined) payload.recurrence = patch.recurrence || undefined
+    if (patch.branchId !== undefined) payload.branchId = patch.branchId ?? null
+
+    await db.collection(COLLECTIONS.meetings).doc(meetingId).update(payload)
+
+    const updated = await db.collection(COLLECTIONS.meetings).doc(meetingId).get()
+    return this.mapDoc(updated.id, updated.data()!)
   }
 
   static async updateGoogle(params: {

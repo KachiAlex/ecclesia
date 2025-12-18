@@ -58,6 +58,7 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
   const [error, setError] = useState<string | null>(null)
 
   const [occurrences, setOccurrences] = useState<MeetingOccurrence[]>([])
+  const [seriesById, setSeriesById] = useState<Record<string, any>>({})
 
   const [me, setMe] = useState<any>(null)
   const [branches, setBranches] = useState<Branch[]>([])
@@ -66,6 +67,7 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
   const [connectingGoogle, setConnectingGoogle] = useState(false)
 
   const [showCreate, setShowCreate] = useState(false)
+  const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     title: '',
@@ -134,6 +136,11 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
       if (!res.ok) throw new Error(await readApiError(res))
       const json = await res.json()
       setOccurrences(json.occurrences || [])
+      setSeriesById(
+        Object.fromEntries(
+          (json.series || []).map((s: any) => [String(s.id), s])
+        )
+      )
     } catch (e: any) {
       setError(e?.message || 'Failed to load meetings')
     } finally {
@@ -245,6 +252,122 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
     }
   }
 
+  const openEdit = (o: MeetingOccurrence) => {
+    const s = seriesById[String(o.seriesId)]
+    if (!s) return
+
+    setEditingMeetingId(String(o.seriesId))
+    setShowCreate(true)
+
+    const startLocal = new Date(s.startAt).toISOString().slice(0, 16)
+    const endLocal = s.endAt ? new Date(s.endAt).toISOString().slice(0, 16) : ''
+
+    const rec = s.recurrence
+    const recEnabled = !!rec
+    const recFreq = rec?.frequency || 'WEEKLY'
+    const until = rec?.until ? new Date(rec.until).toISOString().slice(0, 10) : ''
+
+    setForm((p) => ({
+      ...p,
+      title: s.title || '',
+      description: s.description || '',
+      startAt: startLocal,
+      endAt: endLocal,
+      timezone: s.timezone || '',
+      scope: s.branchId ? 'BRANCH' : 'ALL',
+      branchId: s.branchId || '',
+      recurrenceEnabled: recEnabled,
+      recurrenceFrequency: recFreq,
+      recurrenceInterval: Number(rec?.interval || 1),
+      recurrenceWeekdays:
+        Array.isArray(rec?.byWeekday) && rec.byWeekday.length ? rec.byWeekday : [new Date(s.startAt).getDay()],
+      recurrenceMonthDay: Number(rec?.byMonthDay || new Date(s.startAt).getDate()),
+      recurrenceUntil: until,
+      customMode: rec?.frequency === 'CUSTOM' ? (rec?.byMonthDay ? 'MONTHLY' : 'WEEKLY') : p.customMode,
+    }))
+  }
+
+  const onSaveEdit = async () => {
+    if (!editingMeetingId) return
+    setSaving(true)
+    setError(null)
+    try {
+      const startIso = new Date(form.startAt).toISOString()
+      const endIso = form.endAt ? new Date(form.endAt).toISOString() : null
+
+      let branchId: string | null | undefined = undefined
+      if (canChooseBranchScope) {
+        if (form.scope === 'BRANCH') branchId = form.branchId || null
+        else branchId = null
+      }
+
+      let recurrence: MeetingRecurrence | null | undefined = undefined
+      if (!form.recurrenceEnabled) {
+        recurrence = null
+      } else {
+        const until = form.recurrenceUntil ? new Date(form.recurrenceUntil).toISOString() : undefined
+
+        if (form.recurrenceFrequency === 'MONTHLY') {
+          recurrence = {
+            frequency: 'MONTHLY',
+            interval: Number(form.recurrenceInterval) || 1,
+            byMonthDay: Number(form.recurrenceMonthDay) || 1,
+            until,
+          }
+        } else if (form.recurrenceFrequency === 'WEEKLY') {
+          recurrence = {
+            frequency: 'WEEKLY',
+            interval: Number(form.recurrenceInterval) || 1,
+            byWeekday: form.recurrenceWeekdays,
+            until,
+          }
+        } else {
+          if (form.customMode === 'MONTHLY') {
+            recurrence = {
+              frequency: 'CUSTOM',
+              interval: Number(form.recurrenceInterval) || 1,
+              byMonthDay: Number(form.recurrenceMonthDay) || 1,
+              until,
+            }
+          } else {
+            recurrence = {
+              frequency: 'CUSTOM',
+              interval: Number(form.recurrenceInterval) || 1,
+              byWeekday: form.recurrenceWeekdays,
+              until,
+            }
+          }
+        }
+      }
+
+      const res = await fetch(`/api/meetings/${editingMeetingId}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            title: form.title,
+            description: form.description || undefined,
+            startAt: startIso,
+            endAt: endIso,
+            timezone: form.timezone || undefined,
+            branchId,
+            recurrence,
+          }),
+        }
+      )
+
+      if (!res.ok) throw new Error(await readApiError(res))
+
+      setShowCreate(false)
+      setEditingMeetingId(null)
+      await load()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to update meeting')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const recurrenceSummary = (o: MeetingOccurrence) => {
     if (!o.id.includes(':')) return null
     return null
@@ -285,7 +408,10 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
         {canManageMeetings && (
           <button
             type="button"
-            onClick={() => setShowCreate(true)}
+            onClick={() => {
+              setEditingMeetingId(null)
+              setShowCreate(true)
+            }}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-semibold"
           >
             + New Meeting
@@ -322,6 +448,17 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
                     )}
                     {recurrenceSummary(o)}
                   </div>
+                  {canManageMeetings && (
+                    <div className="shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(o)}
+                        className="px-3 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 text-sm font-semibold"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -335,8 +472,8 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
           <div className="relative bg-white w-full max-w-2xl mx-4 rounded-xl shadow-xl p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <div className="text-lg font-semibold text-gray-900">New Meeting</div>
-                <div className="text-sm text-gray-600">Create a one-time or recurring meeting.</div>
+                <div className="text-lg font-semibold text-gray-900">{editingMeetingId ? 'Edit Meeting' : 'New Meeting'}</div>
+                <div className="text-sm text-gray-600">{editingMeetingId ? 'Update meeting details.' : 'Create a one-time or recurring meeting.'}</div>
               </div>
               <button className="text-gray-500 hover:text-gray-700" onClick={() => !saving && setShowCreate(false)}>
                 ✕
@@ -549,11 +686,11 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
                 Cancel
               </button>
               <button
-                onClick={onCreate}
+                onClick={editingMeetingId ? onSaveEdit : onCreate}
                 disabled={saving || !form.title.trim()}
                 className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm disabled:opacity-60"
               >
-                {saving ? 'Creating...' : 'Create Meeting'}
+                {saving ? (editingMeetingId ? 'Saving...' : 'Creating...') : editingMeetingId ? 'Save Changes' : 'Create Meeting'}
               </button>
             </div>
           </div>
