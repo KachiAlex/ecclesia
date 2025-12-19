@@ -13,6 +13,9 @@ export interface Giving {
   projectId?: string
   paymentMethod?: string
   transactionId?: string
+  status?: 'PENDING' | 'CONFIRMED' | 'FAILED'
+  bankTransferBankId?: string
+  transferReceiptUrl?: string
   notes?: string
   receiptUrl?: string
   createdAt: Date
@@ -74,7 +77,7 @@ export class GivingService {
     await docRef.set(givingData)
 
     // Update project current amount if project-based giving
-    if (data.projectId) {
+    if (data.projectId && data.status !== 'PENDING') {
       await ProjectService.incrementAmount(data.projectId, data.amount)
     }
 

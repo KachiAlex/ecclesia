@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       amount,
+      currency,
       type,
       projectId,
       paymentMethod,
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
       churchId: church.id,
       branchId: (user as any)?.branchId || undefined,
       amount: parseFloat(amount),
-      currency: project?.currency || undefined,
+      currency: currency || project?.currency || undefined,
       type,
       projectId: projectId || undefined,
       paymentMethod: paymentMethod || undefined,

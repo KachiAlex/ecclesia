@@ -252,6 +252,23 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
     }
   }
 
+  const onDelete = async (o: MeetingOccurrence) => {
+    const ok = window.confirm('Delete this meeting? This will remove the series and its Google Calendar event (if linked).')
+    if (!ok) return
+
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/meetings/${String(o.seriesId)}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(await readApiError(res))
+      await load()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to delete meeting')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const openEdit = (o: MeetingOccurrence) => {
     const s = seriesById[String(o.seriesId)]
     if (!s) return
@@ -449,13 +466,21 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
                     {recurrenceSummary(o)}
                   </div>
                   {canManageMeetings && (
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => openEdit(o)}
                         className="px-3 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 text-sm font-semibold"
                       >
                         Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => onDelete(o)}
+                        className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold disabled:opacity-60"
+                      >
+                        Delete
                       </button>
                     </div>
                   )}

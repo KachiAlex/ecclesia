@@ -106,7 +106,7 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-2xl">E</span>
+            <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
           </div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -124,14 +124,14 @@ export default function OnboardingPage() {
         <div className={`transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center space-x-2 mb-6">
+            <a href="/" className="inline-flex items-center space-x-2 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-2xl">E</span>
+                <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
               </div>
               <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Ecclesia
               </span>
-            </div>
+            </a>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to Ecclesia!</h1>
             <p className="text-lg text-gray-600">Let&apos;s set up your church profile</p>
           </div>

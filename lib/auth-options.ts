@@ -43,8 +43,9 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // If churchSlug is provided, verify user belongs to that church
-        if (credentials.churchSlug) {
+        // If churchSlug is provided, verify user belongs to that church.
+        // SUPER_ADMIN users are multi-tenant and do not belong to a specific church.
+        if (credentials.churchSlug && user.role !== 'SUPER_ADMIN') {
           const church = await ChurchService.findBySlug(credentials.churchSlug)
           
           if (!church) {

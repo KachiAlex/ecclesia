@@ -135,3 +135,15 @@ export async function updateCalendarEvent(params: {
     meetUrl: meetUrl ? String(meetUrl) : undefined,
   }
 }
+
+export async function deleteCalendarEvent(params: {
+  calendar: calendar_v3.Calendar
+  calendarId: string
+  eventId: string
+}): Promise<void> {
+  await params.calendar.events.delete({
+    calendarId: params.calendarId,
+    eventId: params.eventId,
+    sendUpdates: 'none',
+  })
+}

@@ -3,7 +3,9 @@ import { guardApi } from '@/lib/api-guard'
 import { MeetingService, MeetingRecurrence } from '@/lib/services/meeting-service'
 import { UserService } from '@/lib/services/user-service'
 import { ChurchGoogleService } from '@/lib/services/church-google-service'
-import { updateCalendarEvent } from '@/lib/services/google-calendar-service'
+import { deleteCalendarEvent, updateCalendarEvent } from '@/lib/services/google-calendar-service'
+import { db } from '@/lib/firestore'
+import { COLLECTIONS } from '@/lib/firestore-collections'
 
 function parseDate(v: any): Date | null {
   if (!v) return null
@@ -145,4 +147,55 @@ export async function PATCH(request: Request, { params }: { params: { meetingId:
   }
 
   return NextResponse.json({ meeting: updated, googleSyncError })
+}
+
+export async function DELETE(_request: Request, { params }: { params: { meetingId: string } }) {
+  const guarded = await guardApi({
+    requireChurch: true,
+    allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'LEADER'],
+  })
+  if (!guarded.ok) return guarded.response
+
+  const { church, userId, role } = guarded.ctx
+  const { meetingId } = params
+
+  const existing = await MeetingService.findById(meetingId)
+  if (!existing) return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
+  if (existing.churchId !== church.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  // Non-admin scoped managers can only delete meetings in their branch.
+  const canDeleteAllBranches = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PASTOR'
+  if (!canDeleteAllBranches) {
+    const me = await UserService.findById(userId)
+    const userBranchId = (me as any)?.branchId as string | undefined
+
+    if (!userBranchId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (existing.branchId !== userBranchId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  let googleDeleteError: string | null = null
+
+  try {
+    const calendarEventId = existing.google?.calendarEventId
+    const calendarId = existing.google?.calendarId || 'primary'
+
+    if (calendarEventId) {
+      const client = await ChurchGoogleService.getAuthorizedCalendarClient(church.id)
+      if (client) {
+        await deleteCalendarEvent({
+          calendar: client.calendar,
+          calendarId: client.tokens.calendarId || calendarId,
+          eventId: calendarEventId,
+        })
+      } else {
+        googleDeleteError = 'Google is not connected'
+      }
+    }
+  } catch (e: any) {
+    googleDeleteError = e?.message || 'Failed to delete Google Calendar event'
+  }
+
+  await db.collection(COLLECTIONS.meetings).doc(meetingId).delete()
+
+  return NextResponse.json({ success: true, googleDeleteError })
 }

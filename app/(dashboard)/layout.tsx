@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   // Check if user has a church
   const userId = (session.user as any).id
   const user = await UserService.findById(userId)
-  
+
   // If user doesn't have a church, redirect to register
   if (!user?.churchId) {
     redirect('/auth/register')
@@ -41,11 +41,11 @@ export default async function DashboardLayout({
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 z-50 w-72 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 flex flex-col shadow-xl">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-gray-200/50">
+        <Link href="/" className="flex items-center gap-3 px-6 py-6 border-b border-gray-200/50">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl blur opacity-50"></div>
             <div className="relative w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-2xl">E</span>
+              <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
             </div>
           </div>
           <div>
@@ -54,7 +54,7 @@ export default async function DashboardLayout({
             </span>
             <p className="text-xs text-gray-500 font-medium">Church Management</p>
           </div>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto">
@@ -73,13 +73,11 @@ export default async function DashboardLayout({
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {session.user?.name || 'User'}
-              </p>
+              <p className="text-sm font-semibold text-gray-900 truncate">{session.user?.name || 'User'}</p>
               <p className="text-xs text-gray-600 truncate">{session.user?.email}</p>
             </div>
           </div>
-          
+
           <div className="space-y-3 w-full">
             <ChurchSwitcher />
             <BranchSwitcher />
@@ -108,7 +106,7 @@ export default async function DashboardLayout({
       <div className="pl-72">
         {/* Onboarding Banner */}
         <OnboardingBanner />
-        
+
         {/* Top Bar */}
         <header className="sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
           <div className="px-8 py-5">
