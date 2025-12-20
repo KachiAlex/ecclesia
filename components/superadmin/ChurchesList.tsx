@@ -9,7 +9,7 @@ interface Church {
   slug?: string
   city?: string
   country?: string
-  createdAt: Date
+  createdAt: string
   userCount: number
   subscriptionStatus: string
 }
