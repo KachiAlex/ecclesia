@@ -25,6 +25,11 @@ export default async function DashboardLayout({
   const userId = (session.user as any).id
   const user = await UserService.findById(userId)
 
+  // If SUPER_ADMIN, always redirect to superadmin portal
+  if (user?.role === 'SUPER_ADMIN') {
+    redirect('/superadmin')
+  }
+
   // If user doesn't have a church and is not a superadmin, redirect to register
   if (!user?.churchId && user?.role !== 'SUPER_ADMIN') {
     console.log('Dashboard layout: No churchId and not superadmin, redirecting to register', { userId: user?.id, role: user?.role, churchId: user?.churchId })
