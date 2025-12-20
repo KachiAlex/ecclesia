@@ -25,15 +25,18 @@ export default async function DashboardLayout({
   const userId = (session.user as any).id
   const user = await UserService.findById(userId)
 
-  // If user doesn't have a church, redirect to register
-  if (!user?.churchId) {
+  // If user doesn't have a church and is not a superadmin, redirect to register
+  if (!user?.churchId && user.role !== 'SUPER_ADMIN') {
     redirect('/auth/register')
   }
 
-  // Verify church exists
-  const churchId = await getCurrentChurchId(userId)
-  if (!churchId) {
-    redirect('/auth/register')
+  // For SUPER_ADMIN, skip church verification
+  if (user.role !== 'SUPER_ADMIN') {
+    // Verify church exists
+    const churchId = await getCurrentChurchId(userId)
+    if (!churchId) {
+      redirect('/auth/register')
+    }
   }
 
   return (

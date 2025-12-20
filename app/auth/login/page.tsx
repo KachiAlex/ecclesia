@@ -41,7 +41,16 @@ function LoginForm() {
 
       // Success - use window.location to force full page reload and avoid throttling
       // This ensures session is properly set before navigation
-      window.location.href = '/dashboard'
+      // Get the session to check user role for proper redirect
+      const response = await fetch('/api/auth/session')
+      const sessionData = await response.json()
+      const userRole = sessionData?.user?.role
+
+      if (userRole === 'SUPER_ADMIN') {
+        window.location.href = '/superadmin'
+      } else {
+        window.location.href = '/dashboard'
+      }
     } catch (err) {
       setError('An error occurred. Please try again.')
       setLoading(false)
