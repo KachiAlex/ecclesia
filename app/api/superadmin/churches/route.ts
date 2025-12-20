@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { ChurchService } from '@/lib/services/church-service'
 import { guardApi } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const guarded = await guardApi({ allowedRoles: ['SUPER_ADMIN'] })

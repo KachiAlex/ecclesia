@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server'
+import { guardApi } from '@/lib/api-guard'
+
+export const dynamic = 'force-dynamic'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { UserService } from '@/lib/services/user-service'

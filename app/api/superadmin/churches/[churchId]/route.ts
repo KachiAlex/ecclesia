@@ -5,6 +5,8 @@ import { db, FieldValue } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { guardApi } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // GET - Get church details with subscription info
 export async function GET(
   request: Request,
