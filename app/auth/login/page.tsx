@@ -17,7 +17,6 @@ function LoginForm() {
 
   useEffect(() => {
     setMounted(true)
-    alert('Login page loaded - if you see this, the code is deployed')
   }, [])
 
   const isRegistered = searchParams?.get('registered') === 'true'
@@ -27,18 +26,12 @@ function LoginForm() {
     setError('')
     setLoading(true)
 
-    alert(`Attempting login with email: ${email}`)
-    console.log('Login attempt:', { email, password: '***' })
-
     try {
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
       })
-
-      alert(`SignIn result: ${result?.error || 'Success'}`)
-      console.log('SignIn result:', result)
 
       if (result?.error) {
         setError('Invalid email or password')
@@ -48,19 +41,12 @@ function LoginForm() {
 
       // Success - redirect superadmin to /superadmin, others to /dashboard
       // Since superadmin email is known, we can redirect directly
-      console.log('Login successful, redirecting based on email:', email)
-      alert(`Login successful! Redirecting based on email: ${email}`)
       if (email === 'admin@ecclesia.com') {
-        console.log('Redirecting to /superadmin')
-        alert('Redirecting to /superadmin')
         window.location.href = '/superadmin'
       } else {
-        console.log('Redirecting to /dashboard')
-        alert('Redirecting to /dashboard')
         window.location.href = '/dashboard'
       }
     } catch (err) {
-      alert(`Login error: ${err}`)
       setError('An error occurred. Please try again.')
       setLoading(false)
     }

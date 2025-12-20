@@ -42,6 +42,12 @@ export default async function ChurchesPage() {
     })
   )
 
+  const churchesForClient = churchesWithStats.map((church) => ({
+    ...church,
+    createdAt: church.createdAt instanceof Date ? church.createdAt.toISOString() : church.createdAt,
+    updatedAt: church.updatedAt instanceof Date ? church.updatedAt.toISOString() : church.updatedAt,
+  }))
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -53,7 +59,7 @@ export default async function ChurchesPage() {
       </div>
 
       {/* Churches List with Filters */}
-      <ChurchesList churches={churchesWithStats} />
+      <ChurchesList churches={churchesForClient} />
     </div>
   )
 }
