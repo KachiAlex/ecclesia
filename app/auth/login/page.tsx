@@ -41,9 +41,12 @@ function LoginForm() {
 
       // Success - redirect superadmin to /superadmin, others to /dashboard
       // Since superadmin email is known, we can redirect directly
+      console.log('Login successful, redirecting based on email:', email)
       if (email === 'admin@ecclesia.com') {
+        console.log('Redirecting to /superadmin')
         window.location.href = '/superadmin'
       } else {
+        console.log('Redirecting to /dashboard')
         window.location.href = '/dashboard'
       }
     } catch (err) {

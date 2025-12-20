@@ -26,18 +26,22 @@ export default async function DashboardLayout({
   const user = await UserService.findById(userId)
 
   // If user doesn't have a church and is not a superadmin, redirect to register
-  if (!user?.churchId && user.role !== 'SUPER_ADMIN') {
+  if (!user?.churchId && user?.role !== 'SUPER_ADMIN') {
+    console.log('Dashboard layout: No churchId and not superadmin, redirecting to register', { userId: user?.id, role: user?.role, churchId: user?.churchId })
     redirect('/auth/register')
   }
 
   // For SUPER_ADMIN, skip church verification
-  if (user.role !== 'SUPER_ADMIN') {
+  if (user?.role !== 'SUPER_ADMIN') {
     // Verify church exists
     const churchId = await getCurrentChurchId(userId)
     if (!churchId) {
+      console.log('Dashboard layout: No church found, redirecting to register', { userId, role: user?.role })
       redirect('/auth/register')
     }
   }
+
+  console.log('Dashboard layout: Rendering dashboard', { userId, role: user?.role, churchId: user?.churchId })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
