@@ -4,7 +4,6 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface UploadProgress {
-  video?: number
   audio?: number
   thumbnail?: number
 }
@@ -13,7 +12,6 @@ export default function SermonUploadForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('url')
   
   // Form fields
   const [title, setTitle] = useState('')
@@ -28,20 +26,18 @@ export default function SermonUploadForm() {
   const [thumbnailUrl, setThumbnailUrl] = useState('')
   
   // Files
-  const [videoFile, setVideoFile] = useState<File | null>(null)
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   
   const [mediaType, setMediaType] = useState<'video' | 'audio' | 'both'>('both')
   const [duration, setDuration] = useState('')
 
-  const videoFileRef = useRef<HTMLInputElement>(null)
   const audioFileRef = useRef<HTMLInputElement>(null)
   const thumbnailFileRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = async (
     file: File,
-    type: 'video' | 'audio' | 'thumbnail'
+    type: 'audio' | 'thumbnail'
   ): Promise<string> => {
     const formData = new FormData()
     formData.append('file', file)
@@ -116,38 +112,32 @@ export default function SermonUploadForm() {
       let finalAudioUrl = audioUrl
       let finalThumbnailUrl = thumbnailUrl
 
-      // Upload files if method is 'file'
-      if (uploadMethod === 'file') {
-        if (videoFile) {
-          setUploadProgress((prev) => ({ ...prev, video: 0 }))
-          finalVideoUrl = await handleFileUpload(videoFile, 'video')
-          setUploadProgress((prev) => ({ ...prev, video: 100 }))
+      if (finalVideoUrl) {
+        const parsed = parseMediaUrl(finalVideoUrl)
+        if (parsed.type === 'telegram' && !parsed.embedUrl) {
+          throw new Error(
+            'This Telegram link cannot be embedded (t.me/c/...). Please copy the public link in the format t.me/<channel>/<postId>.'
+          )
         }
+        if (parsed.embedUrl) {
+          finalVideoUrl = parsed.embedUrl
+        }
+      }
 
-        if (audioFile) {
-          setUploadProgress((prev) => ({ ...prev, audio: 0 }))
-          finalAudioUrl = await handleFileUpload(audioFile, 'audio')
-          setUploadProgress((prev) => ({ ...prev, audio: 100 }))
-        }
+      if (!finalVideoUrl && !audioFile && !finalAudioUrl) {
+        throw new Error('Please provide at least a video embed link or an audio source.')
+      }
 
-        if (thumbnailFile) {
-          setUploadProgress((prev) => ({ ...prev, thumbnail: 0 }))
-          finalThumbnailUrl = await handleFileUpload(thumbnailFile, 'thumbnail')
-          setUploadProgress((prev) => ({ ...prev, thumbnail: 100 }))
-        }
-      } else {
-        // For URL method, convert YouTube/Vimeo/Telegram URLs to embed URLs
-        if (finalVideoUrl) {
-          const parsed = parseMediaUrl(finalVideoUrl)
-          if (parsed.type === 'telegram' && !parsed.embedUrl) {
-            throw new Error(
-              'This Telegram link cannot be embedded (t.me/c/...). Please copy the public link in the format t.me/<channel>/<postId>.'
-            )
-          }
-          if (parsed.embedUrl) {
-            finalVideoUrl = parsed.embedUrl
-          }
-        }
+      if (audioFile) {
+        setUploadProgress((prev) => ({ ...prev, audio: 0 }))
+        finalAudioUrl = await handleFileUpload(audioFile, 'audio')
+        setUploadProgress((prev) => ({ ...prev, audio: 100 }))
+      }
+
+      if (thumbnailFile) {
+        setUploadProgress((prev) => ({ ...prev, thumbnail: 0 }))
+        finalThumbnailUrl = await handleFileUpload(thumbnailFile, 'thumbnail')
+        setUploadProgress((prev) => ({ ...prev, thumbnail: 100 }))
       }
 
       // Create sermon
@@ -286,180 +276,123 @@ export default function SermonUploadForm() {
 
       {/* Media Upload */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Media Upload</h2>
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Video Embed URL
+            </label>
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              placeholder="YouTube, Vimeo, Telegram, or direct streaming link"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Videos must be provided via embed links (YouTube, Vimeo, Telegram, or publicly accessible MP4/WebM URLs).
+            </p>
+          </div>
 
-        {/* Upload Method Toggle */}
-        <div className="flex gap-4 mb-6">
-          <button
-            type="button"
-            onClick={() => setUploadMethod('url')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              uploadMethod === 'url'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            📎 URL / Link
-          </button>
-          <button
-            type="button"
-            onClick={() => setUploadMethod('file')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              uploadMethod === 'file'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            📁 File Upload
-          </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900">Audio Upload</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Audio File (MP3, WAV, M4A)
+                </label>
+                <input
+                  ref={audioFileRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+                {audioFile && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Selected: {audioFile.name} ({(audioFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  </p>
+                )}
+                {uploadProgress.audio !== undefined && (
+                  <div className="mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-primary-600 h-2 rounded-full transition-all"
+                        style={{ width: `${uploadProgress.audio}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Uploading audio: {uploadProgress.audio}%
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Audio URL (optional)
+                </label>
+                <input
+                  type="url"
+                  value={audioUrl}
+                  onChange={(e) => setAudioUrl(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Direct audio link (MP3, WAV, etc.)"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900">Thumbnail</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Thumbnail Image (JPG, PNG)
+                </label>
+                <input
+                  ref={thumbnailFileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+                {thumbnailFile && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Selected: {thumbnailFile.name} ({(thumbnailFile.size / 1024).toFixed(2)} KB)
+                  </p>
+                )}
+                {uploadProgress.thumbnail !== undefined && (
+                  <div className="mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-primary-600 h-2 rounded-full transition-all"
+                        style={{ width: `${uploadProgress.thumbnail}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Uploading thumbnail: {uploadProgress.thumbnail}%
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Thumbnail URL (optional)
+                </label>
+                <input
+                  type="url"
+                  value={thumbnailUrl}
+                  onChange={(e) => setThumbnailUrl(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Sermon thumbnail image"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {uploadMethod === 'url' ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Video URL
-              </label>
-              <input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                placeholder="YouTube, Vimeo, Telegram, or direct video link"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Supports: YouTube, Vimeo, Telegram, or direct MP4/WebM links
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Audio URL (optional)
-              </label>
-              <input
-                type="url"
-                value={audioUrl}
-                onChange={(e) => setAudioUrl(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                placeholder="Direct audio link (MP3, WAV, etc.)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Thumbnail URL (optional)
-              </label>
-              <input
-                type="url"
-                value={thumbnailUrl}
-                onChange={(e) => setThumbnailUrl(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                placeholder="Sermon thumbnail image"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Video File (MP4, WebM, MOV)
-              </label>
-              <input
-                ref={videoFileRef}
-                type="file"
-                accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
-              {videoFile && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected: {videoFile.name} ({(videoFile.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
-              )}
-              {uploadProgress.video !== undefined && (
-                <div className="mt-2">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary-600 h-2 rounded-full transition-all"
-                      style={{ width: `${uploadProgress.video}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Uploading video: {uploadProgress.video}%
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Audio File (MP3, WAV, M4A)
-              </label>
-              <input
-                ref={audioFileRef}
-                type="file"
-                accept="audio/*"
-                onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
-              {audioFile && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected: {audioFile.name} ({(audioFile.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
-              )}
-              {uploadProgress.audio !== undefined && (
-                <div className="mt-2">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary-600 h-2 rounded-full transition-all"
-                      style={{ width: `${uploadProgress.audio}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Uploading audio: {uploadProgress.audio}%
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Thumbnail Image (JPG, PNG)
-              </label>
-              <input
-                ref={thumbnailFileRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
-              {thumbnailFile && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected: {thumbnailFile.name} ({(thumbnailFile.size / 1024).toFixed(2)} KB)
-                </p>
-              )}
-              {uploadProgress.thumbnail !== undefined && (
-                <div className="mt-2">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary-600 h-2 rounded-full transition-all"
-                      style={{ width: `${uploadProgress.thumbnail}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Uploading thumbnail: {uploadProgress.thumbnail}%
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>File size limits:</strong> Video - 500MB, Audio - 100MB, Thumbnail - 5MB
-              </p>
-            </div>
-          </div>
-        )}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+          <p className="text-sm text-blue-800">
+            <strong>Tip:</strong> Upload high-quality audio files directly, and paste video embeds for better streaming performance. Thumbnails up to 5MB are supported.
+          </p>
+        </div>
       </div>
 
       {/* Submit Button */}
@@ -474,7 +407,7 @@ export default function SermonUploadForm() {
         </button>
         <button
           type="submit"
-          disabled={loading || !title || !speaker || (uploadMethod === 'url' ? !videoUrl && !audioUrl : !videoFile && !audioFile)}
+          disabled={loading || !title || !speaker || (!videoUrl && !audioFile && !audioUrl)}
           className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Uploading...' : 'Upload Sermon'}

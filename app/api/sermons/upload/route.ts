@@ -22,9 +22,15 @@ export async function POST(request: Request) {
       )
     }
 
+    if (type === 'video') {
+      return NextResponse.json(
+        { error: 'Video uploads must be provided via embed URLs. Please paste a YouTube, Vimeo, or direct streaming link instead.' },
+        { status: 400 }
+      )
+    }
+
     // Validate file type
     const validTypes: Record<string, string[]> = {
-      video: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-matroska'],
       audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/x-m4a'],
       thumbnail: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
     }

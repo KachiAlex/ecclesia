@@ -60,6 +60,47 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     expenseDate: new Date().toISOString().slice(0, 10),
   })
 
+  const numberFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    []
+  )
+
+  const { balanceRows, incomePercent, expensesPercent } = useMemo(() => {
+    const incomeTotal = totals?.income ?? 0
+    const expensesTotal = totals?.expenses ?? 0
+    const netTotal = totals?.net ?? incomeTotal - expensesTotal
+    const base = incomeTotal + expensesTotal
+    const incomeShare = base > 0 ? Math.round((incomeTotal / base) * 100) : 0
+    return {
+      balanceRows: [
+        {
+          label: 'Total Income',
+          amount: incomeTotal,
+          tone: 'positive',
+          helper: 'Giving + manual income entries',
+        },
+        {
+          label: 'Total Expenses',
+          amount: expensesTotal,
+          tone: 'negative',
+          helper: 'All recorded operating expenses',
+        },
+        {
+          label: 'Net Balance',
+          amount: netTotal,
+          tone: netTotal >= 0 ? 'positive' : 'negative',
+          helper: netTotal >= 0 ? 'Surplus available to reinvest' : 'Deficit — review spending',
+        },
+      ],
+      incomePercent: incomeShare,
+      expensesPercent: base > 0 ? 100 - incomeShare : 0,
+    }
+  }, [totals])
+
   const queryString = useMemo(() => {
     const qs = new URLSearchParams()
     if (branchId.trim()) qs.set('branchId', branchId.trim())
@@ -297,6 +338,49 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
         <div className="bg-white rounded-xl border p-4">
           <div className="text-xs font-semibold text-gray-600">Net</div>
           <div className="text-2xl font-bold mt-1">{totals?.net ?? 0}</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Balance Sheet</h2>
+            <p className="text-sm text-gray-600">Live snapshot of income versus expenses for this filter range.</p>
+          </div>
+          <div className="text-xs text-gray-500">
+            Updated {new Date().toLocaleDateString()}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {balanceRows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between rounded-lg border px-4 py-3">
+              <div>
+                <p className="font-medium text-gray-900">{row.label}</p>
+                <p className="text-xs text-gray-500">{row.helper}</p>
+              </div>
+              <div className={`text-lg font-semibold ${row.tone === 'positive' ? 'text-green-600' : row.tone === 'negative' ? 'text-red-600' : 'text-gray-900'}`}>
+                {numberFormatter.format(row.amount ?? 0)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-gray-600">
+            <span>Income {incomePercent}%</span>
+            <span>Expenses {expensesPercent}%</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500"
+              style={{ width: `${incomePercent}%` }}
+            ></div>
+            <div
+              className="h-full bg-red-500 -mt-2"
+              style={{ width: `${expensesPercent}%` }}
+            ></div>
+          </div>
         </div>
       </div>
 
