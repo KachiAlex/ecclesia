@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import PlanPricingManager from '@/components/superadmin/PlanPricingManager'
 
 export default async function SubscriptionsPage() {
   const session = await getServerSession(authOptions)
@@ -25,10 +26,20 @@ export default async function SubscriptionsPage() {
 
   // Get all plans
   const plansSnapshot = await db.collection(COLLECTIONS.subscriptionPlans).get()
-  const plans = plansSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }))
+  const plans = plansSnapshot.docs.map((doc) => {
+    const data = doc.data()
+    const rawPrice = typeof data.price === 'number' ? data.price : Number(data.price) || 0
+    return {
+      id: doc.id,
+      name: data.name,
+      description: data.description || '',
+      price: rawPrice,
+      currency: (data.currency || 'USD') as string,
+      billingCycle: (data.billingCycle || 'monthly') as string,
+      features: Array.isArray(data.features) ? data.features : [],
+      type: data.type || data.tier || '',
+    }
+  })
 
   return (
     <div className="space-y-6">
@@ -37,27 +48,7 @@ export default async function SubscriptionsPage() {
         <p className="text-gray-600 mt-2">Manage subscription plans and church subscriptions</p>
       </div>
 
-      {/* Subscription Plans */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Subscription Plans</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan: any) => (
-            <div key={plan.id} className="border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900">{plan.name}</h3>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
-                ${plan.price}/{plan.billingCycle === 'monthly' ? 'mo' : 'yr'}
-              </p>
-              {plan.features && (
-                <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  {plan.features.map((feature: string, idx: number) => (
-                    <li key={idx}>• {feature}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      <PlanPricingManager initialPlans={plans as any} />
 
       {/* Active Subscriptions */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">

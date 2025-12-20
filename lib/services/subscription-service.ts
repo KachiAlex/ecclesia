@@ -1,9 +1,11 @@
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
-import { FieldValue, Query } from 'firebase-admin/firestore'
+import { FieldValue } from 'firebase-admin/firestore'
+import { LicensingPlanConfig } from '@/lib/licensing/plans'
 
 export interface SubscriptionPlan {
   id: string
+  code?: string
   name: string
   type: string
   description?: string
@@ -93,6 +95,70 @@ export class SubscriptionPlanService {
       ...createdData,
       createdAt: toDate(createdData.createdAt),
       updatedAt: toDate(createdData.updatedAt),
+    } as SubscriptionPlan
+  }
+
+  static async update(
+    id: string,
+    data: Partial<Omit<SubscriptionPlan, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<SubscriptionPlan | null> {
+    const docRef = db.collection(COLLECTIONS.subscriptionPlans).doc(id)
+    const existing = await docRef.get()
+
+    if (!existing.exists) return null
+
+    await docRef.update({
+      ...data,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    const updated = await docRef.get()
+    const updatedData = updated.data()
+
+    if (!updatedData) return null
+
+    return {
+      id: updated.id,
+      features: updatedData.features || [],
+      ...updatedData,
+      createdAt: toDate(updatedData.createdAt),
+      updatedAt: toDate(updatedData.updatedAt),
+    } as SubscriptionPlan
+  }
+
+  static async ensurePlanFromConfig(config: LicensingPlanConfig): Promise<SubscriptionPlan> {
+    const docRef = db.collection(COLLECTIONS.subscriptionPlans).doc(config.id)
+    const existing = await docRef.get()
+
+    if (!existing.exists) {
+      await docRef.set({
+        name: config.name,
+        code: config.id,
+        type: config.tier,
+        description: config.description,
+        price: config.priceMonthlyRange.min,
+        currency: 'USD',
+        maxUsers: config.limits?.maxUsers,
+        maxStorageGB: config.limits?.maxStorageGB,
+        maxSermons: config.limits?.maxSermons,
+        maxEvents: config.limits?.maxEvents,
+        maxDepartments: config.limits?.maxDepartments,
+        maxGroups: config.limits?.maxGroups,
+        features: config.features,
+        billingCycle: 'monthly',
+        trialDays: 30,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      })
+    }
+
+    const snapshot = existing.exists ? existing : await docRef.get()
+    const data = snapshot.data()!
+    return {
+      id: snapshot.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
     } as SubscriptionPlan
   }
 }

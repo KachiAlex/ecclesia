@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import LicenseManager from './LicenseManager'
-import { SubscriptionPlan } from '@/lib/services/subscription-service'
 
 interface LicenseManagerWrapperProps {
   churchId: string
   initialSubscription: any
   initialPlan: any
-  initialPlans: SubscriptionPlan[]
+  initialPlans: any[]
 }
 
 export default function LicenseManagerWrapper({
