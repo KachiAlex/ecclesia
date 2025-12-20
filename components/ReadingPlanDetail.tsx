@@ -1,6 +1,6 @@
-  'use client'
+'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -155,6 +155,41 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
   const [coachQuestion, setCoachQuestion] = useState('')
   const [coachSubmitting, setCoachSubmitting] = useState(false)
 
+  const coachSuggestions = useMemo(() => {
+    const suggestions: string[] = []
+    const dayTitle = coachContext?.context?.day?.title
+    const daySummary = coachContext?.context?.day?.summary
+    const prayerFocus = coachContext?.context?.day?.prayerFocus
+    const dailyTheme = coachContext?.context?.dailyVerse?.theme
+    const passageReference = coachContext?.context?.passage?.reference
+
+    if (dayTitle || daySummary) {
+      suggestions.push(`How should I live out "${dayTitle || daySummary}" today?`)
+    }
+    if (prayerFocus) {
+      suggestions.push(`Help me pray boldly about: ${prayerFocus}`)
+    }
+    if (dailyTheme) {
+      suggestions.push(`Challenge me based on today’s theme: "${dailyTheme}".`)
+    }
+    if (passageReference) {
+      suggestions.push(`What decisive takeaway should I carry from ${passageReference}?`)
+    }
+    if (!suggestions.length) {
+      suggestions.push(
+        'What bold step should I take after today’s reading?',
+        'Hold me accountable—what should I commit to this week?',
+      )
+    }
+    return suggestions.slice(0, 3)
+  }, [
+    coachContext?.context?.dailyVerse?.theme,
+    coachContext?.context?.day?.prayerFocus,
+    coachContext?.context?.day?.summary,
+    coachContext?.context?.day?.title,
+    coachContext?.context?.passage?.reference,
+  ])
+
   const canManage = MANAGER_ROLES.includes(((session?.user as any)?.role as string) || '')
 
   const loadPlan = useCallback(async () => {
@@ -235,17 +270,17 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
     }
   }, [plan?.id, selectedDay])
 
-  const handleCoachAsk = useCallback(
-    async (event: React.FormEvent) => {
-      event.preventDefault()
-      if (!coachQuestion.trim() || coachSubmitting) return
+  const submitCoachQuestion = useCallback(
+    async (prompt: string) => {
+      const trimmed = prompt.trim()
+      if (!trimmed || coachSubmitting) return
       try {
         setCoachSubmitting(true)
         const response = await fetch('/api/reading-coach/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            question: coachQuestion.trim(),
+            question: trimmed,
             planId: plan?.id,
             dayNumber: selectedDay,
           }),
@@ -258,7 +293,7 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
         setCoachSessions((prev) => [
           {
             id: data.sessionId,
-            question: data.question,
+            question: trimmed,
             answer: data.answer,
             actionStep: data.actionStep,
             encouragement: data.encouragement,
@@ -270,13 +305,31 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
           ...prev,
         ])
         setCoachQuestion('')
+        await loadCoachContext()
       } catch (error: any) {
         alert(error.message || 'Failed to get coach insight.')
       } finally {
         setCoachSubmitting(false)
       }
     },
-    [coachQuestion, coachSubmitting, plan?.id, selectedDay],
+    [coachSubmitting, loadCoachContext, plan?.id, selectedDay],
+  )
+
+  const handleCoachAsk = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault()
+      if (!coachQuestion.trim()) return
+      await submitCoachQuestion(coachQuestion.trim())
+    },
+    [coachQuestion, submitCoachQuestion],
+  )
+
+  const handleQuickAsk = useCallback(
+    async (prompt: string) => {
+      setCoachQuestion(prompt)
+      await submitCoachQuestion(prompt)
+    },
+    [submitCoachQuestion],
   )
 
   useEffect(() => {
@@ -408,30 +461,67 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
       {/* Reading Coach */}
       <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-          <div className="lg:w-1/2 space-y-4">
+          <div className="lg:w-1/2 space-y-5">
             <div>
               <h2 className="text-xl font-semibold">AI Reading Coach</h2>
               <p className="text-sm text-gray-500">
-                Ask for insights, summaries, or encouragement about today&apos;s passage.
+                Get a directive, encouragement, or accountability challenge for today&apos;s reading.
               </p>
             </div>
+
+            {!!coachSuggestions.length && (
+              <div>
+                <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Quick prompts</p>
+                <div className="flex flex-wrap gap-2">
+                  {coachSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => handleQuickAsk(suggestion)}
+                      disabled={coachSubmitting}
+                      className="px-3 py-1 rounded-full border border-primary-200 text-xs text-primary-700 hover:bg-primary-50 disabled:opacity-40"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleCoachAsk} className="space-y-3">
               <textarea
                 className="w-full border rounded-lg p-3 text-sm"
                 rows={3}
-                placeholder="Ask a question about today's passage..."
+                placeholder="Be bold. Ask the coach for a challenge, check-in, or insight..."
                 value={coachQuestion}
                 onChange={(e) => setCoachQuestion(e.target.value)}
               />
-              <button
-                type="submit"
-                disabled={coachSubmitting || !coachQuestion.trim()}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
-              >
-                {coachSubmitting ? 'Thinking...' : 'Ask the Coach'}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={coachSubmitting || !coachQuestion.trim()}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {coachSubmitting ? 'Analyzing...' : 'Ask the Coach'}
+                </button>
+                {coachContext?.context?.progress?.currentDay && (
+                  <button
+                    type="button"
+                    disabled={coachSubmitting}
+                    onClick={() => {
+                      const dayNumber = coachContext?.context?.progress?.currentDay
+                      if (!dayNumber) return
+                      handleQuickAsk(`Hold me accountable for Day ${dayNumber}. What must I do before tomorrow?`)
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Accountability Check
+                  </button>
+                )}
+              </div>
             </form>
-            <div className="space-y-2 text-sm text-gray-600">
+
+            <div className="space-y-3 text-sm text-gray-600">
               {coachLoading ? (
                 <p>Loading insights...</p>
               ) : coachContext?.context?.dailyVerse ? (
@@ -439,12 +529,8 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
                   <p className="text-xs uppercase tracking-wide text-indigo-700 font-semibold">
                     Daily Theme • {coachContext.context.dailyVerse.theme}
                   </p>
-                  <p className="font-medium mt-1">
-                    {coachContext.context.dailyVerse.reference}
-                  </p>
-                  <p className="text-sm text-indigo-900 mt-1">
-                    {coachContext.context.dailyVerse.excerpt}
-                  </p>
+                  <p className="font-medium mt-1">{coachContext.context.dailyVerse.reference}</p>
+                  <p className="text-sm text-indigo-900 mt-1">{coachContext.context.dailyVerse.excerpt}</p>
                 </div>
               ) : null}
               {!!coachNudges.length && (
@@ -452,30 +538,42 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
                   {coachNudges.slice(0, 2).map((nudge) => (
                     <div
                       key={nudge.id}
-                      className="border rounded-lg p-3 bg-amber-50 border-amber-200 text-amber-900 text-sm"
+                      className="border rounded-lg p-3 bg-amber-50 border-amber-200 text-amber-900 text-sm flex items-start gap-2"
                     >
-                      {nudge.message}
+                      <span className="text-lg leading-none">⚡</span>
+                      <span>{nudge.message}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
-          <div className="lg:w-1/2 space-y-3 max-h-[360px] overflow-y-auto pr-2">
-            <h3 className="text-lg font-semibold">Recent Insights</h3>
+
+          <div className="lg:w-1/2 space-y-3 max-h-[420px] overflow-y-auto pr-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Recent Insights</h3>
+              {coachSessions.length > 0 && (
+                <span className="text-xs text-gray-500">Latest {Math.min(5, coachSessions.length)} responses</span>
+              )}
+            </div>
             {coachSessions.length === 0 ? (
-              <p className="text-sm text-gray-500">Ask your first question to see AI guidance here.</p>
+              <p className="text-sm text-gray-500">Use a quick prompt above and let the coach drive the conversation.</p>
             ) : (
               coachSessions.map((session) => (
                 <div key={session.id} className="border rounded-lg p-3 space-y-2">
-                  <p className="text-sm font-semibold text-primary-700">You asked:</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-primary-700">You asked:</p>
+                    <span className="text-xs text-gray-400">
+                      {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                   <p className="text-sm text-gray-800">{session.question}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">Coach answered:</p>
+                  <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">Coach directive:</p>
                   <p className="text-sm text-gray-900 whitespace-pre-line">{session.answer}</p>
                   {session.actionStep && (
-                    <p className="text-sm text-green-700">
-                      <span className="font-semibold">Action Step:</span> {session.actionStep}
-                    </p>
+                    <div className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg p-2">
+                      <span className="font-semibold">Action:</span> {session.actionStep}
+                    </div>
                   )}
                   {session.encouragement && (
                     <p className="text-sm text-amber-700 italic">{session.encouragement}</p>
@@ -486,6 +584,15 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
                         <li key={idx}>{insight}</li>
                       ))}
                     </ul>
+                  )}
+                  {session.followUpQuestion && (
+                    <button
+                      type="button"
+                      className="text-xs text-primary-600 underline"
+                      onClick={() => handleQuickAsk(session.followUpQuestion || '')}
+                    >
+                      Respond: {session.followUpQuestion}
+                    </button>
                   )}
                 </div>
               ))
