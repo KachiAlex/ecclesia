@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { formatDate } from '@/lib/utils'
 
 interface PrayerRequest {
@@ -27,11 +27,7 @@ export default function PrayerAdminDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null)
   const [showDetails, setShowDetails] = useState(false)
 
-  useEffect(() => {
-    loadRequests()
-  }, [activeTab])
-
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     setLoading(true)
     try {
       const status = activeTab === 'active' ? 'ACTIVE' : 'ANSWERED'
@@ -45,7 +41,11 @@ export default function PrayerAdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTab])
+
+  useEffect(() => {
+    loadRequests()
+  }, [loadRequests])
 
   const handleMarkAsAnswered = async (requestId: string) => {
     try {

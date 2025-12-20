@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 interface Group {
@@ -33,11 +33,29 @@ export default function NearbyGroups() {
     getLocation()
   }, [])
 
+  const loadNearbyGroups = useCallback(async () => {
+    if (!location) return
+
+    try {
+      const response = await fetch(
+        `/api/groups/nearby?latitude=${location.lat}&longitude=${location.lng}&maxDistance=10`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setGroups(data)
+      }
+    } catch (error) {
+      console.error('Error loading nearby groups:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [location])
+
   useEffect(() => {
     if (location) {
       loadNearbyGroups()
     }
-  }, [location])
+  }, [location, loadNearbyGroups])
 
   const getLocation = () => {
     if (!navigator.geolocation) {
@@ -58,24 +76,6 @@ export default function NearbyGroups() {
         setLoading(false)
       }
     )
-  }
-
-  const loadNearbyGroups = async () => {
-    if (!location) return
-
-    try {
-      const response = await fetch(
-        `/api/groups/nearby?latitude=${location.lat}&longitude=${location.lng}&maxDistance=10`
-      )
-      if (response.ok) {
-        const data = await response.json()
-        setGroups(data)
-      }
-    } catch (error) {
-      console.error('Error loading nearby groups:', error)
-    } finally {
-      setLoading(false)
-    }
   }
 
   if (loading) {

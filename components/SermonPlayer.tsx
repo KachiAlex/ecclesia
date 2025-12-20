@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { formatDate, formatDuration } from '@/lib/utils'
 import Link from 'next/link'
 import MediaPlayer from './MediaPlayer'
@@ -54,11 +54,7 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
   const [editDurationMinutes, setEditDurationMinutes] = useState('')
   const [editTags, setEditTags] = useState('')
 
-  useEffect(() => {
-    loadSermon()
-  }, [sermonId])
-
-  const loadSermon = async () => {
+  const loadSermon = useCallback(async () => {
     try {
       const response = await fetch(`/api/sermons/${sermonId}`)
       if (response.ok) {
@@ -77,7 +73,11 @@ export default function SermonPlayer({ sermonId }: SermonPlayerProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [sermonId])
+
+  useEffect(() => {
+    loadSermon()
+  }, [loadSermon])
 
   const role = (session?.user as any)?.role as string | undefined
   const canManage = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PASTOR'

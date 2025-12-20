@@ -20,8 +20,12 @@ export interface ReadingPlanDay {
 export interface ReadingPlanResource {
   id: string
   planId?: string
+  planIds?: string[]
   title: string
   description?: string
+  author?: string
+  categoryId?: string
+  tags?: string[]
   type: 'book' | 'pdf' | 'audio' | 'video' | 'link'
   fileUrl?: string
   fileName?: string
@@ -29,6 +33,17 @@ export interface ReadingPlanResource {
   contentType?: string
   size?: number
   createdBy: string
+  createdAt: Date
+  updatedAt: Date
+  metadata?: Record<string, any>
+}
+
+export interface ReadingResourceCategory {
+  id: string
+  name: string
+  description?: string
+  color?: string
+  icon?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -87,12 +102,119 @@ export class ReadingPlanDayService {
 
     return this.findByPlanAndDay(data.planId, data.dayNumber) as Promise<ReadingPlanDay>
   }
+
+  static async update(
+    id: string,
+    data: Partial<Omit<ReadingPlanResource, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<ReadingPlanResource | null> {
+    await db
+      .collection(COLLECTIONS.readingPlanResources)
+      .doc(id)
+      .set(
+        {
+          ...data,
+          tags: data.tags ?? FieldValue.delete(),
+          planIds: data.planIds ?? FieldValue.delete(),
+          metadata: data.metadata ?? FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+    return ReadingPlanResourceService.findById(id)
+  }
+
+  static async delete(id: string): Promise<void> {
+    await db.collection(COLLECTIONS.readingPlanResources).doc(id).delete()
+  }
+}
+
+export class ReadingResourceCategoryService {
+  static async findById(id: string): Promise<ReadingResourceCategory | null> {
+    const doc = await db.collection(COLLECTIONS.readingResourceCategories).doc(id).get()
+    if (!doc.exists) return null
+    const data = doc.data()!
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as ReadingResourceCategory
+  }
+
+  static async listAll(): Promise<ReadingResourceCategory[]> {
+    const snapshot = await db
+      .collection(COLLECTIONS.readingResourceCategories)
+      .orderBy('createdAt', 'desc')
+      .get()
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+      } as ReadingResourceCategory
+    })
+  }
+
+  static async create(data: Omit<ReadingResourceCategory, 'id' | 'createdAt' | 'updatedAt'>) {
+    const docRef = db.collection(COLLECTIONS.readingResourceCategories).doc()
+    await docRef.set({
+      ...data,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    const created = await docRef.get()
+    const createdData = created.data()!
+    return {
+      id: created.id,
+      ...createdData,
+      createdAt: toDate(createdData.createdAt),
+      updatedAt: toDate(createdData.updatedAt),
+    } as ReadingResourceCategory
+  }
+
+  static async update(
+    id: string,
+    data: Partial<Omit<ReadingResourceCategory, 'id' | 'createdAt' | 'updatedAt'>>
+  ) {
+    await db
+      .collection(COLLECTIONS.readingResourceCategories)
+      .doc(id)
+      .set(
+        {
+          ...data,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      )
+    const updated = await db.collection(COLLECTIONS.readingResourceCategories).doc(id).get()
+    if (!updated.exists) return null
+    const updatedData = updated.data()!
+    return {
+      id,
+      ...updatedData,
+      createdAt: toDate(updatedData.createdAt),
+      updatedAt: toDate(updatedData.updatedAt),
+    } as ReadingResourceCategory
+  }
+
+  static async delete(id: string) {
+    await db.collection(COLLECTIONS.readingResourceCategories).doc(id).delete()
+  }
 }
 
 export class ReadingPlanResourceService {
-  static async create(data: Omit<ReadingPlanResource, 'id' | 'createdAt' | 'updatedAt'>): Promise<ReadingPlanResource> {
+  static async create(
+    data: Omit<ReadingPlanResource, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<ReadingPlanResource> {
     const payload = {
       ...data,
+      planIds: data.planIds || (data.planId ? [data.planId] : []),
+      tags: data.tags || [],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }
@@ -153,5 +275,81 @@ export class ReadingPlanResourceService {
         updatedAt: toDate(data.updatedAt),
       } as ReadingPlanResource
     })
+  }
+
+  static async listAll(options: {
+    categoryId?: string
+    search?: string
+    limit?: number
+    cursor?: string
+  } = {}): Promise<{ resources: ReadingPlanResource[]; nextCursor: string | null }> {
+    let query: FirebaseFirestore.Query = db
+      .collection(COLLECTIONS.readingPlanResources)
+      .orderBy('createdAt', 'desc')
+      .limit(options.limit || 20)
+
+    if (options.categoryId) {
+      query = query.where('categoryId', '==', options.categoryId)
+    }
+
+    if (options.cursor) {
+      const cursorDoc = await db.collection(COLLECTIONS.readingPlanResources).doc(options.cursor).get()
+      if (cursorDoc.exists) {
+        query = query.startAfter(cursorDoc)
+      }
+    }
+
+    const snapshot = await query.get()
+    let docs = snapshot.docs
+
+    if (options.search) {
+      const searchLower = options.search.toLowerCase()
+      docs = docs.filter((doc) => {
+        const data = doc.data()
+        return (
+          data.title?.toLowerCase().includes(searchLower) ||
+          data.description?.toLowerCase().includes(searchLower) ||
+          data.author?.toLowerCase().includes(searchLower)
+        )
+      })
+    }
+
+    const resources = docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+      } as ReadingPlanResource
+    })
+
+    const nextCursor = snapshot.docs.length === (options.limit || 20) ? snapshot.docs[snapshot.docs.length - 1].id : null
+    return { resources, nextCursor }
+  }
+
+  static async update(
+    id: string,
+    data: Partial<Omit<ReadingPlanResource, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<ReadingPlanResource | null> {
+    await db
+      .collection(COLLECTIONS.readingPlanResources)
+      .doc(id)
+      .set(
+        {
+          ...data,
+          tags: data.tags ?? FieldValue.delete(),
+          planIds: data.planIds ?? FieldValue.delete(),
+          metadata: data.metadata ?? FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+    return this.findById(id)
+  }
+
+  static async delete(id: string): Promise<void> {
+    await db.collection(COLLECTIONS.readingPlanResources).doc(id).delete()
   }
 }

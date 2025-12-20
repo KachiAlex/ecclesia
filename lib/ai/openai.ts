@@ -87,6 +87,123 @@ Always reference specific Bible verses when relevant. Be warm, understanding, an
 }
 
 /**
+ * Reading coach structured response
+ */
+export interface ReadingCoachContextPayload {
+  user?: {
+    name?: string
+    spiritualMaturity?: string
+    churchContext?: string
+  }
+  plan?: {
+    title: string
+    duration: number
+    topics?: string[]
+  } | null
+  progress?: {
+    currentDay: number
+    totalDays?: number
+    percentComplete?: number
+    completed?: boolean
+  } | null
+  day?: {
+    dayNumber: number
+    title?: string
+    summary?: string
+    prayerFocus?: string
+  } | null
+  passage?: {
+    reference?: string
+    excerpt?: string
+  } | null
+  resources?: Array<{
+    title: string
+    type?: string
+    description?: string
+  }>
+  dailyVerse?: {
+    reference: string
+    theme: string
+    excerpt?: string
+  }
+}
+
+export interface ReadingCoachAIResponse {
+  answer: string
+  actionStep?: string
+  encouragement?: string
+  scriptures?: string[]
+  followUpQuestion?: string
+  insights?: string[]
+}
+
+function extractJsonFromText(text: string) {
+  const trimmed = text.trim()
+  if (trimmed.startsWith('{')) {
+    return trimmed
+  }
+  const jsonBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]+?)```/)
+  if (jsonBlockMatch) {
+    return jsonBlockMatch[1]
+  }
+  return trimmed
+}
+
+export async function getReadingCoachResponse(input: {
+  question: string
+  context: ReadingCoachContextPayload
+}): Promise<ReadingCoachAIResponse> {
+  if (!openai) {
+    return {
+      answer: 'AI Reading Coach is not available right now. Please try again later.',
+    }
+  }
+
+  try {
+    const systemPrompt = `You are Ecclesia's AI Reading Coach. Ground every response in Scripture, highlight practical next steps, and keep a pastoral, encouraging tone.
+Always respond in JSON with this shape:
+{
+  "answer": string, // conversational multi-paragraph response
+  "actionStep": string, // single practical next action
+  "encouragement": string, // short uplifting note
+  "scriptures": string[], // list of references mentioned
+  "followUpQuestion": string, // optional thoughtful follow-up for the reader
+  "insights": string[] // optional bullet insights about their progress or passage
+}`
+
+    const userPrompt = `Question: ${input.question}
+Context: ${JSON.stringify(input.context)}`
+
+    const completion = await openai.chat.completions.create({
+      model: getModel(),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 800,
+    })
+
+    const raw = completion.choices[0]?.message?.content || ''
+    const jsonString = extractJsonFromText(raw)
+    const parsed = JSON.parse(jsonString)
+    return {
+      answer: parsed.answer || 'I hope this reading encouraged you today.',
+      actionStep: parsed.actionStep,
+      encouragement: parsed.encouragement,
+      scriptures: parsed.scriptures,
+      followUpQuestion: parsed.followUpQuestion,
+      insights: parsed.insights,
+    }
+  } catch (error: any) {
+    console.error('Reading coach AI error:', error)
+    return {
+      answer: 'I ran into an issue preparing your coaching insight. Please try again in a moment.',
+    }
+  }
+}
+
+/**
  * Generate a personalized spiritual growth plan
  */
 export async function generateSpiritualGrowthPlan(

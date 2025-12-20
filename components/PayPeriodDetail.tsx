@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 interface PayPeriod {
@@ -19,11 +19,7 @@ export default function PayPeriodDetail({ periodId }: { periodId: string }) {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
 
-  useEffect(() => {
-    loadPeriod()
-  }, [periodId])
-
-  const loadPeriod = async () => {
+  const loadPeriod = useCallback(async () => {
     try {
       const response = await fetch(`/api/payroll/periods?status=`)
       if (response.ok) {
@@ -38,7 +34,11 @@ export default function PayPeriodDetail({ periodId }: { periodId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [periodId])
+
+  useEffect(() => {
+    loadPeriod()
+  }, [loadPeriod])
 
   const handleGenerateRecords = async () => {
     if (!confirm('Generate payroll records for all active salaries in this period?')) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -60,11 +60,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadUser()
-  }, [userId])
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       const response = await fetch(`/api/users/${userId}`)
       if (!response.ok) {
@@ -77,7 +73,11 @@ export default function UserProfile({ userId }: UserProfileProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    loadUser()
+  }, [loadUser])
 
   if (loading) {
     return (

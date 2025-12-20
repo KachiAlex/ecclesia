@@ -47,7 +47,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
   const church = data?.church
   const subscription = data?.subscription
   const plan = data?.plan
-  const availablePlans = data?.availablePlans ?? []
+  const availablePlans = data?.availablePlans
   const planMeta = data?.planMeta
   const recommendedPlanMeta = data?.recommendedPlanMeta
   const isOverUserLimit =
@@ -81,10 +81,13 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
   const status = subscription?.status || "TRIAL"
 
   const planList = useMemo(() => {
-    if (!availablePlans?.length && plan) {
+    if (availablePlans && availablePlans.length > 0) {
+      return availablePlans
+    }
+    if (plan) {
       return [plan]
     }
-    return availablePlans
+    return []
   }, [plan, availablePlans])
 
   const onChangeField = (field: keyof typeof formValues, value: string) => {

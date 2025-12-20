@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { formatDate } from '@/lib/utils'
 import CreatePrayerRequest from './CreatePrayerRequest'
 
@@ -33,11 +33,7 @@ export default function PrayerWall({ isAdmin = false }: PrayerWallProps) {
   const [showCreate, setShowCreate] = useState(false)
   const [filter, setFilter] = useState<string>('')
 
-  useEffect(() => {
-    loadRequests()
-  }, [filter])
-
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       const params = new URLSearchParams()
       if (filter) params.append('status', filter)
@@ -52,7 +48,11 @@ export default function PrayerWall({ isAdmin = false }: PrayerWallProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter])
+
+  useEffect(() => {
+    loadRequests()
+  }, [loadRequests])
 
   const handlePray = async (requestId: string) => {
     try {

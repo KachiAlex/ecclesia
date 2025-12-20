@@ -84,7 +84,10 @@ export const COLLECTIONS = {
   readingPlanProgress: 'reading_plan_progress',
   readingPlanDays: 'reading_plan_days',
   readingPlanResources: 'reading_plan_resources',
+  readingResourceCategories: 'reading_resource_categories',
   biblePassageCache: 'bible_passage_cache',
+  readingCoachSessions: 'reading_coach_sessions',
+  readingCoachNudges: 'reading_coach_nudges',
   
   // Payroll collections
   payrollPositions: 'payroll_positions',

@@ -29,6 +29,41 @@ export async function POST(request: Request) {
     const title = formData.get('title')?.toString() || undefined
     const description = formData.get('description')?.toString() || undefined
     const resourceType = (formData.get('type')?.toString() as 'book' | 'pdf' | 'audio' | 'video' | 'link') || 'book'
+    const categoryId = formData.get('categoryId')?.toString() || undefined
+    const author = formData.get('author')?.toString() || undefined
+    const tagsValue = formData.get('tags')?.toString()
+    const tags = tagsValue
+      ? tagsValue
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+      : []
+    const planIdsValue = formData.get('planIds')?.toString()
+    let planIds: string[] | undefined = undefined
+    if (planIdsValue) {
+      try {
+        const parsed = JSON.parse(planIdsValue)
+        if (Array.isArray(parsed)) {
+          planIds = parsed.filter((id) => typeof id === 'string' && id.trim().length > 0)
+        }
+      } catch {
+        planIds = planIdsValue
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+      }
+    } else if (planId) {
+      planIds = [planId]
+    }
+    const metadataValue = formData.get('metadata')?.toString()
+    let metadata: Record<string, any> | undefined
+    if (metadataValue) {
+      try {
+        metadata = JSON.parse(metadataValue)
+      } catch {
+        metadata = undefined
+      }
+    }
 
     if (!file) {
       return NextResponse.json({ error: 'File upload is required.' }, { status: 400 })
@@ -63,8 +98,12 @@ export async function POST(request: Request) {
 
     const resource = await ReadingPlanResourceService.create({
       planId,
+      planIds,
       title: title || file.name || 'Reading Resource',
       description,
+      author,
+      categoryId,
+      tags,
       type: resourceType,
       fileUrl: upload.url,
       fileName: file.name || fileName,
@@ -72,6 +111,7 @@ export async function POST(request: Request) {
       contentType: file.type,
       size: file.size,
       createdBy: userId,
+      metadata,
     })
 
     return NextResponse.json({ resource }, { status: 201 })

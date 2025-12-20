@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -46,11 +46,7 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
     resolver: zodResolver(userSchema),
   })
 
-  useEffect(() => {
-    loadUser()
-  }, [userId])
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       const response = await fetch(`/api/users/${userId}`)
       if (!response.ok) {
@@ -89,7 +85,11 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [reset, userId])
+
+  useEffect(() => {
+    loadUser()
+  }, [loadUser])
 
   const onSubmit = async (data: UserFormData) => {
     setError('')

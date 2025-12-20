@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -35,9 +35,30 @@ export default function SermonHub() {
   const [categories, setCategories] = useState<string[]>([])
   const [canUpload, setCanUpload] = useState(false)
 
+  const loadSermons = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (category) params.append('category', category)
+
+      const response = await fetch(`/api/sermons?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSermons(data.sermons || [])
+      } else {
+        console.error('Failed to load sermons')
+      }
+    } catch (error) {
+      console.error('Error loading sermons:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [search, category])
+
   useEffect(() => {
     loadSermons()
-  }, [search, category])
+  }, [loadSermons])
 
   useEffect(() => {
     const loadMe = async () => {
@@ -59,27 +80,6 @@ export default function SermonHub() {
     const cats = Array.from(new Set(sermons.map((s) => s.category).filter(Boolean)))
     setCategories(cats as string[])
   }, [sermons])
-
-  const loadSermons = async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams()
-      if (search) params.append('search', search)
-      if (category) params.append('category', category)
-
-      const response = await fetch(`/api/sermons?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        setSermons(data.sermons || [])
-      } else {
-        console.error('Failed to load sermons')
-      }
-    } catch (error) {
-      console.error('Error loading sermons:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'N/A'

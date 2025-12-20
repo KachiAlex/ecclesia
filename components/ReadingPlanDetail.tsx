@@ -1,6 +1,6 @@
-'use client'
+  'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -52,6 +52,83 @@ interface ReadingPlanDayResponse {
   resources: ReadingPlanResource[]
 }
 
+interface ReadingCoachContextResult {
+  context: {
+    dailyVerse?: {
+      reference: string
+      theme: string
+      excerpt?: string
+    }
+    progress?: {
+      currentDay: number
+      totalDays?: number
+      percentComplete?: number
+      completed?: boolean
+    } | null
+    day?: {
+      dayNumber: number
+      title?: string
+      summary?: string
+      prayerFocus?: string
+    } | null
+    passage?: {
+      reference?: string
+      excerpt?: string
+    } | null
+  }
+  plan?: {
+    id: string
+    title: string
+    duration: number
+    topics?: string[]
+  } | null
+  progress?: {
+    id: string
+    currentDay: number
+    completed: boolean
+    percentComplete?: number
+  } | null
+  day?: {
+    dayNumber: number
+    title?: string
+    summary?: string
+    prayerFocus?: string
+  } | null
+  dayResources?: {
+    id: string
+    title: string
+    type?: string
+    description?: string
+  }[]
+  dailyVerse?: {
+    reference: string
+    theme: string
+    excerpt?: string
+  }
+}
+
+interface ReadingCoachSession {
+  id: string
+  question: string
+  answer: string
+  actionStep?: string
+  encouragement?: string
+  scriptures?: string[]
+  followUpQuestion?: string
+  metadata?: {
+    insights?: string[]
+  }
+  createdAt: string
+}
+
+interface ReadingCoachNudge {
+  id: string
+  type: 'progress' | 'reminder' | 'celebration' | 'insight'
+  message: string
+  createdAt: string
+  metadata?: Record<string, any>
+}
+
 const MANAGER_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PASTOR']
 
 export default function ReadingPlanDetail({ planId }: { planId: string }) {
@@ -71,30 +148,16 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
   const [resourceDescription, setResourceDescription] = useState('')
   const [resourceType, setResourceType] = useState<'book' | 'pdf' | 'audio' | 'video' | 'link'>('book')
   const [resourceUploading, setResourceUploading] = useState(false)
+  const [coachContext, setCoachContext] = useState<ReadingCoachContextResult | null>(null)
+  const [coachSessions, setCoachSessions] = useState<ReadingCoachSession[]>([])
+  const [coachNudges, setCoachNudges] = useState<ReadingCoachNudge[]>([])
+  const [coachLoading, setCoachLoading] = useState(true)
+  const [coachQuestion, setCoachQuestion] = useState('')
+  const [coachSubmitting, setCoachSubmitting] = useState(false)
 
   const canManage = MANAGER_ROLES.includes(((session?.user as any)?.role as string) || '')
 
-  useEffect(() => {
-    loadPlan()
-  }, [planId])
-
-  useEffect(() => {
-    if (plan?.userProgress) {
-      setSelectedDay(plan.userProgress.currentDay)
-    }
-  }, [plan?.userProgress?.currentDay])
-
-  useEffect(() => {
-    if (!plan) return
-    loadDayContent(selectedDay)
-  }, [plan?.id, selectedDay])
-
-  useEffect(() => {
-    if (!plan) return
-    loadResources()
-  }, [plan?.id])
-
-  const loadPlan = async () => {
+  const loadPlan = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch(`/api/reading-plans/${planId}`)
@@ -109,31 +172,34 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [planId])
 
-  const loadDayContent = async (dayNumber: number) => {
-    if (!plan) return
-    setDayLoading(true)
-    setDayError(null)
-    try {
-      const response = await fetch(`/api/reading-plans/${plan.id}/day/${dayNumber}`)
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.error || 'Unable to load day content')
+  const loadDayContent = useCallback(
+    async (dayNumber: number) => {
+      if (!plan?.id) return
+      setDayLoading(true)
+      setDayError(null)
+      try {
+        const response = await fetch(`/api/reading-plans/${plan.id}/day/${dayNumber}`)
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}))
+          throw new Error(error.error || 'Unable to load day content')
+        }
+        const data = await response.json()
+        setDayData(data)
+      } catch (error: any) {
+        console.error('Error loading day content:', error)
+        setDayData(null)
+        setDayError(error.message || 'Unable to load this day yet.')
+      } finally {
+        setDayLoading(false)
       }
-      const data = await response.json()
-      setDayData(data)
-    } catch (error: any) {
-      console.error('Error loading day content:', error)
-      setDayData(null)
-      setDayError(error.message || 'Unable to load this day yet.')
-    } finally {
-      setDayLoading(false)
-    }
-  }
+    },
+    [plan?.id],
+  )
 
-  const loadResources = async () => {
-    if (!plan) return
+  const loadResources = useCallback(async () => {
+    if (!plan?.id) return
     setResourcesLoading(true)
     try {
       const response = await fetch(`/api/reading-plans/${plan.id}/resources`)
@@ -146,7 +212,93 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
     } finally {
       setResourcesLoading(false)
     }
-  }
+  }, [plan?.id])
+
+  const loadCoachContext = useCallback(async () => {
+    if (!plan?.id) return
+    try {
+      setCoachLoading(true)
+      const params = new URLSearchParams()
+      params.set('planId', plan.id)
+      params.set('dayNumber', selectedDay.toString())
+      const response = await fetch(`/api/reading-coach/context?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setCoachContext(data.context)
+        setCoachSessions(data.recentSessions || [])
+        setCoachNudges(data.pendingNudges || [])
+      }
+    } catch (error) {
+      console.error('Error loading coach context:', error)
+    } finally {
+      setCoachLoading(false)
+    }
+  }, [plan?.id, selectedDay])
+
+  const handleCoachAsk = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault()
+      if (!coachQuestion.trim() || coachSubmitting) return
+      try {
+        setCoachSubmitting(true)
+        const response = await fetch('/api/reading-coach/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: coachQuestion.trim(),
+            planId: plan?.id,
+            dayNumber: selectedDay,
+          }),
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err.error || 'Unable to get coach response.')
+        }
+        const data = await response.json()
+        setCoachSessions((prev) => [
+          {
+            id: data.sessionId,
+            question: data.question,
+            answer: data.answer,
+            actionStep: data.actionStep,
+            encouragement: data.encouragement,
+            scriptures: data.scriptures,
+            followUpQuestion: data.followUpQuestion,
+            metadata: { insights: data.insights },
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ])
+        setCoachQuestion('')
+      } catch (error: any) {
+        alert(error.message || 'Failed to get coach insight.')
+      } finally {
+        setCoachSubmitting(false)
+      }
+    },
+    [coachQuestion, coachSubmitting, plan?.id, selectedDay],
+  )
+
+  useEffect(() => {
+    loadPlan()
+  }, [loadPlan])
+
+  const userProgressDay = plan?.userProgress?.currentDay
+
+  useEffect(() => {
+    if (typeof userProgressDay === 'number') {
+      setSelectedDay(userProgressDay)
+    }
+  }, [userProgressDay])
+
+  useEffect(() => {
+    loadDayContent(selectedDay)
+  }, [selectedDay, loadDayContent])
+
+  useEffect(() => {
+    loadResources()
+    loadCoachContext()
+  }, [loadResources, loadCoachContext])
 
   const updateProgress = async (day: number, completed?: boolean) => {
     if (!plan?.userProgress) return
@@ -251,6 +403,95 @@ export default function ReadingPlanDetail({ planId }: { planId: string }) {
         {plan.description && (
           <p className="text-gray-600 mb-4">{plan.description}</p>
         )}
+      </div>
+
+      {/* Reading Coach */}
+      <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+          <div className="lg:w-1/2 space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold">AI Reading Coach</h2>
+              <p className="text-sm text-gray-500">
+                Ask for insights, summaries, or encouragement about today&apos;s passage.
+              </p>
+            </div>
+            <form onSubmit={handleCoachAsk} className="space-y-3">
+              <textarea
+                className="w-full border rounded-lg p-3 text-sm"
+                rows={3}
+                placeholder="Ask a question about today's passage..."
+                value={coachQuestion}
+                onChange={(e) => setCoachQuestion(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={coachSubmitting || !coachQuestion.trim()}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              >
+                {coachSubmitting ? 'Thinking...' : 'Ask the Coach'}
+              </button>
+            </form>
+            <div className="space-y-2 text-sm text-gray-600">
+              {coachLoading ? (
+                <p>Loading insights...</p>
+              ) : coachContext?.context?.dailyVerse ? (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                  <p className="text-xs uppercase tracking-wide text-indigo-700 font-semibold">
+                    Daily Theme • {coachContext.context.dailyVerse.theme}
+                  </p>
+                  <p className="font-medium mt-1">
+                    {coachContext.context.dailyVerse.reference}
+                  </p>
+                  <p className="text-sm text-indigo-900 mt-1">
+                    {coachContext.context.dailyVerse.excerpt}
+                  </p>
+                </div>
+              ) : null}
+              {!!coachNudges.length && (
+                <div className="space-y-2">
+                  {coachNudges.slice(0, 2).map((nudge) => (
+                    <div
+                      key={nudge.id}
+                      className="border rounded-lg p-3 bg-amber-50 border-amber-200 text-amber-900 text-sm"
+                    >
+                      {nudge.message}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="lg:w-1/2 space-y-3 max-h-[360px] overflow-y-auto pr-2">
+            <h3 className="text-lg font-semibold">Recent Insights</h3>
+            {coachSessions.length === 0 ? (
+              <p className="text-sm text-gray-500">Ask your first question to see AI guidance here.</p>
+            ) : (
+              coachSessions.map((session) => (
+                <div key={session.id} className="border rounded-lg p-3 space-y-2">
+                  <p className="text-sm font-semibold text-primary-700">You asked:</p>
+                  <p className="text-sm text-gray-800">{session.question}</p>
+                  <p className="text-xs font-semibold text-gray-500 mt-1">Coach answered:</p>
+                  <p className="text-sm text-gray-900 whitespace-pre-line">{session.answer}</p>
+                  {session.actionStep && (
+                    <p className="text-sm text-green-700">
+                      <span className="font-semibold">Action Step:</span> {session.actionStep}
+                    </p>
+                  )}
+                  {session.encouragement && (
+                    <p className="text-sm text-amber-700 italic">{session.encouragement}</p>
+                  )}
+                  {session.metadata?.insights?.length && (
+                    <ul className="text-sm text-gray-600 list-disc pl-5">
+                      {session.metadata.insights.map((insight, idx) => (
+                        <li key={idx}>{insight}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Progress Section */}
