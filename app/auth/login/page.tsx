@@ -17,6 +17,7 @@ function LoginForm() {
 
   useEffect(() => {
     setMounted(true)
+    alert('Login page loaded - if you see this, the code is deployed')
   }, [])
 
   const isRegistered = searchParams?.get('registered') === 'true'
