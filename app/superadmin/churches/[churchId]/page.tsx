@@ -88,6 +88,31 @@ export default async function ChurchDetailPage({
     }
   }
 
+  const subscriptionForClient = subscription
+    ? {
+        ...subscription,
+        startDate: subscription.startDate?.toISOString(),
+        endDate: subscription.endDate?.toISOString(),
+        trialEndsAt: subscription.trialEndsAt?.toISOString(),
+        createdAt: subscription.createdAt?.toISOString(),
+        updatedAt: subscription.updatedAt?.toISOString(),
+      }
+    : null
+
+  const planForClient = plan
+    ? {
+        ...plan,
+        createdAt: plan.createdAt?.toISOString(),
+        updatedAt: plan.updatedAt?.toISOString(),
+      }
+    : null
+
+  const plansForClient = availablePlans.map((p) => ({
+    ...p,
+    createdAt: p.createdAt?.toISOString(),
+    updatedAt: p.updatedAt?.toISOString(),
+  }))
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -209,9 +234,9 @@ export default async function ChurchDetailPage({
       {/* License Management */}
       <LicenseManagerWrapper
         churchId={church.id}
-        initialSubscription={subscription}
-        initialPlan={plan}
-        initialPlans={availablePlans}
+        initialSubscription={subscriptionForClient}
+        initialPlan={planForClient}
+        initialPlans={plansForClient}
       />
     </div>
   )

@@ -4,6 +4,7 @@ import { SubscriptionService, SubscriptionPlanService } from '@/lib/services/sub
 import { db, FieldValue } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { guardApi } from '@/lib/api-guard'
+import { getPlanConfig, recommendPlan } from '@/lib/licensing/plans'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,7 @@ export async function GET(
     if (subscription?.planId) {
       plan = await SubscriptionPlanService.findById(subscription.planId)
     }
+    const availablePlans = await SubscriptionPlanService.findAll()
 
     // Get user count
     const usersSnapshot = await db.collection(COLLECTIONS.users)
@@ -36,11 +38,57 @@ export async function GET(
       .get()
     const userCount = usersSnapshot.size
 
+    const serializeDate = (value: any) => {
+      if (!value) return value
+      if (value instanceof Date) return value.toISOString()
+      if (typeof value.toDate === 'function') return value.toDate().toISOString()
+      return value
+    }
+
+    const churchForClient = church
+      ? {
+          ...church,
+          createdAt: serializeDate(church.createdAt),
+          updatedAt: serializeDate(church.updatedAt),
+        }
+      : null
+
+    const subscriptionForClient = subscription
+      ? {
+          ...subscription,
+          startDate: serializeDate(subscription.startDate),
+          endDate: serializeDate(subscription.endDate),
+          trialEndsAt: serializeDate(subscription.trialEndsAt),
+          createdAt: serializeDate(subscription.createdAt),
+          updatedAt: serializeDate(subscription.updatedAt),
+        }
+      : null
+
+    const planForClient = plan
+      ? {
+          ...plan,
+          createdAt: serializeDate(plan.createdAt),
+          updatedAt: serializeDate(plan.updatedAt),
+        }
+      : null
+
+    const plansForClient = availablePlans.map((p) => ({
+      ...p,
+      createdAt: serializeDate(p.createdAt),
+      updatedAt: serializeDate(p.updatedAt),
+    }))
+
+    const planMeta = planForClient ? getPlanConfig(planForClient.id) : getPlanConfig(church.preferredPlanId)
+    const recommendedPlanMeta = recommendPlan({ memberCount: church.estimatedMembers })
+
     return NextResponse.json({
-      church,
-      subscription,
-      plan,
+      church: churchForClient,
+      subscription: subscriptionForClient,
+      plan: planForClient,
+      availablePlans: plansForClient,
       userCount,
+      planMeta,
+      recommendedPlanMeta,
     })
   } catch (error) {
     console.error('Error fetching church:', error)

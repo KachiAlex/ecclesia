@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import Link from 'next/link'
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import TenantDetailModal from './TenantDetailModal'
 
 interface Church {
   id: string
@@ -24,6 +25,11 @@ export default function ChurchesList({ churches: initialChurches }: ChurchesList
     search: '',
     sortBy: 'created',
   })
+  const [modalOpen, setModalOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const [selectedDetail, setSelectedDetail] = useState<any | null>(null)
+  const router = useRouter()
 
   const filteredAndSortedChurches = useMemo(() => {
     let filtered = [...initialChurches]
@@ -62,6 +68,36 @@ export default function ChurchesList({ churches: initialChurches }: ChurchesList
 
     return filtered
   }, [initialChurches, filters])
+
+  const handleRefresh = () => {
+    router.refresh()
+  }
+
+  const handleManageClick = async (churchId: string) => {
+    setModalOpen(true)
+    setDetailLoading(true)
+    setDetailError('')
+    setSelectedDetail(null)
+
+    try {
+      const response = await fetch(`/api/superadmin/churches/${churchId}`)
+      if (!response.ok) {
+        throw new Error('Unable to fetch tenant details')
+      }
+      const data = await response.json()
+      setSelectedDetail(data)
+    } catch (error: any) {
+      setDetailError(error.message || 'Failed to load tenant')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setModalOpen(false)
+    setSelectedDetail(null)
+    setDetailError('')
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -205,12 +241,13 @@ export default function ChurchesList({ churches: initialChurches }: ChurchesList
                       {new Date(church.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link
-                        href={`/superadmin/churches/${church.id}`}
+                      <button
+                        type="button"
+                        onClick={() => handleManageClick(church.id)}
                         className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                       >
                         Manage →
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -219,6 +256,15 @@ export default function ChurchesList({ churches: initialChurches }: ChurchesList
           </table>
         </div>
       </div>
+
+      <TenantDetailModal
+        open={modalOpen}
+        loading={detailLoading}
+        error={detailError}
+        data={selectedDetail}
+        onClose={handleCloseModal}
+        onRefresh={handleRefresh}
+      />
     </div>
   )
 }

@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server'
 import { UserService } from '@/lib/services/user-service'
 import { ChurchService, generateSlug } from '@/lib/services/church-service'
 import { SubscriptionPlanService, SubscriptionService } from '@/lib/services/subscription-service'
-import { db, toDate } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
-import { FieldValue } from 'firebase-admin/firestore'
+import { LICENSING_PLANS, getPlanConfig, recommendPlan } from '@/lib/licensing/plans'
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +15,8 @@ export async function POST(request: Request) {
       churchName,
       city,
       country,
+      estimatedMembers,
+      planId,
     } = body
 
     // Validate required fields
@@ -49,14 +49,20 @@ export async function POST(request: Request) {
       counter++
     }
 
-    // Find or create FREE plan
-    const allPlans = await SubscriptionPlanService.findAll()
-    let freePlan = allPlans.find(plan => plan.type === 'FREE')
-    
-    if (!freePlan) {
-      // Create FREE plan if it doesn't exist
-      freePlan = await SubscriptionPlanService.create({
+    // Determine plan selection
+    const numericMembers = typeof estimatedMembers === 'number' ? estimatedMembers : undefined
+    const preferredPlanConfig =
+      getPlanConfig(planId) ??
+      recommendPlan({
+        memberCount: numericMembers,
+      }) ??
+      LICENSING_PLANS[0]
+
+    const selectedPlan =
+      (preferredPlanConfig && (await SubscriptionPlanService.ensurePlanFromConfig(preferredPlanConfig))) ??
+      (await SubscriptionPlanService.create({
         name: 'Free',
+        code: 'free',
         type: 'FREE',
         description: 'Free plan with basic features',
         price: 0,
@@ -70,8 +76,7 @@ export async function POST(request: Request) {
         features: ['Basic Features'],
         billingCycle: 'monthly',
         trialDays: 30,
-      })
-    }
+      }))
 
     // Create church
     const church = await ChurchService.create({
@@ -79,6 +84,8 @@ export async function POST(request: Request) {
       slug,
       city: city || undefined,
       country: country || undefined,
+      preferredPlanId: selectedPlan.id,
+      estimatedMembers: numericMembers,
     })
 
     // Create user with ADMIN role
@@ -103,7 +110,7 @@ export async function POST(request: Request) {
 
     const subscription = await SubscriptionService.create({
       churchId: church.id,
-      planId: freePlan.id,
+      planId: selectedPlan.id,
       status: 'TRIAL',
       startDate: now,
       endDate: trialEndsAt,
@@ -122,6 +129,7 @@ export async function POST(request: Request) {
         message: 'Church and account created successfully',
         churchId: church.id,
         userId: user.id,
+        planId: selectedPlan.id,
         trialEndsAt: trialEndsAt.toISOString(),
       },
       { status: 201 }

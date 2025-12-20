@@ -12,6 +12,9 @@ interface PaymentIntentOptions {
   phone?: string
   metadata?: Record<string, any>
   reference?: string
+  redirectUrl?: string
+  title?: string
+  description?: string
 }
 
 interface PaymentVerificationResult {
@@ -114,12 +117,15 @@ export class PaymentService {
       )
 
       const reference = options.reference || `ecclesia_${Date.now()}_${Math.random().toString(36).substring(7)}`
+      const redirectUrl = options.redirectUrl || `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/payments/callback`
+      const title = options.title || 'Ecclesia Church Donation'
+      const description = options.description || 'Church donation payment'
 
       const payload = {
         tx_ref: reference,
         amount: options.amount, // Flutterwave uses actual amount, not smallest unit
         currency: options.currency || 'NGN',
-        redirect_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/payments/callback`,
+        redirect_url: redirectUrl,
         payment_options: 'card,banktransfer,ussd',
         customer: {
           email: options.email,
@@ -127,8 +133,8 @@ export class PaymentService {
           phonenumber: options.phone || '',
         },
         customizations: {
-          title: 'Ecclesia Church Donation',
-          description: 'Church donation payment',
+          title,
+          description,
           logo: '',
         },
         meta: options.metadata || {},

@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import { PaymentService } from '@/lib/services/payment-service'
 import { GivingService } from '@/lib/services/giving-service'
+import { SubscriptionService, SubscriptionPlanService } from '@/lib/services/subscription-service'
 import { EmailService } from '@/lib/services/email-service'
 import { db, FieldValue } from '@/lib/firestore'
 import { ReceiptService } from '@/lib/services/receipt-service'
 import { getCorrelationIdFromRequest, logger } from '@/lib/logger'
 import { GivingConfigService } from '@/lib/services/giving-config-service'
 import { getCurrentChurch } from '@/lib/church-context'
+import { SubscriptionPaymentService } from '@/lib/services/subscription-payment-service'
+import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function POST(request: Request) {
   const correlationId = getCorrelationIdFromRequest(request)
@@ -25,9 +28,10 @@ export async function POST(request: Request) {
 
     // Verify webhook signature (Flutterwave uses verif-hash header)
     // Prefer per-church config if available, fallback to env.
-    const metadataUserId = body?.data?.meta?.userId
-    const church = metadataUserId ? await getCurrentChurch(metadataUserId) : null
-    const config = church ? await GivingConfigService.findByChurch(church.id) : null
+    const metadata = body?.data?.meta || {}
+    const metadataUserId = metadata?.userId
+    const churchFromMeta = metadataUserId ? await getCurrentChurch(metadataUserId) : null
+    const config = churchFromMeta ? await GivingConfigService.findByChurch(churchFromMeta.id) : null
     const secretHash = config?.paymentMethods?.flutterwave?.webhookSecretHash || process.env.FLUTTERWAVE_SECRET_HASH
 
     if (!secretHash) {
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
 
     const event = body.event
     const data = body.data
+    const meta = data?.meta || {}
 
     // Idempotency: prevent duplicate processing for the same transaction
     // Prefer Flutterwave transaction id; fallback to tx_ref.
@@ -81,7 +86,7 @@ export async function POST(request: Request) {
     // Handle successful payment
     if (event === 'charge.completed' && data.status === 'successful') {
       const transactionId = data.id
-      const metadata = data.meta || {}
+      const meta = data.meta || {}
 
       logger.info('webhook.flutterwave.charge_completed', { correlationId, transactionId })
 
@@ -97,25 +102,86 @@ export async function POST(request: Request) {
       })
 
       if (verification.success && verification.transactionId) {
+        // Handle subscription upgrades initiated from superadmin
+        if (meta.kind === 'subscription_upgrade') {
+          const reference = data?.tx_ref || verification.transactionId
+          if (!reference) {
+            logger.error('webhook.flutterwave.subscription_upgrade_missing_reference', { correlationId, transactionId })
+            return NextResponse.json({ received: true })
+          }
+
+          try {
+            const payment = await SubscriptionPaymentService.findByReference(reference)
+            if (!payment) {
+              logger.error('webhook.flutterwave.subscription_payment_not_found', {
+                correlationId,
+                reference,
+              })
+              return NextResponse.json({ received: true })
+            }
+
+            await SubscriptionPaymentService.markPaid(payment.id, {
+              transactionId: verification.transactionId,
+              rawEvent: data,
+              amount: verification.amount || data.amount,
+              currency: verification.currency || data.currency,
+            })
+
+            const targetPlanId = meta.planId || payment.planId
+            const targetChurchId = meta.churchId || payment.churchId
+
+            const plan = await SubscriptionPlanService.findById(targetPlanId)
+            if (!plan) {
+              await SubscriptionPaymentService.markFailed(payment.id, 'Plan not found')
+              logger.error('webhook.flutterwave.plan_not_found', { correlationId, targetPlanId })
+              return NextResponse.json({ received: true })
+            }
+
+            const subscription = await SubscriptionService.findByChurch(targetChurchId)
+            if (!subscription) {
+              await SubscriptionPaymentService.markFailed(payment.id, 'Subscription not found')
+              logger.error('webhook.flutterwave.subscription_not_found', { correlationId, targetChurchId })
+              return NextResponse.json({ received: true })
+            }
+
+            await db.collection(COLLECTIONS.subscriptions).doc(subscription.id).update({
+              planId: plan.id,
+              status: 'ACTIVE',
+              updatedAt: FieldValue.serverTimestamp(),
+            })
+
+            await SubscriptionPaymentService.markApplied(payment.id)
+
+            return NextResponse.json({ received: true, subscriptionUpgraded: true })
+          } catch (error: any) {
+            logger.error('webhook.flutterwave.subscription_upgrade_error', {
+              correlationId,
+              message: error?.message,
+              reference: data?.tx_ref,
+            })
+            return NextResponse.json({ received: true })
+          }
+        }
+
         // Create giving record
-        if (metadata.userId && metadata.type) {
+        if (meta.userId && meta.type) {
           try {
             const { UserService } = await import('@/lib/services/user-service')
             const { ProjectService } = await import('@/lib/services/giving-service')
-            const user = await UserService.findById(metadata.userId)
-            const project = metadata.projectId ? await ProjectService.findById(metadata.projectId) : null
+            const user = await UserService.findById(meta.userId)
+            const project = meta.projectId ? await ProjectService.findById(meta.projectId) : null
 
             const giving = await GivingService.create({
-              userId: metadata.userId,
-              churchId: church?.id || (user as any)?.churchId,
+              userId: meta.userId,
+              churchId: churchFromMeta?.id || (user as any)?.churchId,
               branchId: (user as any)?.branchId || undefined,
               amount: verification.amount || data.amount,
               currency: verification.currency || project?.currency || undefined,
-              type: metadata.type,
-              projectId: metadata.projectId || undefined,
+              type: meta.type,
+              projectId: meta.projectId || undefined,
               paymentMethod: 'Card',
               transactionId: verification.transactionId,
-              notes: metadata.notes || undefined,
+              notes: meta.notes || undefined,
             })
 
             // Send donation receipt email
@@ -128,7 +194,7 @@ export async function POST(request: Request) {
                   userName: `${user.firstName} ${user.lastName}`,
                   userEmail: user.email,
                   amount: verification.amount || data.amount,
-                  type: metadata.type,
+                  type: meta.type,
                   projectName: project?.name,
                   transactionId: verification.transactionId,
                   date: new Date(giving.createdAt),
@@ -146,7 +212,7 @@ export async function POST(request: Request) {
                 user.email,
                 {
                   amount: verification.amount || data.amount,
-                  type: metadata.type,
+                  type: meta.type,
                   projectName: project?.name,
                   transactionId: verification.transactionId,
                   date: new Date(giving.createdAt),

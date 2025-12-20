@@ -19,6 +19,7 @@ export default function LicenseManager({
   onUpdate,
 }: LicenseManagerProps) {
   const [loading, setLoading] = useState(false)
+  const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showExtendModal, setShowExtendModal] = useState(false)
   const [showPlanModal, setShowPlanModal] = useState(false)
@@ -52,11 +53,11 @@ export default function LicenseManager({
   }
 
   const handleChangePlan = async (planId: string) => {
-    setLoading(true)
+    setCheckoutPlanId(planId)
     setMessage(null)
 
     try {
-      const response = await fetch(`/api/superadmin/churches/${churchId}/change-plan`, {
+      const response = await fetch(`/api/superadmin/churches/${churchId}/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planId }),
@@ -65,16 +66,32 @@ export default function LicenseManager({
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to change plan')
+        throw new Error(data.error || 'Failed to start checkout')
       }
 
-      setMessage({ type: 'success', text: data.message })
+      if (data.authorizationUrl) {
+        if (typeof window !== 'undefined') {
+          window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer')
+        }
+        setMessage({
+          type: 'success',
+          text: 'Checkout launched in a new tab. Complete payment to apply the upgrade automatically.',
+        })
+      } else if (data.subscription) {
+        setMessage({
+          type: 'success',
+          text: data.message || 'Plan updated successfully.',
+        })
+        onUpdate()
+      } else if (data.message) {
+        setMessage({ type: 'success', text: data.message })
+      }
+
       setShowPlanModal(false)
-      onUpdate()
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
     } finally {
-      setLoading(false)
+      setCheckoutPlanId(null)
     }
   }
 
@@ -230,7 +247,7 @@ export default function LicenseManager({
             disabled={loading}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
-            Change Plan
+            Change / Upgrade Plan
           </button>
 
           {isSuspended ? (
@@ -314,36 +331,47 @@ export default function LicenseManager({
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Change Subscription Plan</h3>
             <div className="space-y-3">
-              {availablePlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    plan.id === currentPlan?.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleChangePlan(plan.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{plan.name}</h4>
-                      <p className="text-sm text-gray-600">{plan.description}</p>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                        {plan.maxUsers && <span>Max {plan.maxUsers} users</span>}
-                        {plan.maxSermons && <span>{plan.maxSermons} sermons</span>}
+              {availablePlans.map((plan) => {
+                const isCurrent = plan.id === currentPlan?.id
+                const isProcessing = checkoutPlanId === plan.id
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => handleChangePlan(plan.id)}
+                    disabled={isProcessing}
+                    className={`w-full text-left p-4 border-2 rounded-lg transition-all ${
+                      isCurrent
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    } ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{plan.name}</h4>
+                        <p className="text-sm text-gray-600">{plan.description}</p>
+                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-600">
+                          {plan.maxUsers && <span>Max {plan.maxUsers} users</span>}
+                          {plan.maxSermons && <span>{plan.maxSermons} sermons</span>}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-gray-900">
+                          ${plan.price}/{plan.billingCycle === 'monthly' ? 'mo' : 'yr'}
+                        </p>
+                        {isCurrent && (
+                          <span className="text-xs text-blue-600 font-medium">Current</span>
+                        )}
+                        {isProcessing && (
+                          <span className="block text-xs text-purple-600 font-medium">
+                            Launching checkout…
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-gray-900">
-                        ${plan.price}/{plan.billingCycle === 'monthly' ? 'mo' : 'yr'}
-                      </p>
-                      {plan.id === currentPlan?.id && (
-                        <span className="text-xs text-blue-600 font-medium">Current</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                )
+              })}
             </div>
             <button
               onClick={() => setShowPlanModal(false)}

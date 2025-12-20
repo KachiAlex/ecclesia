@@ -14,6 +14,7 @@ export const COLLECTIONS = {
   subscriptions: 'subscriptions',
   subscriptionPlans: 'subscription_plans',
   usageMetrics: 'usage_metrics',
+  subscriptionPayments: 'subscription_payments',
   
   // Event collections
   events: 'events',
@@ -81,6 +82,9 @@ export const COLLECTIONS = {
   // Reading Plan collections
   readingPlans: 'reading_plans',
   readingPlanProgress: 'reading_plan_progress',
+  readingPlanDays: 'reading_plan_days',
+  readingPlanResources: 'reading_plan_resources',
+  biblePassageCache: 'bible_passage_cache',
   
   // Payroll collections
   payrollPositions: 'payroll_positions',

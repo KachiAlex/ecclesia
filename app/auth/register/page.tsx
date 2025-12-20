@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { LICENSING_PLANS, recommendPlan } from '@/lib/licensing/plans'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -15,19 +16,37 @@ export default function RegisterPage() {
     churchName: '',
     city: '',
     country: '',
+    estimatedMembers: '',
+    planId: '',
   })
+  const [hasManualPlanSelection, setHasManualPlanSelection] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === 'estimatedMembers' ? value.replace(/[^0-9]/g, '') : value,
+    }))
     setError('')
+    if (name === 'estimatedMembers') {
+      setHasManualPlanSelection(false)
+    }
   }
+
+  const numericMembers = Number(formData.estimatedMembers) || undefined
+
+  const recommendedPlanId = useMemo(() => {
+    const rec = recommendPlan({
+      memberCount: numericMembers,
+    })
+    return rec?.id || LICENSING_PLANS[0].id
+  }, [numericMembers])
+
+  const activePlanId = hasManualPlanSelection ? formData.planId || recommendedPlanId : recommendedPlanId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,6 +80,8 @@ export default function RegisterPage() {
           churchName: formData.churchName,
           city: formData.city || undefined,
           country: formData.country || undefined,
+          estimatedMembers: numericMembers,
+          planId: activePlanId,
         }),
       })
 
@@ -230,12 +251,77 @@ export default function RegisterPage() {
                   </button>
                 </div>
               </div>
+              <div>
+                <label htmlFor="estimatedMembers" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Estimated Members
+                </label>
+                <input
+                  id="estimatedMembers"
+                  name="estimatedMembers"
+                  type="number"
+                  min={0}
+                  value={formData.estimatedMembers}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  placeholder="e.g. 250"
+                />
+                <p className="mt-1 text-xs text-gray-500">Used to recommend the best plan for your church.</p>
+              </div>
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-gray-700">Choose a plan</p>
+                <div className="space-y-4">
+                  {LICENSING_PLANS.map((plan) => {
+                    const isRecommended = plan.id === recommendedPlanId
+                    const isSelected = activePlanId === plan.id
+                    return (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, planId: plan.id }))
+                          setHasManualPlanSelection(true)
+                        }}
+                        className={`w-full text-left rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${
+                          isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-semibold text-gray-900">{plan.name}</p>
+                            <p className="text-sm text-gray-600">{plan.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-base font-semibold text-gray-900">
+                              ${plan.priceMonthlyRange.min}–{plan.priceMonthlyRange.max}/mo
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ${plan.priceAnnualRange.min}–{plan.priceAnnualRange.max}/yr
+                            </p>
+                            {isRecommended && !hasManualPlanSelection && (
+                              <span className="mt-1 inline-block rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+                                Recommended
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
+                          {plan.features.slice(0, 3).map((feature) => (
+                            <span key={feature} className="rounded-full bg-white/80 px-2 py-1 text-gray-700 shadow-inner">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Church Information */}
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Church Information</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Church Information & Plan</h2>
             <div className="space-y-4">
               <div>
                 <label htmlFor="churchName" className="block text-sm font-semibold text-gray-700 mb-2">

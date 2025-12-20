@@ -18,6 +18,8 @@ export interface Church {
   logo?: string
   ownerId?: string
   subscriptionId?: string
+  preferredPlanId?: string
+  estimatedMembers?: number
   createdAt: Date
   updatedAt: Date
 }
