@@ -23,6 +23,16 @@ interface Message {
   content: string
   createdAt: string
   read: boolean
+  attachments?: {
+    url: string
+    name?: string
+    contentType?: string
+    size?: number
+  }[]
+  voiceNote?: {
+    url: string
+    duration?: number
+  }
   sender: {
     id: string
     firstName: string
@@ -60,6 +70,17 @@ export default function Messaging() {
   const [roleFilter, setRoleFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
+  const [attachments, setAttachments] = useState<NonNullable<Message['attachments']>>([])
+  const [attachmentUploading, setAttachmentUploading] = useState(false)
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  const [voiceNote, setVoiceNote] = useState<Message['voiceNote'] | null>(null)
+  const [voiceUploading, setVoiceUploading] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [recordingError, setRecordingError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordingChunksRef = useRef<Blob[]>([])
+  const recordingStartRef = useRef<number | null>(null)
 
   useEffect(() => {
     loadConversations()
@@ -164,9 +185,13 @@ export default function Messaging() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || !selectedConversation || sending) return
+    if (!selectedConversation || sending) return
 
     const content = input.trim()
+    if (!content && attachments.length === 0 && !voiceNote) {
+      return
+    }
+
     setInput('')
     setSending(true)
 
@@ -177,17 +202,139 @@ export default function Messaging() {
         body: JSON.stringify({
           receiverId: selectedConversation,
           content,
+          attachments,
+          voiceNote,
         }),
       })
 
       if (response.ok) {
         loadMessages()
         loadConversations()
+        setAttachments([])
+        setVoiceNote(null)
       }
     } catch (error) {
       console.error('Error sending message:', error)
     } finally {
       setSending(false)
+    }
+  }
+
+  const uploadMessageFile = async (file: File, kind: 'attachment' | 'voice', duration?: number) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('kind', kind)
+
+    try {
+      if (kind === 'attachment') {
+        setAttachmentUploading(true)
+        setAttachmentError(null)
+      } else {
+        setVoiceUploading(true)
+        setRecordingError(null)
+      }
+
+      const res = await fetch('/api/messages/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      const data = await res.json()
+
+      if (kind === 'attachment') {
+        setAttachments((prev) => [...prev, { url: data.url, name: data.name, size: data.size, contentType: data.contentType }])
+      } else {
+        setVoiceNote({
+          url: data.url,
+          duration: duration ?? voiceNote?.duration,
+        })
+      }
+    } catch (error: any) {
+      if (kind === 'attachment') {
+        setAttachmentError(error.message || 'Failed to upload attachment')
+      } else {
+        setRecordingError(error.message || 'Failed to upload voice note')
+      }
+    } finally {
+      if (kind === 'attachment') {
+        setAttachmentUploading(false)
+      } else {
+        setVoiceUploading(false)
+      }
+    }
+  }
+
+  const handleAttachmentChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    await uploadMessageFile(file, 'attachment')
+    event.target.value = ''
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const startRecording = async () => {
+    try {
+      if (!navigator.mediaDevices) {
+        setRecordingError('This browser does not support audio recording.')
+        return
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      recordingChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' })
+        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type })
+        const started = recordingStartRef.current
+        const durationSeconds = started ? (Date.now() - started) / 1000 : undefined
+        await uploadMessageFile(file, 'voice', durationSeconds)
+        stream.getTracks().forEach((track) => track.stop())
+        setRecording(false)
+        recordingStartRef.current = null
+      }
+
+      mediaRecorder.start()
+      mediaRecorderRef.current = mediaRecorder
+      recordingStartRef.current = Date.now()
+      setRecording(true)
+      setRecordingError(null)
+    } catch (error: any) {
+      console.error('Error starting recording:', error)
+      setRecordingError(error.message || 'Failed to start recording')
+      setRecording(false)
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop()
+    }
+  }
+
+  const cancelVoiceNote = () => {
+    setVoiceNote(null)
+    setRecording(false)
+    setRecordingError(null)
+    recordingStartRef.current = null
+    recordingChunksRef.current = []
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
+      mediaRecorderRef.current.stop()
     }
   }
 

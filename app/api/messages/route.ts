@@ -107,11 +107,39 @@ export async function POST(request: Request) {
 
     const userId = (session.user as any).id
     const body = await request.json()
-    const { receiverId, content } = body
+    const { receiverId, content, attachments, voiceNote } = body
 
-    if (!receiverId || !content) {
+    if (!receiverId) {
       return NextResponse.json(
-        { error: 'Receiver ID and content are required' },
+        { error: 'Receiver ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const trimmedContent = typeof content === 'string' ? content.trim() : ''
+
+    const normalizedAttachments = Array.isArray(attachments)
+      ? attachments
+          .map((att: any) => ({
+            url: typeof att?.url === 'string' ? att.url : null,
+            name: typeof att?.name === 'string' ? att.name : undefined,
+            contentType: typeof att?.contentType === 'string' ? att.contentType : undefined,
+            size: typeof att?.size === 'number' ? att.size : undefined,
+          }))
+          .filter((att) => att.url)
+      : []
+
+    const normalizedVoiceNote =
+      voiceNote && typeof voiceNote?.url === 'string'
+        ? {
+            url: voiceNote.url,
+            duration: typeof voiceNote.duration === 'number' ? voiceNote.duration : undefined,
+          }
+        : undefined
+
+    if (!trimmedContent && normalizedAttachments.length === 0 && !normalizedVoiceNote) {
+      return NextResponse.json(
+        { error: 'Message must include text, attachment, or voice note.' },
         { status: 400 }
       )
     }
@@ -119,7 +147,9 @@ export async function POST(request: Request) {
     const message = await MessageService.create({
       senderId: userId,
       receiverId,
-      content,
+      content: trimmedContent,
+      attachments: normalizedAttachments.length ? normalizedAttachments : undefined,
+      voiceNote: normalizedVoiceNote,
     })
 
     // Get user data

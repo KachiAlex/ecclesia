@@ -2,11 +2,25 @@ import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
 
+export interface MessageAttachment {
+  url: string
+  name?: string
+  contentType?: string
+  size?: number
+}
+
+export interface MessageVoiceNote {
+  url: string
+  duration?: number
+}
+
 export interface Message {
   id: string
   senderId: string
   receiverId: string
   content: string
+  attachments?: MessageAttachment[]
+  voiceNote?: MessageVoiceNote
   read: boolean
   createdAt: Date
   updatedAt: Date
@@ -19,6 +33,14 @@ export interface GroupMessage {
   content: string
   createdAt: Date
   updatedAt: Date
+}
+
+export interface CreateMessageInput {
+  senderId: string
+  receiverId: string
+  content: string
+  attachments?: MessageAttachment[]
+  voiceNote?: MessageVoiceNote
 }
 
 export class MessageService {
@@ -36,7 +58,7 @@ export class MessageService {
     } as Message
   }
 
-  static async create(data: Omit<Message, 'id' | 'createdAt' | 'updatedAt' | 'read'>): Promise<Message> {
+  static async create(data: CreateMessageInput): Promise<Message> {
     const messageData = {
       ...data,
       read: false,
@@ -58,24 +80,19 @@ export class MessageService {
   }
 
   static async findByConversation(userId1: string, userId2: string, limit: number = 100): Promise<Message[]> {
-    // Get messages where user1 is sender and user2 is receiver
+    // Firestore equality filters on two fields do not require composite indexes,
+    // so we fetch both directions independently and then sort/limit in memory.
     const sentSnapshot = await db.collection(COLLECTIONS.messages)
       .where('senderId', '==', userId1)
       .where('receiverId', '==', userId2)
-      .orderBy('createdAt', 'asc')
-      .limit(limit)
       .get()
 
-    // Get messages where user2 is sender and user1 is receiver
     const receivedSnapshot = await db.collection(COLLECTIONS.messages)
       .where('senderId', '==', userId2)
       .where('receiverId', '==', userId1)
-      .orderBy('createdAt', 'asc')
-      .limit(limit)
       .get()
 
-    // Combine and sort
-    const allMessages = [
+    const merged = [
       ...sentSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
       ...receivedSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
     ].sort((a, b) => {
@@ -84,7 +101,11 @@ export class MessageService {
       return dateA - dateB
     })
 
-    return allMessages.map(msg => ({
+    const limited = typeof limit === 'number' && limit > 0
+      ? merged.slice(Math.max(0, merged.length - limit))
+      : merged
+
+    return limited.map(msg => ({
       id: msg.id,
       read: msg.read || false,
       ...msg,
