@@ -13,7 +13,9 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    const userIdParam = searchParams.get('userId')
+    const sessionUserId = (session.user as any)?.id as string | undefined
+    const userId = userIdParam === 'current' ? sessionUserId : userIdParam
 
     // Get all reading plans
     let plans = await ReadingPlanService.findAll(100)

@@ -3,7 +3,7 @@ import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { DEFAULT_BIBLE_VERSION, BIBLE_VERSIONS } from '@/lib/bible/config'
 
-const API_BASE_URL = 'https://api.scripture.api.bible/v1'
+const API_BASE_URL = 'https://rest.api.bible/v1'
 
 export interface BiblePassage {
   bibleId: string

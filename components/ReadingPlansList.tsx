@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '@/lib/bible/config'
 
 interface ReadingPlan {
   id: string
@@ -19,6 +20,25 @@ interface ReadingPlan {
   } | null
 }
 
+interface DailyReadingResponse {
+  date: string
+  entry: {
+    reference: string
+    passageId: string
+    theme: string
+  }
+  bibleVersion: {
+    id: string
+    name: string
+    abbreviation: string
+  }
+  passage: {
+    reference: string
+    content: string
+    copyright?: string
+  }
+}
+
 export default function ReadingPlansList() {
   const router = useRouter()
   const [plans, setPlans] = useState<ReadingPlan[]>([])
@@ -26,10 +46,18 @@ export default function ReadingPlansList() {
   const [loading, setLoading] = useState(true)
   const [startingPlan, setStartingPlan] = useState<string | null>(null)
   const [showRecommendations, setShowRecommendations] = useState(false)
+  const [dailyReading, setDailyReading] = useState<DailyReadingResponse | null>(null)
+  const [dailyLoading, setDailyLoading] = useState(true)
+  const [dailyError, setDailyError] = useState<string | null>(null)
+  const [selectedVersion, setSelectedVersion] = useState(DEFAULT_BIBLE_VERSION.id)
 
   useEffect(() => {
     loadPlans()
   }, [])
+
+  useEffect(() => {
+    loadDailyReading(selectedVersion)
+  }, [selectedVersion])
 
   const loadPlans = async () => {
     try {
@@ -42,6 +70,24 @@ export default function ReadingPlansList() {
       console.error('Error loading plans:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadDailyReading = async (versionId: string) => {
+    setDailyLoading(true)
+    setDailyError(null)
+    try {
+      const response = await fetch(`/api/reading-plans/daily?bibleId=${versionId}`)
+      if (!response.ok) {
+        throw new Error('Failed to load daily reading')
+      }
+      const data = await response.json()
+      setDailyReading(data)
+    } catch (error: any) {
+      console.error('Error loading daily reading:', error)
+      setDailyError(error.message || 'Unable to load daily reading')
+    } finally {
+      setDailyLoading(false)
     }
   }
 
@@ -91,15 +137,71 @@ export default function ReadingPlansList() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Reading Plans</h1>
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm text-gray-500 uppercase tracking-wide">Spiritual Growth</p>
+          <h1 className="text-3xl font-bold">Reading Plans</h1>
+          <p className="text-gray-600 mt-1">
+            Explore guided plans, daily scriptures, and devotionals customized for your church.
+          </p>
+        </div>
         <button
           onClick={loadRecommendations}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          className="self-start px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
         >
           Get AI Recommendations
         </button>
+      </div>
+
+      {/* Daily Bible reading */}
+      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-500 rounded-2xl text-white p-6 shadow-xl">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-widest text-white/70">
+              {dailyReading ? new Date(dailyReading.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Daily Scripture'}
+            </p>
+            <h2 className="text-2xl font-semibold mt-1">Daily Scripture &amp; Devotional</h2>
+            {dailyReading && (
+              <p className="text-white/80 mt-1">
+                {dailyReading.entry.reference} • {dailyReading.entry.theme} ({dailyReading.bibleVersion.abbreviation})
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3 bg-white/10 rounded-xl px-3 py-2 backdrop-blur">
+            <label className="text-sm text-white/80">Version</label>
+            <select
+              value={selectedVersion}
+              onChange={(e) => setSelectedVersion(e.target.value)}
+              className="bg-transparent border border-white/40 rounded-lg px-3 py-1 text-white focus:outline-none"
+            >
+              {BIBLE_VERSIONS.map((version) => (
+                <option key={version.id} value={version.id} className="text-gray-900">
+                  {version.abbreviation}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="bg-white/10 rounded-2xl p-4 mt-4 backdrop-blur">
+          {dailyLoading ? (
+            <p className="text-white/80">Loading today&apos;s passage...</p>
+          ) : dailyError ? (
+            <p className="text-red-100">{dailyError}</p>
+          ) : dailyReading ? (
+            <>
+              <div
+                className="prose prose-invert max-w-none text-white/90 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: dailyReading.passage.content }}
+              />
+              {dailyReading.passage.copyright && (
+                <p className="text-xs text-white/70 mt-3">{dailyReading.passage.copyright}</p>
+              )}
+            </>
+          ) : (
+            <p className="text-white/80">No passage available today. Please try again later.</p>
+          )}
+        </div>
       </div>
 
       {/* AI Recommendations */}
