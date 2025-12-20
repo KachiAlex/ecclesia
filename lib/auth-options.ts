@@ -90,6 +90,18 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
+    async redirect({ url, baseUrl }) {
+      // If the url is relative, prepend the baseUrl
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`
+      }
+      // Allow relative URLs
+      if (url.startsWith(baseUrl)) {
+        return url
+      }
+      // Default to baseUrl
+      return baseUrl
+    },
   },
   pages: {
     signIn: '/auth/login',

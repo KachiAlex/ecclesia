@@ -39,14 +39,9 @@ function LoginForm() {
         return
       }
 
-      // Success - use window.location to force full page reload and avoid throttling
-      // This ensures session is properly set before navigation
-      // Get the session to check user role for proper redirect
-      const response = await fetch('/api/auth/session')
-      const sessionData = await response.json()
-      const userRole = sessionData?.user?.role
-
-      if (userRole === 'SUPER_ADMIN') {
+      // Success - redirect superadmin to /superadmin, others to /dashboard
+      // Since superadmin email is known, we can redirect directly
+      if (email === 'admin@ecclesia.com') {
         window.location.href = '/superadmin'
       } else {
         window.location.href = '/dashboard'
