@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
+import type { UserRole } from '@/types'
 
 interface Category {
   id: string
@@ -39,6 +41,7 @@ const RESOURCE_TYPES = [
 type EnrichedResource = Resource & { category?: Category }
 
 export default function DigitalLibrary() {
+  const { data: session } = useSession()
   const [categories, setCategories] = useState<Category[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,6 +49,18 @@ export default function DigitalLibrary() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [activeType, setActiveType] = useState('all')
   const [selectedResource, setSelectedResource] = useState<EnrichedResource | null>(null)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    author: '',
+    description: '',
+    categoryId: '',
+    tags: '',
+  })
+  const [resourceFile, setResourceFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
 
   const loadCategories = useCallback(async () => {
     const res = await fetch('/api/reading-library/categories')
@@ -97,6 +112,72 @@ export default function DigitalLibrary() {
     return categorizedResources.slice(0, 3)
   }, [categorizedResources])
 
+  const allowedUploadRoles: UserRole[] = ['ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'SUPER_ADMIN']
+  const canUpload = useMemo(() => {
+    const role = (session?.user as any)?.role as UserRole | undefined
+    if (!role) return false
+    return allowedUploadRoles.includes(role)
+  }, [session])
+
+  const resetUploadState = () => {
+    setUploadForm({
+      title: '',
+      author: '',
+      description: '',
+      categoryId: '',
+      tags: '',
+    })
+    setResourceFile(null)
+    setUploadError(null)
+    setUploadSuccess(null)
+  }
+
+  const handleUploadResource = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!resourceFile) {
+      setUploadError('Please choose a file to upload.')
+      return
+    }
+    setUploading(true)
+    setUploadError(null)
+    setUploadSuccess(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', resourceFile)
+      if (uploadForm.title) formData.append('title', uploadForm.title)
+      if (uploadForm.description) formData.append('description', uploadForm.description)
+      if (uploadForm.author) formData.append('author', uploadForm.author)
+      if (uploadForm.categoryId) formData.append('categoryId', uploadForm.categoryId)
+      if (uploadForm.tags) formData.append('tags', uploadForm.tags)
+      formData.append('type', 'book')
+
+      const response = await fetch('/api/reading-plans/resources/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to upload book.')
+      }
+
+      setUploadSuccess('Book uploaded successfully.')
+      await loadResources()
+      setUploadModalOpen(false)
+      resetUploadState()
+    } catch (error: any) {
+      setUploadError(error.message || 'Failed to upload book.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const closeUploadModal = () => {
+    if (uploading) return
+    setUploadModalOpen(false)
+    resetUploadState()
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-10">
@@ -122,6 +203,15 @@ export default function DigitalLibrary() {
             <StatPill label="Resources" value={resources.length} />
             <StatPill label="Categories" value={categories.length} />
           </div>
+          {canUpload && (
+            <button
+              type="button"
+              onClick={() => setUploadModalOpen(true)}
+              className="px-5 py-3 bg-white text-primary-600 font-semibold rounded-2xl shadow hover:bg-primary-50 transition"
+            >
+              Upload Book
+            </button>
+          )}
         </div>
       </header>
 
@@ -273,6 +363,117 @@ export default function DigitalLibrary() {
                   </span>
                 ) : null}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl relative p-6">
+            <button
+              onClick={closeUploadModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+            <div className="space-y-4 pr-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-primary-500">Upload Book</p>
+                <h3 className="text-2xl font-semibold mt-1">Share a new discipleship resource</h3>
+                <p className="text-gray-500 text-sm">
+                  Books will become instantly available to members of your church after upload.
+                </p>
+              </div>
+              <form className="space-y-4" onSubmit={handleUploadResource}>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Title</label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="Book title"
+                      value={uploadForm.title}
+                      onChange={(e) => setUploadForm((prev) => ({ ...prev, title: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Author</label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="Optional"
+                      value={uploadForm.author}
+                      onChange={(e) => setUploadForm((prev) => ({ ...prev, author: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">Description</label>
+                  <textarea
+                    className="w-full border rounded-lg px-3 py-2"
+                    rows={3}
+                    value={uploadForm.description}
+                    onChange={(e) => setUploadForm((prev) => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Category</label>
+                    <select
+                      className="w-full border rounded-lg px-3 py-2"
+                      value={uploadForm.categoryId}
+                      onChange={(e) => setUploadForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Tags (comma separated)</label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2"
+                      value={uploadForm.tags}
+                      onChange={(e) => setUploadForm((prev) => ({ ...prev, tags: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">Upload file (PDF / EPUB / DOC / PPT)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.epub,.doc,.docx,.ppt,.pptx"
+                    className="w-full border rounded-lg px-3 py-2"
+                    onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Max size: 50MB.</p>
+                </div>
+
+                {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+                {uploadSuccess && <p className="text-sm text-green-600">{uploadSuccess}</p>}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60"
+                  >
+                    {uploading ? 'Uploading...' : 'Upload Book'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeUploadModal}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
