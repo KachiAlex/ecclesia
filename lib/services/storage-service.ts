@@ -1,12 +1,9 @@
 /**
  * Storage Service
- * Handles file uploads to Firebase Storage or AWS S3
- * Default: Firebase Storage (since Firebase is already configured)
+ * Handles file uploads using Vercel Blob
  */
 
-import { getStorage } from 'firebase-admin/storage'
-import { getFirestoreDB } from '@/lib/firestore'
-import { initializeApp, getApps } from 'firebase-admin/app'
+import { put, del, head } from '@vercel/blob'
 
 interface UploadOptions {
   file: File | Buffer
@@ -18,38 +15,14 @@ interface UploadOptions {
 }
 
 export class StorageService {
-  private static bucket: any = null
+  private static readonly PUBLIC_HOST = 'https://blob.vercel-storage.com'
 
-  /**
-   * Initialize storage bucket
-   */
-  private static async getBucket() {
-    if (this.bucket) {
-      return this.bucket
+  private static getToken(): string {
+    const token = process.env.BLOB_READ_WRITE_TOKEN
+    if (!token) {
+      throw new Error('BLOB_READ_WRITE_TOKEN is not configured')
     }
-
-    try {
-      // Initialize Firebase if not already done
-      if (getApps().length === 0) {
-        const { initFirebase } = await import('@/lib/firestore')
-        initFirebase()
-      }
-
-      const storage = getStorage()
-      const projectId = process.env.FIREBASE_PROJECT_ID || 
-                       process.env.FIREBASE_ADMIN_PROJECT_ID || 
-                       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-
-      if (!projectId) {
-        throw new Error('Firebase project ID not configured')
-      }
-
-      this.bucket = storage.bucket(`${projectId}.appspot.com`)
-      return this.bucket
-    } catch (error: any) {
-      console.error('Error initializing storage:', error)
-      throw new Error(`Storage initialization failed: ${error.message}`)
-    }
+    return token
   }
 
   /**
@@ -57,54 +30,18 @@ export class StorageService {
    */
   static async uploadFile(options: UploadOptions): Promise<{ url: string; path: string }> {
     try {
-      const bucket = await this.getBucket()
-
-      // Convert File to Buffer if needed
-      let buffer: Buffer
-      let contentType = options.contentType
-
-      if (options.file instanceof File) {
-        contentType = contentType || options.file.type
-        const arrayBuffer = await options.file.arrayBuffer()
-        buffer = Buffer.from(arrayBuffer)
-      } else {
-        buffer = options.file
-      }
-
-      // Generate file path
-      const timestamp = Date.now()
-      const sanitizedFileName = options.fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
-      const folder = options.folder || 'uploads'
-      const filePath = `${folder}/${options.userId || 'anonymous'}/${timestamp}-${sanitizedFileName}`
-
-      // Create file reference
-      const file = bucket.file(filePath)
-
-      // Set metadata
-      const metadata: any = {
-        contentType: contentType || 'application/octet-stream',
-        metadata: {
-          uploadedBy: options.userId || 'anonymous',
-          churchId: options.churchId || '',
-          uploadedAt: new Date().toISOString(),
-        },
-      }
-
-      // Upload file
-      await file.save(buffer, {
-        metadata,
-        public: true, // Make file publicly accessible
+      const token = this.getToken()
+      const { data, contentType } = await this.prepareBody(options.file, options.contentType)
+      const filePath = this.buildFilePath(options)
+      const { url, pathname } = await put(filePath, data, {
+        access: 'public',
+        contentType,
+        token,
       })
-
-      // Make file publicly readable
-      await file.makePublic()
-
-      // Get public URL
-      const url = `https://storage.googleapis.com/${bucket.name}/${filePath}`
 
       return {
         url,
-        path: filePath,
+        path: pathname || filePath,
       }
     } catch (error: any) {
       console.error('Error uploading file:', error)
@@ -152,9 +89,10 @@ export class StorageService {
    */
   static async deleteFile(filePath: string): Promise<void> {
     try {
-      const bucket = await this.getBucket()
-      const file = bucket.file(filePath)
-      await file.delete()
+      if (!filePath) return
+      const token = this.getToken()
+      const target = this.normalizePath(filePath)
+      await del(target, { token })
     } catch (error: any) {
       console.error('Error deleting file:', error)
       throw new Error(`File deletion failed: ${error.message}`)
@@ -166,19 +104,62 @@ export class StorageService {
    */
   static async getFileUrl(filePath: string): Promise<string | null> {
     try {
-      const bucket = await this.getBucket()
-      const file = bucket.file(filePath)
-      const [exists] = await file.exists()
-
-      if (!exists) {
+      if (!filePath) return null
+      const token = this.getToken()
+      const target = this.normalizePath(filePath)
+      await head(target, { token })
+      return this.buildPublicUrl(target)
+    } catch (error: any) {
+      if (error?.name === 'BlobNotFoundError') {
         return null
       }
-
-      return `https://storage.googleapis.com/${bucket.name}/${filePath}`
-    } catch (error: any) {
       console.error('Error getting file URL:', error)
       return null
     }
+  }
+
+  private static async prepareBody(
+    file: File | Buffer,
+    contentType?: string,
+  ): Promise<{ data: Buffer; contentType: string }> {
+    if (typeof File !== 'undefined' && file instanceof File) {
+      const arrayBuffer = await file.arrayBuffer()
+      return {
+        data: Buffer.from(arrayBuffer),
+        contentType: contentType || file.type || 'application/octet-stream',
+      }
+    }
+
+    if (Buffer.isBuffer(file)) {
+      return {
+        data: file,
+        contentType: contentType || 'application/octet-stream',
+      }
+    }
+
+    throw new Error('Unsupported file type for upload')
+  }
+
+  private static buildFilePath(options: UploadOptions): string {
+    const timestamp = Date.now()
+    const sanitizedFileName = options.fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const folder = (options.folder || 'uploads').replace(/^\/+|\/+$/g, '')
+    const userSegment = (options.userId || 'anonymous').replace(/[^a-zA-Z0-9_-]/g, '_')
+    return `${folder}/${userSegment}/${timestamp}-${sanitizedFileName}`
+  }
+
+  private static normalizePath(filePath: string): string {
+    if (!filePath) {
+      throw new Error('File path is required')
+    }
+    return filePath.startsWith('http') ? filePath : filePath.replace(/^\/+/, '')
+  }
+
+  private static buildPublicUrl(path: string): string {
+    if (path.startsWith('http')) {
+      return path
+    }
+    return `${this.PUBLIC_HOST}/${path.replace(/^\/+/, '')}`
   }
 }
 

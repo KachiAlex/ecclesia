@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { storage } from '@/lib/firestore'
 import { v4 as uuidv4 } from 'uuid'
 import { guardApi } from '@/lib/api-guard'
 import { checkStorageLimitForUpload, incrementUsage } from '@/lib/subscription'
+import { StorageService } from '@/lib/services/storage-service'
 
 export async function POST(request: Request) {
   try {
@@ -69,42 +69,24 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate unique filename
+    // Generate unique filename & upload
     const fileExtension = file.name.split('.').pop()
     const fileName = `${uuidv4()}.${fileExtension}`
-    const filePath = `sermons/${church.id}/${type}/${fileName}`
 
-    // Get bucket
-    const bucket = storage.bucket()
-    const fileUpload = bucket.file(filePath)
-
-    // Convert File to Buffer
-    const buffer = Buffer.from(await file.arrayBuffer())
-
-    // Upload file with metadata
-    await fileUpload.save(buffer, {
-      metadata: {
-        contentType: file.type,
-        metadata: {
-          firebaseStorageDownloadTokens: uuidv4(), // For public access
-          uploadedBy: userId,
-          churchId: church.id,
-          originalName: file.name,
-        },
-      },
+    const upload = await StorageService.uploadFile({
+      file,
+      fileName,
+      folder: `sermons/${church.id}/${type}`,
+      userId,
+      churchId: church.id,
+      contentType: file.type,
     })
-
-    // Make file publicly accessible
-    await fileUpload.makePublic()
 
     await incrementUsage(church.id, 'storageUsedGB', file.size / (1024 * 1024 * 1024))
 
-    // Return public URL
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`
-
     return NextResponse.json({
       success: true,
-      url: publicUrl,
+      url: upload.url,
       fileName,
       fileSize: file.size,
       fileType: file.type,

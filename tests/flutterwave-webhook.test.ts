@@ -1,18 +1,25 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/firestore', () => {
   const store = new Map<string, any>()
+  const collection = vi.fn(() => ({
+    doc: vi.fn((id: string) => {
+      const docStore = store.get(id)
+      return {
+        get: vi.fn(async () => ({ exists: store.has(id) })),
+        set: vi.fn(async (data: any) => {
+          store.set(id, data)
+        }),
+        update: vi.fn(async (data: any) => {
+          store.set(id, { ...(store.get(id) ?? {}), ...data })
+        }),
+      }
+    }),
+  }))
 
   return {
     db: {
-      collection: vi.fn(() => ({
-        doc: vi.fn((id: string) => ({
-          get: vi.fn(async () => ({ exists: store.has(id) })),
-          set: vi.fn(async (data: any) => {
-            store.set(id, data)
-          }),
-        })),
-      })),
+      collection,
     },
     FieldValue: {
       serverTimestamp: vi.fn(() => ({ _type: 'serverTimestamp' })),
@@ -23,9 +30,10 @@ vi.mock('@/lib/firestore', () => {
   }
 })
 
+const mockVerifyPayment = vi.fn()
 vi.mock('@/lib/services/payment-service', () => ({
   PaymentService: {
-    verifyPayment: vi.fn(async () => ({ success: false })),
+    verifyPayment: mockVerifyPayment,
   },
 }))
 
@@ -46,6 +54,54 @@ vi.mock('@/lib/services/receipt-service', () => ({
     generateUploadAndAttachDonationReceipt: vi.fn(async () => 'https://example.com/receipt.pdf'),
   },
 }))
+
+const mockGetCurrentChurch = vi.fn()
+vi.mock('@/lib/church-context', () => ({
+  getCurrentChurch: mockGetCurrentChurch,
+}))
+
+const mockFindGivingConfig = vi.fn()
+vi.mock('@/lib/services/giving-config-service', () => ({
+  GivingConfigService: {
+    findByChurch: mockFindGivingConfig,
+  },
+}))
+
+vi.mock('@/lib/services/subscription-payment-service', () => ({
+  SubscriptionPaymentService: {
+    findByReference: vi.fn(async () => null),
+    markPaid: vi.fn(async () => undefined),
+    markFailed: vi.fn(async () => undefined),
+    markApplied: vi.fn(async () => undefined),
+  },
+}))
+
+vi.mock('@/lib/services/subscription-service', () => ({
+  SubscriptionService: {
+    findByChurch: vi.fn(async () => ({ id: 'sub_1' })),
+  },
+  SubscriptionPlanService: {
+    findById: vi.fn(async () => ({ id: 'plan_1' })),
+  },
+}))
+
+vi.mock('@/lib/logger', () => ({
+  getCorrelationIdFromRequest: () => 'test-correlation',
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+
+beforeEach(() => {
+  vi.resetModules()
+  vi.clearAllMocks()
+  mockVerifyPayment.mockResolvedValue({ success: true, transactionId: 'txn_123', amount: 10, currency: 'NGN' })
+  mockGetCurrentChurch.mockResolvedValue(null)
+  mockFindGivingConfig.mockResolvedValue(null)
+})
 
 describe('Flutterwave webhook', () => {
   it('returns 400 when signature is missing', async () => {
@@ -101,7 +157,7 @@ describe('Flutterwave webhook', () => {
     expect(json.received).toBe(true)
 
     expect(PaymentService.verifyPayment).toHaveBeenCalledTimes(1)
-    expect(PaymentService.verifyPayment).toHaveBeenCalledWith(98765)
+    expect(PaymentService.verifyPayment).toHaveBeenCalledWith(98765, undefined)
   })
 
   it('returns duplicate on second delivery for same transaction id', async () => {

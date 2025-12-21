@@ -1,39 +1,84 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const mockGetServerSession = vi.fn()
 vi.mock('next-auth/next', () => ({
-  getServerSession: vi.fn(async () => null),
+  getServerSession: mockGetServerSession,
 }))
 
+vi.mock('@/lib/auth-options', () => ({
+  authOptions: {},
+}))
+
+vi.mock('@/lib/firestore', () => ({
+  db: {},
+  FieldValue: {
+    serverTimestamp: vi.fn(() => ({ _type: 'serverTimestamp' })),
+  },
+  toDate: (value: any) => (value instanceof Date ? value : new Date(value ?? Date.now())),
+}))
+
+const mockGetCurrentChurch = vi.fn()
 vi.mock('@/lib/church-context', () => ({
-  getCurrentChurch: vi.fn(async () => ({ id: 'church_1', name: 'Test Church' })),
+  getCurrentChurch: mockGetCurrentChurch,
 }))
 
+const mockGivingCreate = vi.fn()
+const mockProjectFindById = vi.fn()
 vi.mock('@/lib/services/giving-service', () => ({
   GivingService: {
-    create: vi.fn(async () => ({ id: 'giving_1', createdAt: new Date() })),
+    create: mockGivingCreate,
   },
   ProjectService: {
-    findById: vi.fn(async () => null),
+    findById: mockProjectFindById,
   },
 }))
 
+const mockUserFindById = vi.fn()
 vi.mock('@/lib/services/user-service', () => ({
   UserService: {
-    findById: vi.fn(async () => ({ id: 'user_1', email: 'test@example.com', firstName: 'Test', lastName: 'User' })),
+    findById: mockUserFindById,
   },
 }))
 
+const mockGenerateReceipt = vi.fn()
 vi.mock('@/lib/services/receipt-service', () => ({
   ReceiptService: {
-    generateUploadAndAttachDonationReceipt: vi.fn(async () => 'https://example.com/receipt.pdf'),
+    generateUploadAndAttachDonationReceipt: mockGenerateReceipt,
   },
 }))
 
+const mockSendDonationReceipt = vi.fn()
 vi.mock('@/lib/services/email-service', () => ({
   EmailService: {
-    sendDonationReceipt: vi.fn(async () => undefined),
+    sendDonationReceipt: mockSendDonationReceipt,
   },
 }))
+
+beforeEach(() => {
+  vi.resetModules()
+  vi.clearAllMocks()
+
+  mockGetServerSession.mockResolvedValue(null)
+  mockGetCurrentChurch.mockResolvedValue({ id: 'church_1', name: 'Test Church' })
+  mockProjectFindById.mockResolvedValue(null)
+  mockUserFindById.mockResolvedValue({
+    id: 'user_1',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    branchId: 'branch_1',
+  })
+  mockGivingCreate.mockResolvedValue({
+    id: 'giving_1',
+    userId: 'user_1',
+    churchId: 'church_1',
+    amount: 10,
+    type: 'Tithe',
+    createdAt: new Date(),
+  })
+  mockGenerateReceipt.mockResolvedValue('https://example.com/receipt.pdf')
+  mockSendDonationReceipt.mockResolvedValue(undefined)
+})
 
 describe('Giving donate', () => {
   it('returns 401 when unauthenticated', async () => {
@@ -49,13 +94,11 @@ describe('Giving donate', () => {
 
     const res = await POST(req)
     expect(res.status).toBe(401)
+    expect(mockGetServerSession).toHaveBeenCalled()
   })
 
   it('returns 201 and receiptUrl when authenticated (happy path)', async () => {
-    const { getServerSession } = await import('next-auth/next') as any
-    ;(getServerSession as any).mockResolvedValue({
-      user: { id: 'user_1' },
-    })
+    mockGetServerSession.mockResolvedValue({ user: { id: 'user_1' } })
 
     const { POST } = await import('@/app/api/giving/donate/route')
 
@@ -71,7 +114,12 @@ describe('Giving donate', () => {
     expect(res.status).toBe(201)
 
     const json = await res.json()
-    expect(json).toHaveProperty('id')
-    expect(json.receiptUrl).toBeTruthy()
+    expect(json).toMatchObject({
+      id: 'giving_1',
+      receiptUrl: 'https://example.com/receipt.pdf',
+    })
+    expect(mockGivingCreate).toHaveBeenCalled()
+    expect(mockGenerateReceipt).toHaveBeenCalled()
+    expect(mockSendDonationReceipt).toHaveBeenCalled()
   })
 })

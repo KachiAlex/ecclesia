@@ -1,9 +1,33 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
-import { BranchService, BranchAdminService, generateBranchSlug } from '@/lib/services/branch-service'
+import {
+  BranchService,
+  BranchAdminService,
+  generateBranchSlug,
+  BranchLevel,
+  Branch,
+} from '@/lib/services/branch-service'
 import { ChurchService } from '@/lib/services/church-service'
 import { UserService } from '@/lib/services/user-service'
+import {
+  CHILD_LEVEL_MAP,
+  normalizeLevel,
+  resolveBranchScope,
+  hasGlobalChurchAccess,
+} from '@/lib/services/branch-scope'
+
+const resolveParentFilter = (raw: string | null): { applied: boolean; value: string | null } => {
+  if (raw === null) {
+    return { applied: false, value: null }
+  }
+
+  if (raw === '' || raw.toLowerCase() === 'null') {
+    return { applied: true, value: null }
+  }
+
+  return { applied: true, value: raw }
+}
 
 /**
  * GET /api/churches/[churchId]/branches
@@ -34,17 +58,46 @@ export async function GET(
       )
     }
 
-    // Verify user belongs to this church
     if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const branches = await BranchService.findByChurch(churchId)
-    
-    return NextResponse.json(branches)
+    const { branches: allBranches, scope } = await resolveBranchScope(churchId, user)
+    const url = new URL(request.url)
+    const searchParams = url.searchParams
+    const levelParam = normalizeLevel(searchParams.get('level'))
+    const includeInactive = searchParams.get('includeInactive') === 'true'
+    const parentFilter = resolveParentFilter(searchParams.get('parentBranchId'))
+
+    const visibleBranches = includeInactive
+      ? allBranches
+      : allBranches.filter((branch) => branch.isActive)
+
+    const filtered = visibleBranches.filter((branch) => {
+      if (scope && scope.size > 0 && !scope.has(branch.id)) {
+        return false
+      }
+      if (scope && scope.size === 0) {
+        return false
+      }
+
+      if (levelParam && branch.level !== levelParam) {
+        return false
+      }
+
+      if (parentFilter.applied) {
+        const parentValue = branch.parentBranchId ?? null
+        if (parentFilter.value === null) {
+          if (parentValue !== null) return false
+        } else if (parentValue !== parentFilter.value) {
+          return false
+        }
+      }
+
+      return true
+    })
+
+    return NextResponse.json(filtered)
   } catch (error) {
     console.error('Error fetching branches:', error)
     return NextResponse.json(
@@ -83,24 +136,90 @@ export async function POST(
       )
     }
 
-    // Verify user is admin of this church
     const church = await ChurchService.findById(churchId)
     if (!church) {
-      return NextResponse.json(
-        { error: 'Church not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Church not found' }, { status: 404 })
     }
 
-    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json(
-        { error: 'Only church admins can create branches' },
-        { status: 403 }
-      )
+    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { name, address, city, state, zipCode, country, phone, email, description, adminId } = body
+    const {
+      name,
+      address,
+      city,
+      state,
+      zipCode,
+      country,
+      phone,
+      email,
+      description,
+      adminId,
+      level: rawLevel,
+      parentBranchId: rawParentId,
+    } = body
+
+    const { branchMap, scope } = await resolveBranchScope(churchId, user)
+    const canManageAll = hasGlobalChurchAccess(user, churchId)
+    const requestedLevel = normalizeLevel(typeof rawLevel === 'string' ? rawLevel : null)
+    const parentBranchId =
+      typeof rawParentId === 'string' && rawParentId.trim().length > 0 ? rawParentId : null
+
+    let effectiveLevel: BranchLevel
+    let parentBranch: Branch | null = null
+
+    if (parentBranchId) {
+      parentBranch = branchMap.get(parentBranchId) ?? null
+      if (!parentBranch) {
+        return NextResponse.json({ error: 'Parent branch not found' }, { status: 404 })
+      }
+
+      const expectedChildLevel = CHILD_LEVEL_MAP[parentBranch.level]
+      if (!expectedChildLevel) {
+        return NextResponse.json(
+          { error: `Branches under ${parentBranch.level} cannot have further children` },
+          { status: 400 }
+        )
+      }
+
+      if (requestedLevel && requestedLevel !== expectedChildLevel) {
+        return NextResponse.json(
+          {
+            error: `Child branches of ${parentBranch.level} must be created at the ${expectedChildLevel} level`,
+          },
+          { status: 400 }
+        )
+      }
+
+      if (!canManageAll) {
+        if (!scope || scope.size === 0 || !scope.has(parentBranchId)) {
+          return NextResponse.json(
+            { error: 'You do not have permission to manage this parent branch' },
+            { status: 403 }
+          )
+        }
+      }
+
+      effectiveLevel = expectedChildLevel
+    } else {
+      effectiveLevel = requestedLevel ?? 'REGION'
+
+      if (effectiveLevel !== 'REGION') {
+        return NextResponse.json(
+          { error: 'Top-level branches must be created at the REGION level' },
+          { status: 400 }
+        )
+      }
+
+      if (!canManageAll) {
+        return NextResponse.json(
+          { error: 'Only tenant admins can create regional branches' },
+          { status: 403 }
+        )
+      }
+    }
 
     if (!name) {
       return NextResponse.json(
@@ -126,6 +245,8 @@ export async function POST(
       name,
       slug,
       churchId: churchId,
+      level: effectiveLevel,
+      parentBranchId,
       address: address || null,
       city: city || null,
       state: state || null,

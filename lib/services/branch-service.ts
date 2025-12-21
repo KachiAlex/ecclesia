@@ -2,11 +2,17 @@ import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
 
+export const BRANCH_LEVELS = ['REGION', 'STATE', 'ZONE', 'BRANCH'] as const
+export type BranchLevel = (typeof BRANCH_LEVELS)[number]
+const DEFAULT_BRANCH_LEVEL: BranchLevel = 'BRANCH'
+
 export interface Branch {
   id: string
   name: string
   slug: string
   churchId: string
+  level: BranchLevel
+  parentBranchId?: string | null
   address?: string
   city?: string
   state?: string
@@ -34,6 +40,22 @@ export interface BranchAdmin {
   assignedBy?: string
 }
 
+const toBranch = (
+  doc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData>
+): Branch => {
+  const data = doc.data()!
+  const level = (data.level as BranchLevel) || DEFAULT_BRANCH_LEVEL
+  return {
+    id: doc.id,
+    ...data,
+    level,
+    parentBranchId:
+      data.parentBranchId === undefined ? null : (data.parentBranchId as string | null),
+    createdAt: toDate(data.createdAt),
+    updatedAt: toDate(data.updatedAt),
+  } as Branch
+}
+
 export class BranchService {
   /**
    * Find branch by ID
@@ -41,14 +63,8 @@ export class BranchService {
   static async findById(id: string): Promise<Branch | null> {
     const doc = await db.collection(COLLECTIONS.branches).doc(id).get()
     if (!doc.exists) return null
-    
-    const data = doc.data()!
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as Branch
+
+    return toBranch(doc)
   }
 
   /**
@@ -62,37 +78,45 @@ export class BranchService {
       .get()
     
     if (snapshot.empty) return null
-    
+
     const doc = snapshot.docs[0]
-    const data = doc.data()
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as Branch
+    return toBranch(doc)
   }
 
   /**
    * Find all branches for a church
    */
-  static async findByChurch(churchId: string): Promise<Branch[]> {
+  static async findByChurch(
+    churchId: string,
+    options?: {
+      includeInactive?: boolean
+      parentBranchId?: string | null
+      level?: BranchLevel
+    }
+  ): Promise<Branch[]> {
+    const includeInactive = options?.includeInactive === true
+
     try {
-      const snapshot = await db.collection(COLLECTIONS.branches)
+      let query: FirebaseFirestore.Query = db
+        .collection(COLLECTIONS.branches)
         .where('churchId', '==', churchId)
-        .where('isActive', '==', true)
-        .get()
-      
-      const branches = snapshot.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: toDate(data.createdAt),
-          updatedAt: toDate(data.updatedAt),
-        } as Branch
-      })
-      
+
+      if (!includeInactive) {
+        query = query.where('isActive', '==', true)
+      }
+
+      if (options?.parentBranchId !== undefined) {
+        query = query.where('parentBranchId', '==', options.parentBranchId ?? null)
+      }
+
+      if (options?.level) {
+        query = query.where('level', '==', options.level)
+      }
+
+      const snapshot = await query.get()
+
+      const branches = snapshot.docs.map((doc) => toBranch(doc))
+
       // Sort by createdAt descending (client-side to avoid index requirement)
       return branches.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     } catch (error) {
@@ -107,6 +131,8 @@ export class BranchService {
   static async create(data: Omit<Branch, 'id' | 'createdAt' | 'updatedAt'>): Promise<Branch> {
     const branchData = {
       ...data,
+      level: data.level ?? DEFAULT_BRANCH_LEVEL,
+      parentBranchId: data.parentBranchId ?? null,
       isActive: data.isActive ?? true,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -116,13 +142,7 @@ export class BranchService {
     await docRef.set(branchData)
 
     const created = await docRef.get()
-    const createdData = created.data()!
-    return {
-      id: created.id,
-      ...createdData,
-      createdAt: toDate(createdData.createdAt),
-      updatedAt: toDate(createdData.updatedAt),
-    } as Branch
+    return toBranch(created)
   }
 
   /**

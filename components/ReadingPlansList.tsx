@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '@/lib/bible/config'
 import DigitalLibrary from './DigitalLibrary'
+import DigitalSchool from './DigitalSchool'
 
 interface ReadingPlan {
   id: string
@@ -51,7 +52,7 @@ export default function ReadingPlansList() {
   const [dailyLoading, setDailyLoading] = useState(true)
   const [dailyError, setDailyError] = useState<string | null>(null)
   const [selectedVersion, setSelectedVersion] = useState(DEFAULT_BIBLE_VERSION.id)
-  const [activeTab, setActiveTab] = useState<'plans' | 'library'>('plans')
+  const [activeTab, setActiveTab] = useState<'plans' | 'library' | 'school'>('plans')
 
   useEffect(() => {
     loadPlans()
@@ -181,10 +182,23 @@ export default function ReadingPlansList() {
         >
           Digital Library
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('school')}
+          className={`pb-2 text-sm font-medium border-b-2 ${
+            activeTab === 'school'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Digital School
+        </button>
       </div>
 
       {activeTab === 'library' ? (
         <DigitalLibrary />
+      ) : activeTab === 'school' ? (
+        <DigitalSchool />
       ) : (
         <>
           {/* Daily Bible reading */}

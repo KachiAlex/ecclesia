@@ -5,6 +5,8 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 import { guardApi } from '@/lib/api-guard'
 import { hasPermission } from '@/lib/permissions'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const guarded = await guardApi({ requireChurch: true })

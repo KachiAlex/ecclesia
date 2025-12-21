@@ -6,6 +6,8 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 import { CheckInService } from '@/lib/services/checkin-service'
 import { guardApi } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const guarded = await guardApi({ requireChurch: true })

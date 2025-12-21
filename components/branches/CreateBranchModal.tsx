@@ -2,13 +2,27 @@
 
 import { useState } from 'react'
 
+type BranchLevel = 'REGION' | 'STATE' | 'ZONE' | 'BRANCH'
+
+type BranchCreationContext = {
+  level: BranchLevel
+  parentBranchId?: string | null
+  parentName?: string
+}
+
 interface CreateBranchModalProps {
   churchId: string
+  context: BranchCreationContext
   onClose: () => void
   onSuccess: () => void
 }
 
-export default function CreateBranchModal({ churchId, onClose, onSuccess }: CreateBranchModalProps) {
+export default function CreateBranchModal({
+  churchId,
+  context,
+  onClose,
+  onSuccess,
+}: CreateBranchModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
@@ -30,10 +44,16 @@ export default function CreateBranchModal({ churchId, onClose, onSuccess }: Crea
     setLoading(true)
 
     try {
+      const payload = {
+        ...formData,
+        level: context.level,
+        parentBranchId: context.parentBranchId ?? null,
+      }
+
       const res = await fetch(`/api/churches/${churchId}/branches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
@@ -54,7 +74,14 @@ export default function CreateBranchModal({ churchId, onClose, onSuccess }: Crea
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Branch</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Create New {context.level.toLowerCase()}</h2>
+            <p className="text-sm text-gray-500">
+              {context.parentBranchId
+                ? `Child ${context.level.toLowerCase()} under ${context.parentName ?? 'selected parent'}.`
+                : 'Top-level regions define the highest administrative tier.'}
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -66,6 +93,23 @@ export default function CreateBranchModal({ churchId, onClose, onSuccess }: Crea
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
+            <p className="font-semibold text-slate-800 mb-1 uppercase text-xs tracking-wide">Hierarchy context</p>
+            <p>
+              Level: <span className="font-semibold">{context.level}</span>
+            </p>
+            {context.parentBranchId ? (
+              <p>
+                Parent:{' '}
+                <span className="font-semibold">
+                  {context.parentName ?? context.parentBranchId}
+                </span>
+              </p>
+            ) : (
+              <p>This region will be visible to tenant admins and downstream states/zones/branches.</p>
+            )}
+          </div>
+
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
               {error}

@@ -242,12 +242,23 @@ model Church {
 }
 
 // Church Branches
+enum BranchLevel {
+  REGION
+  STATE
+  ZONE
+  BRANCH
+}
+
 model Branch {
   id                    String                @id @default(cuid())
   name                  String
   slug                  String                // Unique within church
   churchId              String
   church                Church                @relation(fields: [churchId], references: [id])
+  level                 BranchLevel           @default(BRANCH)
+  parentBranchId        String?
+  parent                Branch?               @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
+  children              Branch[]              @relation("BranchHierarchy")
   
   // Branch details
   address               String?
@@ -283,6 +294,8 @@ model Branch {
   @@index([churchId])
   @@index([adminId])
   @@index([isActive])
+  @@index([parentBranchId])
+  @@index([level])
 }
 
 // Branch Admin Assignment

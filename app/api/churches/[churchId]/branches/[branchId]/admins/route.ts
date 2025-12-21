@@ -3,6 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { BranchService, BranchAdminService } from '@/lib/services/branch-service'
 import { UserService } from '@/lib/services/user-service'
+import {
+  resolveBranchScope,
+  hasBranchAccess,
+  hasGlobalChurchAccess,
+} from '@/lib/services/branch-scope'
 
 /**
  * GET /api/churches/[churchId]/branches/[branchId]/admins
@@ -33,7 +38,15 @@ export async function GET(
       )
     }
 
-    const branch = await BranchService.findById(branchId)
+    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
+    const scopeContext = await resolveBranchScope(churchId, user)
+    const { branch, allowed } = hasBranchAccess(scopeContext, branchId)
     
     if (!branch || branch.churchId !== churchId) {
       return NextResponse.json(
@@ -42,8 +55,7 @@ export async function GET(
       )
     }
 
-    // Verify user has access
-    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
+    if (!allowed) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -108,7 +120,8 @@ export async function POST(
       )
     }
 
-    const branch = await BranchService.findById(branchId)
+    const scopeContext = await resolveBranchScope(churchId, user)
+    const { branch, allowed } = hasBranchAccess(scopeContext, branchId)
     
     if (!branch || branch.churchId !== churchId) {
       return NextResponse.json(
@@ -117,10 +130,11 @@ export async function POST(
       )
     }
 
-    // Only church admins can assign branch admins
-    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    const canManageAll = hasGlobalChurchAccess(user, churchId)
+
+    if (!canManageAll && !allowed) {
       return NextResponse.json(
-        { error: 'Only church admins can assign branch admins' },
+        { error: 'You do not have permission to assign admins for this branch' },
         { status: 403 }
       )
     }
@@ -203,7 +217,8 @@ export async function DELETE(
       )
     }
 
-    const branch = await BranchService.findById(branchId)
+    const scopeContext = await resolveBranchScope(churchId, user)
+    const { branch, allowed } = hasBranchAccess(scopeContext, branchId)
     
     if (!branch || branch.churchId !== churchId) {
       return NextResponse.json(
@@ -212,10 +227,11 @@ export async function DELETE(
       )
     }
 
-    // Only church admins can remove branch admins
-    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    const canManageAll = hasGlobalChurchAccess(user, churchId)
+
+    if (!canManageAll && !allowed) {
       return NextResponse.json(
-        { error: 'Only church admins can remove branch admins' },
+        { error: 'You do not have permission to remove admins for this branch' },
         { status: 403 }
       )
     }

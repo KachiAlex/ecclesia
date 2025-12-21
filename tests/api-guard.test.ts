@@ -1,12 +1,33 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+const mockGetServerSession = vi.fn()
 vi.mock('next-auth', () => ({
-  getServerSession: vi.fn(async () => null),
+  getServerSession: mockGetServerSession,
 }))
 
-vi.mock('@/lib/church-context', () => ({
-  getCurrentChurch: vi.fn(async () => null),
+vi.mock('@/lib/auth-options', () => ({
+  authOptions: {},
 }))
+
+vi.mock('@/lib/firestore', () => ({
+  db: {},
+  FieldValue: {
+    serverTimestamp: vi.fn(() => ({ _type: 'serverTimestamp' })),
+  },
+  toDate: (value: any) => (value instanceof Date ? value : new Date(value ?? Date.now())),
+}))
+
+const mockGetCurrentChurch = vi.fn()
+vi.mock('@/lib/church-context', () => ({
+  getCurrentChurch: mockGetCurrentChurch,
+}))
+
+beforeEach(() => {
+  vi.resetModules()
+  vi.clearAllMocks()
+  mockGetServerSession.mockResolvedValue(null)
+  mockGetCurrentChurch.mockResolvedValue(null)
+})
 
 describe('guardApi', () => {
   it('returns 401 when no session', async () => {

@@ -27,6 +27,12 @@ interface Resource {
 }
 
 const RESOURCE_TYPES = ['book', 'pdf', 'audio', 'video', 'link']
+const PRESET_CATEGORY_TEMPLATES = [
+  { name: 'Spiritual', description: 'Resources that build faith foundations.' },
+  { name: 'Inspiration', description: 'Stories that encourage believers.' },
+  { name: 'Leadership', description: 'Guides for ministry and leadership growth.' },
+  { name: 'Academic', description: 'Bible school and theological content.' },
+]
 
 export default function ReadingLibraryAdmin() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -49,6 +55,10 @@ export default function ReadingLibraryAdmin() {
   const [resourceFile, setResourceFile] = useState<File | null>(null)
   const [submittingCategory, setSubmittingCategory] = useState(false)
   const [uploadingResource, setUploadingResource] = useState(false)
+  const [showQuickCategoryForm, setShowQuickCategoryForm] = useState(false)
+  const [quickCategoryName, setQuickCategoryName] = useState('')
+  const [quickCategoryDescription, setQuickCategoryDescription] = useState('')
+  const [creatingQuickCategory, setCreatingQuickCategory] = useState(false)
 
   const loadCategories = useCallback(async () => {
     const res = await fetch('/api/reading-library/categories')
@@ -86,6 +96,108 @@ export default function ReadingLibraryAdmin() {
   useEffect(() => {
     loadResources()
   }, [loadResources])
+
+  const presetNameSet = useMemo(
+    () => new Set(PRESET_CATEGORY_TEMPLATES.map((preset) => preset.name.toLowerCase())),
+    []
+  )
+
+  const presetCategoryOptions = useMemo(() => {
+    return PRESET_CATEGORY_TEMPLATES.map((preset) => {
+      const match = categories.find((cat) => cat.name.toLowerCase() === preset.name.toLowerCase())
+      return {
+        ...preset,
+        value: match ? match.id : `preset:${preset.name}`,
+      }
+    })
+  }, [categories])
+
+  const customCategoryOptions = useMemo(() => {
+    return categories.filter((category) => !presetNameSet.has(category.name.toLowerCase()))
+  }, [categories, presetNameSet])
+
+  const ensureCategoryExists = useCallback(
+    async (name: string, description?: string) => {
+      const existing = categories.find((cat) => cat.name.toLowerCase() === name.toLowerCase())
+      if (existing) {
+        return existing.id
+      }
+
+      setCreatingQuickCategory(true)
+      try {
+        const response = await fetch('/api/reading-library/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            description,
+          }),
+        })
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err.error || 'Failed to create category')
+        }
+
+        const data = await response.json()
+        await loadCategories()
+        return data.category?.id as string | undefined
+      } catch (error: any) {
+        console.error('Quick category creation failed', error)
+        alert(error?.message || 'Unable to create category')
+        return undefined
+      } finally {
+        setCreatingQuickCategory(false)
+      }
+    },
+    [categories, loadCategories]
+  )
+
+  const handleCategorySelection = useCallback(
+    async (value: string) => {
+      if (value === '__new') {
+        setShowQuickCategoryForm(true)
+        return
+      }
+
+      if (value.startsWith('preset:')) {
+        const presetName = value.replace('preset:', '')
+        const preset = PRESET_CATEGORY_TEMPLATES.find((item) => item.name === presetName)
+        if (!preset) return
+        const newId = await ensureCategoryExists(preset.name, preset.description)
+        if (newId) {
+          setResourceForm((prev) => ({ ...prev, categoryId: newId }))
+          setShowQuickCategoryForm(false)
+        }
+        return
+      }
+
+      setResourceForm((prev) => ({ ...prev, categoryId: value }))
+      setShowQuickCategoryForm(false)
+    },
+    [ensureCategoryExists]
+  )
+
+  const handleQuickCategoryCreate = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault()
+      if (!quickCategoryName.trim()) {
+        alert('Category name is required')
+        return
+      }
+      const newId = await ensureCategoryExists(
+        quickCategoryName.trim(),
+        quickCategoryDescription.trim() || undefined
+      )
+      if (newId) {
+        setResourceForm((prev) => ({ ...prev, categoryId: newId }))
+        setQuickCategoryName('')
+        setQuickCategoryDescription('')
+        setShowQuickCategoryForm(false)
+      }
+    },
+    [ensureCategoryExists, quickCategoryDescription, quickCategoryName]
+  )
 
   const handleCategorySubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -469,15 +581,79 @@ export default function ReadingLibraryAdmin() {
               <select
                 className="w-full border rounded-lg px-3 py-2"
                 value={resourceForm.categoryId}
-                onChange={(e) => setResourceForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value
+                  handleCategorySelection(value)
+                }}
+                disabled={creatingQuickCategory}
               >
                 <option value="">Select</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                <optgroup label="Suggested">
+                  {presetCategoryOptions.map((preset) => (
+                    <option key={preset.name} value={preset.value}>
+                      {preset.name}
+                    </option>
+                  ))}
+                </optgroup>
+                {customCategoryOptions.length > 0 && (
+                  <optgroup label="My categories">
+                    {customCategoryOptions.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <option value="__new">+ Add new category</option>
               </select>
+              {creatingQuickCategory && (
+                <p className="text-xs text-gray-500 mt-1">Preparing category...</p>
+              )}
+              {showQuickCategoryForm && (
+                <form
+                  className="mt-3 space-y-2 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3"
+                  onSubmit={handleQuickCategoryCreate}
+                >
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500">New Category Name</label>
+                    <input
+                      className="w-full border rounded-lg px-3 py-2 mt-1"
+                      value={quickCategoryName}
+                      onChange={(e) => setQuickCategoryName(e.target.value)}
+                      placeholder="e.g. Devotional"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500">Description (optional)</label>
+                    <textarea
+                      className="w-full border rounded-lg px-3 py-2 mt-1"
+                      rows={2}
+                      value={quickCategoryDescription}
+                      onChange={(e) => setQuickCategoryDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={creatingQuickCategory}
+                      className="px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold disabled:opacity-60"
+                    >
+                      Save category
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowQuickCategoryForm(false)
+                        setQuickCategoryName('')
+                        setQuickCategoryDescription('')
+                      }}
+                      className="px-3 py-2 rounded-lg border text-sm font-medium text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500">Resource Type</label>

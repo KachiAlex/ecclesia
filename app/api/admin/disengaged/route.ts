@@ -7,6 +7,8 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 import { getCurrentChurch } from '@/lib/church-context'
 import { requirePermissionMiddleware } from '@/lib/middleware/rbac'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const { error: permError } = await requirePermissionMiddleware('view_analytics')

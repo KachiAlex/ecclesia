@@ -120,6 +120,17 @@ export const COLLECTIONS = {
   // AI collections
   aiCoachingSessions: 'ai_coaching_sessions',
   aiGrowthPlans: 'ai_growth_plans',
+
+  // Digital School collections
+  digitalCourses: 'digital_courses',
+  digitalCourseModules: 'digital_course_modules',
+  digitalCourseLessons: 'digital_course_lessons',
+  digitalCourseAccessRequests: 'digital_course_access_requests',
+  digitalCourseEnrollments: 'digital_course_enrollments',
+  digitalCourseExams: 'digital_course_exams',
+  digitalExamQuestions: 'digital_exam_questions',
+  digitalExamAttempts: 'digital_exam_attempts',
+  digitalCourseBadges: 'digital_course_badges',
 } as const
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS]

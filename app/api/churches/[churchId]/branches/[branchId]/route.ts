@@ -4,6 +4,11 @@ import { authOptions } from '@/lib/auth-options'
 import { BranchService, BranchAdminService } from '@/lib/services/branch-service'
 import { ChurchService } from '@/lib/services/church-service'
 import { UserService } from '@/lib/services/user-service'
+import {
+  resolveBranchScope,
+  hasBranchAccess,
+  hasGlobalChurchAccess,
+} from '@/lib/services/branch-scope'
 
 /**
  * GET /api/churches/[churchId]/branches/[branchId]
@@ -34,8 +39,16 @@ export async function GET(
       )
     }
 
-    const branch = await BranchService.findById(branchId)
-    
+    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
+    const scopeContext = await resolveBranchScope(churchId, user)
+    const { branch, allowed } = hasBranchAccess(scopeContext, branchId)
+
     if (!branch) {
       return NextResponse.json(
         { error: 'Branch not found' },
@@ -43,16 +56,7 @@ export async function GET(
       )
     }
 
-    // Verify branch belongs to church
-    if (branch.churchId !== churchId) {
-      return NextResponse.json(
-        { error: 'Branch does not belong to this church' },
-        { status: 400 }
-      )
-    }
-
-    // Verify user has access
-    if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
+    if (!allowed) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -104,8 +108,9 @@ export async function PATCH(
       )
     }
 
-    const branch = await BranchService.findById(branchId)
-    
+    const scopeContext = await resolveBranchScope(churchId, user)
+    const { branch, allowed } = hasBranchAccess(scopeContext, branchId)
+
     if (!branch) {
       return NextResponse.json(
         { error: 'Branch not found' },
@@ -113,11 +118,9 @@ export async function PATCH(
       )
     }
 
-    // Verify user is church admin or branch admin
-    const isChurchAdmin = user.churchId === churchId && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
-    const isBranchAdmin = await BranchAdminService.findByBranchAndUser(branchId, userId)
-    
-    if (!isChurchAdmin && !isBranchAdmin) {
+    const isChurchAdmin = hasGlobalChurchAccess(user, churchId)
+
+    if (!isChurchAdmin && !allowed) {
       return NextResponse.json(
         { error: 'Only admins can update branches' },
         { status: 403 }
@@ -167,10 +170,20 @@ export async function DELETE(
     }
 
     // Only church admins can delete branches
-    if (user.churchId !== churchId || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    if (!hasGlobalChurchAccess(user, churchId)) {
       return NextResponse.json(
         { error: 'Only church admins can delete branches' },
         { status: 403 }
+      )
+    }
+
+    const scopeContext = await resolveBranchScope(churchId, user)
+    const { branch } = hasBranchAccess(scopeContext, branchId)
+
+    if (!branch) {
+      return NextResponse.json(
+        { error: 'Branch not found' },
+        { status: 404 }
       )
     }
 
