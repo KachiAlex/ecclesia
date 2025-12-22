@@ -9,8 +9,14 @@ import {
   resolveBranchScope,
   getDescendantBranchIds,
 } from '@/lib/services/branch-scope'
-import type { Branch, BranchLevel } from '@/lib/services/branch-service'
+import type { Branch } from '@/lib/services/branch-service'
 import { UserService } from '@/lib/services/user-service'
+import { ChurchService } from '@/lib/services/church-service'
+import {
+  getHierarchyLevelLabels,
+  getHierarchyLevels,
+  type BranchLevel,
+} from '@/lib/services/branch-hierarchy'
 
 type MetricAccumulator = {
   attendanceSessions: number
@@ -41,6 +47,7 @@ type BranchReportNode = {
   id: string
   name: string
   level: BranchLevel
+  levelLabel: string
   parentBranchId: string | null
   status: 'ACTIVE' | 'INACTIVE'
   location: {
@@ -64,8 +71,6 @@ type BranchReportNode = {
   }
   children: BranchReportNode[]
 }
-
-const LEVEL_ORDER: BranchLevel[] = ['REGION', 'STATE', 'ZONE', 'BRANCH']
 
 const createAccumulator = (): MetricAccumulator => ({
   attendanceSessions: 0,
@@ -121,10 +126,13 @@ const filterByScope = (branches: Branch[], scope: Set<string> | null) => {
   return branches.filter((branch) => scopeSet.has(branch.id))
 }
 
-const sortBranches = (branches: Branch[]): Branch[] => {
-  const rank = new Map(LEVEL_ORDER.map((level, index) => [level, index]))
+const sortBranches = (
+  branches: Branch[],
+  levelRank: Map<BranchLevel, number>
+): Branch[] => {
   return [...branches].sort((a, b) => {
-    const levelDiff = (rank.get(a.level) ?? 0) - (rank.get(b.level) ?? 0)
+    const levelDiff = (levelRank.get(a.level) ?? Number.MAX_SAFE_INTEGER) -
+      (levelRank.get(b.level) ?? Number.MAX_SAFE_INTEGER)
     if (levelDiff !== 0) return levelDiff
     return a.name.localeCompare(b.name)
   })
@@ -152,6 +160,16 @@ export async function GET(
     if (user.churchId !== churchId && user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const church = await ChurchService.findById(churchId)
+    if (!church) {
+      return NextResponse.json({ error: 'Church not found' }, { status: 404 })
+    }
+    const hierarchyLevels = getHierarchyLevels(church)
+    const hierarchyLabels = getHierarchyLevelLabels(church)
+    const levelRank = new Map<BranchLevel, number>(
+      hierarchyLevels.map((level, index) => [level.key, index])
+    )
 
     const url = new URL(request.url)
     const searchParams = url.searchParams
@@ -306,7 +324,7 @@ export async function GET(
 
     // Ensure deterministic ordering for siblings
     childrenByParent.forEach((list, key) => {
-      childrenByParent.set(key, sortBranches(list))
+      childrenByParent.set(key, sortBranches(list, levelRank))
     })
 
     const aggregatedMetrics = new Map<string, MetricAccumulator>()
@@ -334,11 +352,13 @@ export async function GET(
       const own = baseMetrics.get(branch.id) ?? createAccumulator()
       const subtree = computeTotals(branch.id)
       const children = (childrenByParent.get(branch.id) ?? []).map(buildNode)
+      const levelLabel = branch.levelLabel ?? hierarchyLabels[branch.level]
 
       return {
         id: branch.id,
         name: branch.name,
         level: branch.level,
+        levelLabel,
         parentBranchId: branch.parentBranchId ?? null,
         status: branch.isActive ? 'ACTIVE' : 'INACTIVE',
         location: {

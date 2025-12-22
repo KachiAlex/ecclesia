@@ -11,11 +11,11 @@ import { UserRole } from '@/types'
 const MANAGER_ROLES: UserRole[] = ['ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'SUPER_ADMIN']
 
 async function ensureModuleScope(moduleId: string, churchId?: string) {
-  const module = await DigitalCourseModuleService.get(moduleId)
-  if (!module) return { module: null, course: null }
-  const course = await DigitalCourseService.get(module.courseId)
+  const targetModule = await DigitalCourseModuleService.get(moduleId)
+  if (!targetModule) return { module: null, course: null }
+  const course = await DigitalCourseService.get(targetModule.courseId)
   if (!course || course.churchId !== churchId) return { module: null, course: null }
-  return { module, course }
+  return { module: targetModule, course }
 }
 
 export async function GET(request: Request) {

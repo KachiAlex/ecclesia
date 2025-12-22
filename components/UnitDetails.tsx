@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Unit = {
   id: string
@@ -60,7 +60,7 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
 
   const isHead = useMemo(() => payload?.myMembership?.role === 'HEAD', [payload])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError('')
     setLoading(true)
     try {
@@ -73,9 +73,9 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [unitId])
 
-  const loadPendingInvites = async () => {
+  const loadPendingInvites = useCallback(async () => {
     setLoadingInvites(true)
     setError('')
     try {
@@ -95,19 +95,17 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
     } finally {
       setLoadingInvites(false)
     }
-  }
+  }, [unitId])
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitId])
+  }, [load])
 
   useEffect(() => {
     if (isHead) {
       loadPendingInvites()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitId, isHead])
+  }, [isHead, loadPendingInvites])
 
   const searchUsers = async () => {
     if (!userSearch.trim()) return

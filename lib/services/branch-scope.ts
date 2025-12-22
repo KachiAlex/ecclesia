@@ -1,30 +1,15 @@
-import {
-  BranchService,
-  BranchAdminService,
-  BRANCH_LEVELS,
-  BranchLevel,
-  Branch,
-} from '@/lib/services/branch-service'
+import { BranchService, BranchAdminService, Branch } from '@/lib/services/branch-service'
 import type { User } from '@/lib/services/user-service'
+import {
+  normalizeLevelValue,
+  type BranchLevel,
+} from '@/lib/services/branch-hierarchy'
 
-export const CHILD_LEVEL_MAP: Record<BranchLevel, BranchLevel | null> = {
-  REGION: 'STATE',
-  STATE: 'ZONE',
-  ZONE: 'BRANCH',
-  BRANCH: null,
-}
+export const isValidBranchLevel = (value: string | null): value is BranchLevel =>
+  normalizeLevelValue(value) !== null
 
-export const isValidBranchLevel = (value: string | null): value is BranchLevel => {
-  if (!value) return false
-  const upper = value.toUpperCase()
-  return BRANCH_LEVELS.includes(upper as BranchLevel)
-}
-
-export const normalizeLevel = (value: string | null): BranchLevel | null => {
-  if (!value) return null
-  const upper = value.toUpperCase()
-  return BRANCH_LEVELS.includes(upper as BranchLevel) ? (upper as BranchLevel) : null
-}
+export const normalizeLevel = (value: string | null): BranchLevel | null =>
+  normalizeLevelValue(value)
 
 export const getDescendantBranchIds = (branches: Branch[], rootIds: string[]): Set<string> => {
   const childrenMap = new Map<string, Branch[]>()

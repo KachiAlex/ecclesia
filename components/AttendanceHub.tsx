@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Branch = {
   id: string
@@ -82,7 +82,7 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     }
   }
 
-  async function loadBranchesAndDefault() {
+  const loadBranchesAndDefault = useCallback(async () => {
     try {
       const userRes = await fetch('/api/users/me', { cache: 'no-store' })
       if (!userRes.ok) return
@@ -103,9 +103,9 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     } catch {
       // ignore
     }
-  }
+  }, [didInitBranch])
 
-  async function loadSessions() {
+  const loadSessions = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -118,7 +118,7 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [queryString])
 
   async function loadRecords(sessionId: string) {
     setError(null)
@@ -134,13 +134,11 @@ export default function AttendanceHub({ isManager }: { isManager: boolean }) {
 
   useEffect(() => {
     loadBranchesAndDefault()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loadBranchesAndDefault])
 
   useEffect(() => {
     loadSessions()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString])
+  }, [loadSessions])
 
   // Members should be able to view sessions and check in.
   // Only managers can create sessions and update headcount.

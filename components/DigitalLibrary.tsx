@@ -40,6 +40,8 @@ const RESOURCE_TYPES = [
 
 type EnrichedResource = Resource & { category?: Category }
 
+const ALLOWED_UPLOAD_ROLES: UserRole[] = ['ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'SUPER_ADMIN']
+
 export default function DigitalLibrary() {
   const { data: session } = useSession()
   const [categories, setCategories] = useState<Category[]>([])
@@ -112,11 +114,10 @@ export default function DigitalLibrary() {
     return categorizedResources.slice(0, 3)
   }, [categorizedResources])
 
-  const allowedUploadRoles: UserRole[] = ['ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'SUPER_ADMIN']
   const canUpload = useMemo(() => {
     const role = (session?.user as any)?.role as UserRole | undefined
     if (!role) return false
-    return allowedUploadRoles.includes(role)
+    return ALLOWED_UPLOAD_ROLES.includes(role)
   }, [session])
 
   const resetUploadState = () => {

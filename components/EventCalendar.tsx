@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { formatDate } from '@/lib/utils'
 
 interface Event {
@@ -37,11 +37,7 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
     recurrenceEndDate: '',
   })
 
-  useEffect(() => {
-    loadEvents()
-  }, [currentDate])
-
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     try {
       // Load events for the current month
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -60,7 +56,11 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentDate])
+
+  useEffect(() => {
+    loadEvents()
+  }, [loadEvents])
 
   const getDaysInMonth = () => {
     const year = currentDate.getFullYear()

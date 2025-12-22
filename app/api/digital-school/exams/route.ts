@@ -4,6 +4,7 @@ import {
   DigitalCourseExamInput,
   DigitalCourseExamService,
   DigitalCourseModuleService,
+  DigitalCourseSectionService,
   DigitalCourseService,
 } from '@/lib/services/digital-school-service'
 import { UserRole } from '@/types'
@@ -17,8 +18,9 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const courseId = searchParams.get('courseId')
-    if (!courseId) {
-      return NextResponse.json({ error: 'courseId is required' }, { status: 400 })
+    const sectionId = searchParams.get('sectionId')
+    if (!courseId || !sectionId) {
+      return NextResponse.json({ error: 'courseId and sectionId are required' }, { status: 400 })
     }
 
     const course = await DigitalCourseService.get(courseId)
@@ -26,7 +28,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
-    const exams = await DigitalCourseExamService.listByCourse(courseId)
+    const section = await DigitalCourseSectionService.get(sectionId)
+    if (!section || section.courseId !== courseId) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+
+    const exams = await DigitalCourseExamService.listBySection(sectionId)
     return NextResponse.json(exams)
   } catch (error: any) {
     console.error('DigitalSchool.exams.GET', error)
@@ -40,8 +47,8 @@ export async function POST(request: Request) {
     if (!guarded.ok) return guarded.response
 
     const body = (await request.json()) as Partial<DigitalCourseExamInput>
-    if (!body.courseId) {
-      return NextResponse.json({ error: 'courseId is required' }, { status: 400 })
+    if (!body.courseId || !body.sectionId) {
+      return NextResponse.json({ error: 'courseId and sectionId are required' }, { status: 400 })
     }
     if (!body.title) {
       return NextResponse.json({ error: 'title is required' }, { status: 400 })
@@ -52,15 +59,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
+    const section = await DigitalCourseSectionService.get(body.sectionId)
+    if (!section || section.courseId !== body.courseId) {
+      return NextResponse.json({ error: 'Section not found' }, { status: 404 })
+    }
+
     if (body.moduleId) {
-      const module = await DigitalCourseModuleService.get(body.moduleId)
-      if (!module || module.courseId !== body.courseId) {
+      const targetModule = await DigitalCourseModuleService.get(body.moduleId)
+      if (!targetModule || targetModule.courseId !== body.courseId || targetModule.sectionId !== body.sectionId) {
         return NextResponse.json({ error: 'Invalid moduleId' }, { status: 400 })
       }
     }
 
     const exam = await DigitalCourseExamService.create({
       courseId: body.courseId,
+      sectionId: body.sectionId,
       moduleId: body.moduleId,
       title: body.title,
       description: body.description,

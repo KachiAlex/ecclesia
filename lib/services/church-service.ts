@@ -1,6 +1,10 @@
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
+import type {
+  HierarchyLevelLabels,
+  HierarchyLevelDefinition,
+} from '@/lib/services/branch-hierarchy'
 
 export interface Church {
   id: string
@@ -20,6 +24,8 @@ export interface Church {
   subscriptionId?: string
   preferredPlanId?: string
   estimatedMembers?: number
+  hierarchyLevelLabels?: HierarchyLevelLabels
+  hierarchyLevels?: HierarchyLevelDefinition[]
   createdAt: Date
   updatedAt: Date
 }

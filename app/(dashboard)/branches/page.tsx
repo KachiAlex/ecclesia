@@ -1,19 +1,100 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 
-import CreateBranchModal from '@/components/branches/CreateBranchModal'
+import CreateBranchModal, {
+  type BranchCreationContext as ModalBranchCreationContext,
+  type BranchLevel as ModalBranchLevel,
+} from '@/components/branches/CreateBranchModal'
 import BranchAdminModal from '@/components/branches/BranchAdminModal'
 
-const BRANCH_LEVELS = ['REGION', 'STATE', 'ZONE', 'BRANCH'] as const
-type BranchLevel = (typeof BRANCH_LEVELS)[number]
+type BranchLevel = ModalBranchLevel
 
-const CHILD_LEVEL_MAP: Record<BranchLevel, BranchLevel | null> = {
-  REGION: 'STATE',
-  STATE: 'ZONE',
-  ZONE: 'BRANCH',
-  BRANCH: null,
+type HierarchyLevelDefinition = {
+  key: BranchLevel
+  label: string
+  order?: number
+}
+
+type HierarchyLevelInput = {
+  key?: string
+  label?: string
+  order?: number
+}
+
+const DEFAULT_LEVEL_DEFINITIONS: HierarchyLevelDefinition[] = [
+  { key: 'LEVEL_1', label: 'Global Headquarters', order: 0 },
+  { key: 'LEVEL_2', label: 'Level 2', order: 1 },
+  { key: 'LEVEL_3', label: 'Level 3', order: 2 },
+  { key: 'LEVEL_4', label: 'Level 4', order: 3 },
+]
+
+const normalizeLevelDefinitions = (
+  levels?: HierarchyLevelInput[]
+): HierarchyLevelDefinition[] => {
+  if (!Array.isArray(levels) || levels.length === 0) {
+    return DEFAULT_LEVEL_DEFINITIONS
+  }
+
+  const sanitized = levels
+    .map((level, index) => {
+      const key = typeof level.key === 'string' ? level.key.trim().toUpperCase() : ''
+      const label = typeof level.label === 'string' ? level.label.trim() : ''
+      return {
+        key: key || `LEVEL_${index + 1}`,
+        label: label || `Level ${index + 1}`,
+        order: typeof level.order === 'number' ? level.order : index,
+      }
+    })
+    .filter((level) => level.key.length > 0 && level.label.length > 0)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+  const unique: HierarchyLevelDefinition[] = []
+  const seen = new Set<string>()
+  sanitized.forEach((level) => {
+    if (seen.has(level.key)) return
+    seen.add(level.key)
+    unique.push(level)
+  })
+
+  return unique.length > 0 ? unique : DEFAULT_LEVEL_DEFINITIONS
+}
+
+const buildChildLevelMap = (
+  definitions: HierarchyLevelDefinition[]
+): Record<BranchLevel, BranchLevel | null> => {
+  const childMap: Record<BranchLevel, BranchLevel | null> = {}
+  definitions.forEach((level, index) => {
+    childMap[level.key] = definitions[index + 1]?.key ?? null
+  })
+  return childMap
+}
+
+const buildLevelCodes = (definitions: HierarchyLevelDefinition[]): Record<BranchLevel, string> => {
+  const map: Record<BranchLevel, string> = {}
+  definitions.forEach((definition, index) => {
+    map[definition.key] = `Level ${index + 1}`
+  })
+  return map
+}
+
+const resolveLevelLabels = (
+  definitions: HierarchyLevelDefinition[],
+  overrides?: Record<BranchLevel, string>
+): Record<BranchLevel, string> => {
+  const map: Record<BranchLevel, string> = {}
+  definitions.forEach((definition, index) => {
+    const override = overrides?.[definition.key]
+    if (typeof override === 'string' && override.trim().length > 0) {
+      map[definition.key] = override.trim()
+    } else if (index === 0) {
+      map[definition.key] = 'Global Headquarters'
+    } else {
+      map[definition.key] = ''
+    }
+  })
+  return map
 }
 
 type AttendanceMetrics = {
@@ -36,6 +117,8 @@ type BranchReportNode = {
   id: string
   name: string
   level: BranchLevel
+  levelLabel?: string
+  levelCode?: string
   parentBranchId: string | null
   status: 'ACTIVE' | 'INACTIVE'
   location: {
@@ -66,17 +149,23 @@ type BranchSummary = {
   finances: FinanceMetrics
 }
 
+type ExistingBranchOption = {
+  id: string
+  name: string
+  level: BranchLevel
+  levelLabel?: string
+  levelCode?: string
+  parentBranchId?: string | null
+}
+
 type FilterState = {
   start: string
   end: string
   includeInactive: boolean
 }
 
-type BranchCreationContext = {
-  level: BranchLevel
-  parentBranchId?: string | null
-  parentName?: string
-}
+type BranchCreationContext = ModalBranchCreationContext
+type BranchCreationContextInput = Partial<BranchCreationContext>
 
 const DEFAULT_FILTERS: FilterState = {
   start: '',
@@ -96,6 +185,20 @@ export default function BranchesPage() {
   const [meta, setMeta] = useState<{ generatedAt: string; totalBranches: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hierarchyLevels, setHierarchyLevels] =
+    useState<HierarchyLevelDefinition[]>(DEFAULT_LEVEL_DEFINITIONS)
+  const [levelLabels, setLevelLabels] = useState<Record<BranchLevel, string>>(
+    resolveLevelLabels(DEFAULT_LEVEL_DEFINITIONS)
+  )
+  const levelCodes = useMemo(() => buildLevelCodes(hierarchyLevels), [hierarchyLevels])
+  const childLevelMap = useMemo(
+    () => buildChildLevelMap(hierarchyLevels),
+    [hierarchyLevels]
+  )
+  const rootLevel = hierarchyLevels[0]
+  const rootLevelDisplayName = rootLevel
+    ? levelLabels[rootLevel.key]?.trim() || rootLevel.label?.trim() || 'Region'
+    : 'Region'
 
   const [filterInputs, setFilterInputs] = useState<FilterState>(DEFAULT_FILTERS)
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS)
@@ -104,9 +207,73 @@ export default function BranchesPage() {
   const [creationContext, setCreationContext] = useState<BranchCreationContext | null>(null)
   const [selectedBranch, setSelectedBranch] = useState<{ id: string; name: string } | null>(null)
   const [showAdminModal, setShowAdminModal] = useState(false)
+  const [existingBranches, setExistingBranches] = useState<ExistingBranchOption[]>([])
 
   const canManageHierarchy = ['SUPER_ADMIN', 'ADMIN', 'BRANCH_ADMIN'].includes(role || '')
-  const canCreateRegions = ['SUPER_ADMIN', 'ADMIN'].includes(role || '')
+  const canCreateRootLevel = ['SUPER_ADMIN', 'ADMIN'].includes(role || '')
+
+  const applyLevelMetadata = useCallback(
+    (input: BranchReportNode[]): BranchReportNode[] =>
+      input.map((node) => {
+        const resolvedChildren = Array.isArray(node.children) ? node.children : []
+        const resolvedLabel = node.levelLabel ?? levelLabels[node.level] ?? ''
+        const resolvedCode = node.levelCode ?? levelCodes[node.level] ?? 'Level'
+        return {
+          ...node,
+          levelLabel: resolvedLabel,
+          levelCode: resolvedCode,
+          children: applyLevelMetadata(resolvedChildren),
+        }
+      }),
+    [levelLabels, levelCodes]
+  )
+
+  const fetchChurchDetails = useCallback(async (targetChurchId: string) => {
+    try {
+      const res = await fetch(`/api/churches/${targetChurchId}`)
+      if (!res.ok) {
+        throw new Error('Unable to load church details')
+      }
+      const data = await res.json()
+      const normalizedLevels = normalizeLevelDefinitions(data.hierarchyLevels)
+      setHierarchyLevels(normalizedLevels)
+      setLevelLabels(resolveLevelLabels(normalizedLevels, data.hierarchyLevelLabels))
+    } catch (err) {
+      console.error(err)
+      setHierarchyLevels(DEFAULT_LEVEL_DEFINITIONS)
+      setLevelLabels(resolveLevelLabels(DEFAULT_LEVEL_DEFINITIONS))
+    }
+  }, [])
+
+  const loadExistingBranches = useCallback(
+    async (targetChurchId: string) => {
+      try {
+        const res = await fetch(`/api/churches/${targetChurchId}/branches?includeInactive=true`)
+        if (!res.ok) {
+          throw new Error('Unable to load existing branches')
+        }
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setExistingBranches(
+            data.map((branch: any) => ({
+              id: branch.id,
+              name: branch.name,
+              level: branch.level,
+              levelLabel: typeof branch.levelLabel === 'string' ? branch.levelLabel : undefined,
+              levelCode: levelCodes[branch.level] ?? undefined,
+              parentBranchId: branch.parentBranchId ?? null,
+            }))
+          )
+        } else {
+          setExistingBranches([])
+        }
+      } catch (err) {
+        console.error(err)
+        setExistingBranches([])
+      }
+    },
+    [levelCodes]
+  )
 
   const loadChurchContext = useCallback(async () => {
     try {
@@ -144,7 +311,7 @@ export default function BranchesPage() {
         }
 
         const data = await res.json()
-        setNodes(Array.isArray(data.nodes) ? data.nodes : [])
+        setNodes(Array.isArray(data.nodes) ? applyLevelMetadata(data.nodes) : [])
         setSummary(data.summary || null)
         setMeta(data.meta || null)
       } catch (err: any) {
@@ -157,7 +324,7 @@ export default function BranchesPage() {
         setLoading(false)
       }
     },
-    []
+    [applyLevelMetadata]
   )
 
   useEffect(() => {
@@ -171,6 +338,16 @@ export default function BranchesPage() {
       fetchHierarchy(churchId, activeFilters)
     }
   }, [churchId, activeFilters, fetchHierarchy])
+
+  useEffect(() => {
+    if (!churchId) return
+    fetchChurchDetails(churchId)
+  }, [churchId, fetchChurchDetails])
+
+  useEffect(() => {
+    if (!churchId) return
+    loadExistingBranches(churchId)
+  }, [churchId, loadExistingBranches])
 
   const handleApplyFilters = () => {
     if (filterInputs.start && filterInputs.end && filterInputs.end < filterInputs.start) {
@@ -189,11 +366,44 @@ export default function BranchesPage() {
     setShowCreateModal(false)
     if (churchId) {
       fetchHierarchy(churchId, activeFilters)
+      loadExistingBranches(churchId)
     }
   }
 
-  const handleOpenCreateModal = (context?: BranchCreationContext) => {
-    setCreationContext(context ?? { level: 'REGION', parentBranchId: null })
+  const handleOpenCreateModal = (context?: BranchCreationContextInput) => {
+    if (churchId) {
+      loadExistingBranches(churchId)
+    }
+
+    const fallbackContext: BranchCreationContext = rootLevel
+      ? {
+          level: rootLevel.key,
+          levelLabel: levelLabels[rootLevel.key] ?? rootLevel.label ?? 'Global Headquarters',
+          levelCode: levelCodes[rootLevel.key] ?? 'Level 1',
+          parentBranchId: null,
+        }
+      : {
+          level: 'LEVEL_1',
+          levelLabel: 'Global Headquarters',
+          levelCode: 'Level 1',
+          parentBranchId: null,
+        }
+
+    const resolvedLevel = context?.level ?? fallbackContext.level
+    const resolvedLevelLabel =
+      (context?.levelLabel && context.levelLabel.trim().length > 0
+        ? context.levelLabel
+        : levelLabels[resolvedLevel]) ?? fallbackContext.levelLabel
+    const resolvedLevelCode =
+      context?.levelCode ?? levelCodes[resolvedLevel] ?? fallbackContext.levelCode
+
+    setCreationContext({
+      level: resolvedLevel,
+      levelLabel: resolvedLevelLabel,
+      levelCode: resolvedLevelCode,
+      parentBranchId: context?.parentBranchId ?? fallbackContext.parentBranchId ?? null,
+      parentName: context?.parentName ?? fallbackContext.parentName,
+    })
     setShowCreateModal(true)
   }
 
@@ -254,9 +464,13 @@ export default function BranchesPage() {
   }
 
   const renderNode = (node: BranchReportNode, depth: number = 0) => {
-    const childLevel = CHILD_LEVEL_MAP[node.level]
+    const childLevel = childLevelMap[node.level] ?? null
     const locationParts = [node.location.city, node.location.state, node.location.country].filter(Boolean)
     const location = locationParts.length > 0 ? locationParts.join(', ') : 'Location not specified'
+    const nodeLevelCode = node.levelCode ?? levelCodes[node.level] ?? `Level ${depth + 1}`
+    const nodeDisplayLabel = node.levelLabel?.trim() || levelLabels[node.level]?.trim() || ''
+    const childLevelCode = childLevel ? levelCodes[childLevel] ?? null : null
+    const childLevelLabel = childLevel ? levelLabels[childLevel]?.trim() || '' : ''
 
     return (
       <div key={node.id} className="space-y-3">
@@ -266,8 +480,11 @@ export default function BranchesPage() {
               <div className="flex items-center gap-3 flex-wrap">
                 <h3 className="text-xl font-semibold text-gray-900">{node.name}</h3>
                 <span className="px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded-full bg-slate-100 text-slate-700">
-                  {node.level}
+                  {nodeLevelCode}
                 </span>
+                {nodeDisplayLabel && (
+                  <span className="text-sm font-medium text-slate-500 italic">{nodeDisplayLabel}</span>
+                )}
                 <span
                   className={`px-3 py-1 text-xs font-semibold rounded-full ${
                     node.status === 'ACTIVE'
@@ -287,13 +504,16 @@ export default function BranchesPage() {
                     onClick={() =>
                       handleOpenCreateModal({
                         level: childLevel,
+                        levelLabel: levelLabels[childLevel] ?? '',
+                        levelCode: levelCodes[childLevel] ?? undefined,
                         parentBranchId: node.id,
                         parentName: node.name,
                       })
                     }
                     className="px-4 py-2 rounded-xl border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors"
                   >
-                    + Add {childLevel.toLowerCase()}
+                    + Add {childLevelCode ?? 'next level'}
+                    {childLevelLabel ? ` (${childLevelLabel.toLowerCase()})` : ''}
                   </button>
                 )}
                 <button
@@ -384,12 +604,12 @@ export default function BranchesPage() {
           >
             Export report
           </button>
-          {canCreateRegions && churchId && (
+          {rootLevel && canCreateRootLevel && churchId && (
             <button
               onClick={() => handleOpenCreateModal()}
               className="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors shadow-sm"
             >
-              + New region
+              + New {rootLevelDisplayName.toLowerCase()}
             </button>
           )}
         </div>
@@ -493,15 +713,15 @@ export default function BranchesPage() {
           <div className="text-5xl mb-4">🌱</div>
           <h3 className="text-xl font-semibold mb-2 text-gray-900">No branches to show</h3>
           <p className="text-gray-600 max-w-lg mx-auto">
-            Create your first region or request access to a parent branch to begin building the
-            hierarchy.
+            Create your first {rootLevelDisplayName.toLowerCase()} or request access to a parent branch to
+            begin building the hierarchy.
           </p>
-          {canCreateRegions && (
+          {rootLevel && canCreateRootLevel && (
             <button
               onClick={() => handleOpenCreateModal()}
               className="mt-6 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
             >
-              Create region
+              Create {rootLevelDisplayName.toLowerCase()}
             </button>
           )}
         </div>
@@ -515,6 +735,8 @@ export default function BranchesPage() {
           context={creationContext}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleBranchCreated}
+          existingBranches={existingBranches}
+          allowExistingSelection={existingBranches.length > 0}
         />
       )}
 

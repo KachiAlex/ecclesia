@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface LeaderboardEntry {
   rank: number
@@ -23,11 +23,7 @@ export default function Leaderboard() {
   const [type, setType] = useState<'global' | 'department' | 'group' | 'family'>('global')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadLeaderboard()
-  }, [type])
-
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = useCallback(async () => {
     try {
       const response = await fetch(`/api/gamification/leaderboard?type=${type}`)
       if (response.ok) {
@@ -39,7 +35,11 @@ export default function Leaderboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [type])
+
+  useEffect(() => {
+    loadLeaderboard()
+  }, [loadLeaderboard])
 
   if (loading) {
     return <div className="text-center py-8">Loading leaderboard...</div>

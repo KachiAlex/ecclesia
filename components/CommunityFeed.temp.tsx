@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { formatDate } from '@/lib/utils'
 import CreatePost from './CreatePost'
 
@@ -29,11 +29,7 @@ export default function CommunityFeed() {
   const [showCreatePost, setShowCreatePost] = useState(false)
   const [filter, setFilter] = useState<string>('')
 
-  useEffect(() => {
-    loadPosts()
-  }, [filter])
-
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       const params = new URLSearchParams()
       if (filter) params.append('type', filter)
@@ -48,7 +44,11 @@ export default function CommunityFeed() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter])
+
+  useEffect(() => {
+    loadPosts()
+  }, [loadPosts])
 
   const handleLike = async (postId: string) => {
     try {

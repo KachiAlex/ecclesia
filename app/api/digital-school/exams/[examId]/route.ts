@@ -3,6 +3,7 @@ import { guardApi } from '@/lib/api-guard'
 import {
   DigitalCourseExamService,
   DigitalCourseModuleService,
+  DigitalCourseSectionService,
   DigitalCourseService,
 } from '@/lib/services/digital-school-service'
 import { UserRole } from '@/types'
@@ -17,10 +18,12 @@ type RouteParams = {
 
 async function scopeExam(examId: string, churchId?: string) {
   const exam = await DigitalCourseExamService.get(examId)
-  if (!exam) return { exam: null, course: null }
+  if (!exam) return { exam: null, course: null, section: null }
   const course = await DigitalCourseService.get(exam.courseId)
-  if (!course || course.churchId !== churchId) return { exam: null, course: null }
-  return { exam, course }
+  if (!course || course.churchId !== churchId) return { exam: null, course: null, section: null }
+  const section = await DigitalCourseSectionService.get(exam.sectionId)
+  if (!section || section.courseId !== course.id) return { exam: null, course: null, section: null }
+  return { exam, course, section }
 }
 
 export async function GET(_: Request, { params }: RouteParams) {
@@ -51,9 +54,17 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json()
+    if (body.sectionId) {
+      const section = await DigitalCourseSectionService.get(body.sectionId)
+      if (!section || section.courseId !== scoped.exam.courseId) {
+        return NextResponse.json({ error: 'Invalid sectionId' }, { status: 400 })
+      }
+    }
+
     if (body.moduleId) {
-      const module = await DigitalCourseModuleService.get(body.moduleId)
-      if (!module || module.courseId !== scoped.exam.courseId) {
+      const targetModule = await DigitalCourseModuleService.get(body.moduleId)
+      const targetSectionId = body.sectionId ?? scoped.exam.sectionId
+      if (!targetModule || targetModule.courseId !== scoped.exam.courseId || targetModule.sectionId !== targetSectionId) {
         return NextResponse.json({ error: 'Invalid moduleId' }, { status: 400 })
       }
     }

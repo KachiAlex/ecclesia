@@ -123,6 +123,7 @@ export const COLLECTIONS = {
 
   // Digital School collections
   digitalCourses: 'digital_courses',
+  digitalCourseSections: 'digital_course_sections',
   digitalCourseModules: 'digital_course_modules',
   digitalCourseLessons: 'digital_course_lessons',
   digitalCourseAccessRequests: 'digital_course_access_requests',

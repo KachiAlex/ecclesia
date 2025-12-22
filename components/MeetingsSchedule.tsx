@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Branch = {
   id: string
@@ -103,7 +103,7 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
     return d
   }, [])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -146,12 +146,11 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
     } finally {
       setLoading(false)
     }
-  }
+  }, [rangeEnd, rangeStart])
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [load])
 
   const connectGoogle = async () => {
     setConnectingGoogle(true)

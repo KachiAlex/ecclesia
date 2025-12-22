@@ -1,9 +1,9 @@
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
+import type { BranchLevel } from '@/lib/services/branch-hierarchy'
+export type { BranchLevel } from '@/lib/services/branch-hierarchy'
 
-export const BRANCH_LEVELS = ['REGION', 'STATE', 'ZONE', 'BRANCH'] as const
-export type BranchLevel = (typeof BRANCH_LEVELS)[number]
 const DEFAULT_BRANCH_LEVEL: BranchLevel = 'BRANCH'
 
 export interface Branch {
@@ -12,6 +12,7 @@ export interface Branch {
   slug: string
   churchId: string
   level: BranchLevel
+  levelLabel?: string
   parentBranchId?: string | null
   address?: string
   city?: string
@@ -49,6 +50,7 @@ const toBranch = (
     id: doc.id,
     ...data,
     level,
+    levelLabel: typeof data.levelLabel === 'string' ? data.levelLabel : undefined,
     parentBranchId:
       data.parentBranchId === undefined ? null : (data.parentBranchId as string | null),
     createdAt: toDate(data.createdAt),
@@ -132,6 +134,7 @@ export class BranchService {
     const branchData = {
       ...data,
       level: data.level ?? DEFAULT_BRANCH_LEVEL,
+      levelLabel: data.levelLabel ?? null,
       parentBranchId: data.parentBranchId ?? null,
       isActive: data.isActive ?? true,
       createdAt: FieldValue.serverTimestamp(),

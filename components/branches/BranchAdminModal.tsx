@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface BranchAdmin {
   id: string
@@ -38,12 +38,7 @@ export default function BranchAdminModal({ churchId, branchId, branchName, onClo
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchAdmins()
-    fetchUsers()
-  }, [])
-
-  const fetchAdmins = async () => {
+  const fetchAdmins = useCallback(async () => {
     try {
       const res = await fetch(`/api/churches/${churchId}/branches/${branchId}/admins`)
       if (res.ok) {
@@ -55,9 +50,9 @@ export default function BranchAdminModal({ churchId, branchId, branchName, onClo
     } finally {
       setLoading(false)
     }
-  }
+  }, [branchId, churchId])
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`/api/users?churchId=${churchId}`)
       if (res.ok) {
@@ -67,7 +62,12 @@ export default function BranchAdminModal({ churchId, branchId, branchName, onClo
     } catch (error) {
       console.error('Error fetching users:', error)
     }
-  }
+  }, [churchId])
+
+  useEffect(() => {
+    fetchAdmins()
+    fetchUsers()
+  }, [fetchAdmins, fetchUsers])
 
   const handleAddAdmin = async () => {
     if (!selectedUserId) {

@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { ChurchService } from '@/lib/services/church-service'
 import { UserService } from '@/lib/services/user-service'
+import {
+  sanitizeHierarchyLevelOverrides,
+  sanitizeHierarchyLevelInputs,
+  type HierarchyLevelLabels,
+  type HierarchyLevelDefinition,
+} from '@/lib/services/branch-hierarchy'
 
 export async function GET(
   request: Request,
@@ -37,6 +43,16 @@ export async function GET(
     )
   }
 }
+
+const validateHierarchyLabels = (
+  value: unknown
+): { value: HierarchyLevelLabels } | { error: string } =>
+  sanitizeHierarchyLevelOverrides(value)
+
+const validateHierarchyLevels = (
+  value: unknown
+): { value: HierarchyLevelDefinition[] } | { error: string } =>
+  sanitizeHierarchyLevelInputs(value)
 
 export async function PATCH(
   request: Request,
@@ -86,6 +102,8 @@ export async function PATCH(
       phone,
       website,
       timezone,
+      hierarchyLevelLabels,
+      hierarchyLevels,
     } = body
 
     const updateData: any = {}
@@ -99,6 +117,20 @@ export async function PATCH(
     if (phone !== undefined) updateData.phone = phone
     if (website !== undefined) updateData.website = website
     if (timezone !== undefined) updateData.timezone = timezone
+    if (hierarchyLevelLabels !== undefined) {
+      const sanitized = validateHierarchyLabels(hierarchyLevelLabels)
+      if ('error' in sanitized) {
+        return NextResponse.json({ error: sanitized.error }, { status: 400 })
+      }
+      updateData.hierarchyLevelLabels = sanitized.value
+    }
+    if (hierarchyLevels !== undefined) {
+      const sanitizedLevels = validateHierarchyLevels(hierarchyLevels)
+      if ('error' in sanitizedLevels) {
+        return NextResponse.json({ error: sanitizedLevels.error }, { status: 400 })
+      }
+      updateData.hierarchyLevels = sanitizedLevels.value
+    }
 
     const updatedChurch = await ChurchService.update(churchId, updateData)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 
 interface Conversation {
@@ -82,37 +82,7 @@ export default function Messaging() {
   const recordingChunksRef = useRef<Blob[]>([])
   const recordingStartRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    loadConversations()
-  }, [])
-
-  useEffect(() => {
-    if (selectedConversation) {
-      loadMessages()
-      const interval = setInterval(loadMessages, 5000) // Poll every 5 seconds
-      return () => clearInterval(interval)
-    }
-  }, [selectedConversation])
-
-  useEffect(() => {
-    loadBranches()
-  }, [])
-
-  useEffect(() => {
-    if (viewMode === 'directory') {
-      loadDirectoryUsers()
-    }
-  }, [viewMode, userSearch, roleFilter, branchFilter])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const res = await fetch('/api/churches/switch', { cache: 'no-store' })
       if (!res.ok) return
@@ -127,9 +97,9 @@ export default function Messaging() {
     } catch (error) {
       console.error('Error loading branches:', error)
     }
-  }
+  }, [])
 
-  const loadDirectoryUsers = async () => {
+  const loadDirectoryUsers = useCallback(async () => {
     setDirectoryLoading(true)
     try {
       const params = new URLSearchParams({ limit: '50' })
@@ -148,9 +118,9 @@ export default function Messaging() {
     } finally {
       setDirectoryLoading(false)
     }
-  }
+  }, [branchFilter, roleFilter, userSearch])
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       const response = await fetch('/api/messages')
       if (response.ok) {
@@ -160,9 +130,9 @@ export default function Messaging() {
     } catch (error) {
       console.error('Error loading conversations:', error)
     }
-  }
+  }, [])
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     if (!selectedConversation) return
 
     try {
@@ -174,6 +144,36 @@ export default function Messaging() {
     } catch (error) {
       console.error('Error loading messages:', error)
     }
+  }, [selectedConversation])
+
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
+
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages()
+      const interval = setInterval(loadMessages, 5000) // Poll every 5 seconds
+      return () => clearInterval(interval)
+    }
+  }, [selectedConversation, loadMessages])
+
+  useEffect(() => {
+    loadBranches()
+  }, [loadBranches])
+
+  useEffect(() => {
+    if (viewMode === 'directory') {
+      loadDirectoryUsers()
+    }
+  }, [viewMode, loadDirectoryUsers])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const handleSelectUser = (userId: string) => {

@@ -7,6 +7,15 @@ export type DigitalCourseStatus = 'draft' | 'published' | 'archived'
 export type DigitalCourseEnrollmentStatus = 'active' | 'completed' | 'withdrawn'
 export type DigitalExamStatus = 'draft' | 'published' | 'archived'
 export type DigitalExamAttemptStatus = 'in_progress' | 'submitted' | 'graded'
+export type DigitalCoursePricingType = 'free' | 'paid'
+export type DigitalCoursePaymentGateway = 'flutterwave' | 'paystack'
+
+export interface DigitalCoursePricing {
+  type: DigitalCoursePricingType
+  amount?: number
+  currency?: string
+  paymentGateway?: DigitalCoursePaymentGateway
+}
 
 export interface DigitalCourse {
   id: string
@@ -19,6 +28,7 @@ export interface DigitalCourse {
   coverImageUrl?: string
   tags?: string[]
   status: DigitalCourseStatus
+  pricing: DigitalCoursePricing
   createdBy: string
   updatedBy: string
   createdAt: Date
@@ -35,13 +45,34 @@ export interface DigitalCourseInput {
   coverImageUrl?: string
   tags?: string[]
   status?: DigitalCourseStatus
+  pricing?: DigitalCoursePricing
   createdBy: string
   updatedBy?: string
+}
+
+export interface DigitalCourseSection {
+  id: string
+  courseId: string
+  title: string
+  description?: string
+  order: number
+  estimatedHours?: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface DigitalCourseSectionInput {
+  courseId: string
+  title: string
+  description?: string
+  order?: number
+  estimatedHours?: number
 }
 
 export interface DigitalCourseModule {
   id: string
   courseId: string
+  sectionId: string
   title: string
   description?: string
   order: number
@@ -52,6 +83,7 @@ export interface DigitalCourseModule {
 
 export interface DigitalCourseModuleInput {
   courseId: string
+  sectionId: string
   title: string
   description?: string
   order?: number
@@ -127,6 +159,7 @@ export interface DigitalCourseEnrollmentInput {
 export interface DigitalCourseExam {
   id: string
   courseId: string
+  sectionId: string
   moduleId?: string
   title: string
   description?: string
@@ -145,6 +178,7 @@ export interface DigitalCourseExam {
 
 export interface DigitalCourseExamInput {
   courseId: string
+  sectionId: string
   moduleId?: string
   title: string
   description?: string
@@ -224,6 +258,21 @@ function buildDocWithTimestamps<T extends Record<string, any>>(data: T, userId?:
     updatedBy: userId ?? data.updatedBy ?? data.createdBy,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
+  }
+}
+
+const DEFAULT_CURRENCY = 'NGN'
+
+function normalizePricing(pricing?: DigitalCoursePricing | null): DigitalCoursePricing {
+  if (!pricing || pricing.type === 'free') {
+    return { type: 'free' }
+  }
+
+  return {
+    type: 'paid',
+    amount: typeof pricing.amount === 'number' ? pricing.amount : 0,
+    currency: pricing.currency || DEFAULT_CURRENCY,
+    paymentGateway: pricing.paymentGateway || 'flutterwave',
   }
 }
 
@@ -315,6 +364,11 @@ export class DigitalCourseExamService {
     return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
   }
 
+  static async listBySection(sectionId: string): Promise<DigitalCourseExam[]> {
+    const snapshot = await this.collection().where('sectionId', '==', sectionId).orderBy('createdAt', 'desc').get()
+    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+  }
+
   static async get(examId: string): Promise<DigitalCourseExam | null> {
     const doc = await this.collection().doc(examId).get()
     if (!doc.exists) return null
@@ -325,6 +379,7 @@ export class DigitalCourseExamService {
     const docRef = this.collection().doc()
     const payload = {
       courseId: input.courseId,
+      sectionId: input.sectionId,
       moduleId: input.moduleId ?? null,
       title: input.title,
       description: input.description ?? '',
@@ -375,6 +430,7 @@ export class DigitalCourseExamService {
     return {
       id,
       courseId: data.courseId,
+      sectionId: data.sectionId,
       moduleId: data.moduleId || undefined,
       title: data.title,
       description: data.description || undefined,
@@ -605,6 +661,7 @@ export class DigitalCourseService {
       coverImageUrl: input.coverImageUrl ?? null,
       tags: input.tags ?? [],
       status: input.status ?? 'draft',
+      pricing: normalizePricing(input.pricing),
       createdBy: input.createdBy,
       updatedBy: input.updatedBy ?? input.createdBy,
     })
@@ -619,10 +676,14 @@ export class DigitalCourseService {
     const existing = await docRef.get()
     if (!existing.exists) return null
 
-    const updateData = {
+    const updateData: Record<string, any> = {
       ...data,
       updatedBy: data.updatedBy ?? data.createdBy ?? existing.data()?.updatedBy,
       updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    if (data.pricing) {
+      updateData.pricing = normalizePricing(data.pricing)
     }
 
     await docRef.update(updateData)
@@ -646,8 +707,78 @@ export class DigitalCourseService {
       coverImageUrl: data.coverImageUrl || undefined,
       tags: data.tags || [],
       status: data.status ?? 'draft',
+      pricing: normalizePricing(data.pricing),
       createdBy: data.createdBy,
       updatedBy: data.updatedBy,
+      createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
+      updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
+    }
+  }
+}
+
+export class DigitalCourseSectionService {
+  static collection() {
+    return db.collection(COLLECTIONS.digitalCourseSections)
+  }
+
+  static async listByCourse(courseId: string): Promise<DigitalCourseSection[]> {
+    const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('order', 'asc').get()
+    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+  }
+
+  static async get(sectionId: string): Promise<DigitalCourseSection | null> {
+    const doc = await this.collection().doc(sectionId).get()
+    if (!doc.exists) return null
+    return this.fromDoc(doc.id, doc.data()!)
+  }
+
+  static async create(input: DigitalCourseSectionInput): Promise<DigitalCourseSection> {
+    const docRef = this.collection().doc()
+    const existingCount = await this.collection().where('courseId', '==', input.courseId).get()
+    const payload = {
+      courseId: input.courseId,
+      title: input.title,
+      description: input.description ?? '',
+      order: input.order ?? existingCount.size + 1,
+      estimatedHours: input.estimatedHours ?? null,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    await docRef.set(payload)
+    const created = await docRef.get()
+    return this.fromDoc(created.id, created.data()!)
+  }
+
+  static async update(
+    sectionId: string,
+    data: Partial<Omit<DigitalCourseSectionInput, 'courseId'>>,
+  ): Promise<DigitalCourseSection | null> {
+    const docRef = this.collection().doc(sectionId)
+    const existing = await docRef.get()
+    if (!existing.exists) return null
+
+    await docRef.update({
+      ...omitUndefined(data),
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    const updated = await docRef.get()
+    return this.fromDoc(updated.id, updated.data()!)
+  }
+
+  static async delete(sectionId: string): Promise<void> {
+    await this.collection().doc(sectionId).delete()
+  }
+
+  private static fromDoc(id: string, data: Record<string, any>): DigitalCourseSection {
+    return {
+      id,
+      courseId: data.courseId,
+      title: data.title,
+      description: data.description || undefined,
+      order: data.order,
+      estimatedHours: data.estimatedHours ?? undefined,
       createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
       updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
     }
@@ -664,6 +795,11 @@ export class DigitalCourseModuleService {
     return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
   }
 
+  static async listBySection(sectionId: string): Promise<DigitalCourseModule[]> {
+    const snapshot = await this.collection().where('sectionId', '==', sectionId).orderBy('order', 'asc').get()
+    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+  }
+
   static async get(moduleId: string): Promise<DigitalCourseModule | null> {
     const doc = await this.collection().doc(moduleId).get()
     if (!doc.exists) return null
@@ -672,9 +808,10 @@ export class DigitalCourseModuleService {
 
   static async create(input: DigitalCourseModuleInput): Promise<DigitalCourseModule> {
     const docRef = this.collection().doc()
-    const existingCount = await this.collection().where('courseId', '==', input.courseId).get()
+    const existingCount = await this.collection().where('sectionId', '==', input.sectionId).get()
     const payload = {
       courseId: input.courseId,
+      sectionId: input.sectionId,
       title: input.title,
       description: input.description ?? '',
       order: input.order ?? existingCount.size + 1,
@@ -713,6 +850,7 @@ export class DigitalCourseModuleService {
     return {
       id,
       courseId: data.courseId,
+      sectionId: data.sectionId,
       title: data.title,
       description: data.description || undefined,
       order: data.order,

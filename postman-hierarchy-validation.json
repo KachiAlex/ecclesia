@@ -1,0 +1,47 @@
+{
+  "info": {
+    "name": "Ecclesia Hierarchy Validation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Church by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "next-auth.session-token={{session_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/churches/{{churchId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "churches",
+            "{{churchId}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "churchId",
+      "value": "0XevS9ogVTmwQonBBdk0"
+    },
+    {
+      "key": "session_token",
+      "value": ""
+    }
+  ]
+}

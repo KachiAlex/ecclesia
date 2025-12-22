@@ -53,8 +53,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const body = await request.json()
 
     if (body.moduleId) {
-      const module = await DigitalCourseModuleService.get(body.moduleId)
-      if (!module || module.courseId !== scoped.lesson.courseId) {
+      const targetModule = await DigitalCourseModuleService.get(body.moduleId)
+      if (!targetModule || targetModule.courseId !== scoped.lesson.courseId) {
         return NextResponse.json({ error: 'Invalid moduleId' }, { status: 400 })
       }
     }

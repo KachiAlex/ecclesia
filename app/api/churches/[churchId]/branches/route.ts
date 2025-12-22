@@ -11,11 +11,15 @@ import {
 import { ChurchService } from '@/lib/services/church-service'
 import { UserService } from '@/lib/services/user-service'
 import {
-  CHILD_LEVEL_MAP,
   normalizeLevel,
   resolveBranchScope,
   hasGlobalChurchAccess,
 } from '@/lib/services/branch-scope'
+import {
+  getHierarchyLevelLabels,
+  getHierarchyLevels,
+  findChildLevelKey,
+} from '@/lib/services/branch-hierarchy'
 
 const resolveParentFilter = (raw: string | null): { applied: boolean; value: string | null } => {
   if (raw === null) {
@@ -62,6 +66,12 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const church = await ChurchService.findById(churchId)
+    if (!church) {
+      return NextResponse.json({ error: 'Church not found' }, { status: 404 })
+    }
+
+    const hierarchyLabels = getHierarchyLevelLabels(church)
     const { branches: allBranches, scope } = await resolveBranchScope(churchId, user)
     const url = new URL(request.url)
     const searchParams = url.searchParams
@@ -97,7 +107,12 @@ export async function GET(
       return true
     })
 
-    return NextResponse.json(filtered)
+    const enriched = filtered.map((branch) => ({
+      ...branch,
+      levelLabel: branch.levelLabel ?? hierarchyLabels[branch.level],
+    }))
+
+    return NextResponse.json(enriched)
   } catch (error) {
     console.error('Error fetching branches:', error)
     return NextResponse.json(
@@ -159,9 +174,16 @@ export async function POST(
       adminId,
       level: rawLevel,
       parentBranchId: rawParentId,
+      levelLabel: rawLevelLabel,
     } = body
 
     const { branchMap, scope } = await resolveBranchScope(churchId, user)
+    const hierarchyLevels = getHierarchyLevels(church)
+    const hierarchyLabels = hierarchyLevels.reduce<Record<string, string>>((acc, level) => {
+      acc[level.key] = level.label
+      return acc
+    }, getHierarchyLevelLabels(church))
+    const rootLevel = hierarchyLevels[0]
     const canManageAll = hasGlobalChurchAccess(user, churchId)
     const requestedLevel = normalizeLevel(typeof rawLevel === 'string' ? rawLevel : null)
     const parentBranchId =
@@ -176,10 +198,14 @@ export async function POST(
         return NextResponse.json({ error: 'Parent branch not found' }, { status: 404 })
       }
 
-      const expectedChildLevel = CHILD_LEVEL_MAP[parentBranch.level]
+      const expectedChildLevel = findChildLevelKey(church, parentBranch.level)
       if (!expectedChildLevel) {
         return NextResponse.json(
-          { error: `Branches under ${parentBranch.level} cannot have further children` },
+          {
+            error: `${
+              parentBranch.levelLabel ?? hierarchyLabels[parentBranch.level] ?? parentBranch.level
+            } branches cannot have further children`,
+          },
           { status: 400 }
         )
       }
@@ -187,7 +213,11 @@ export async function POST(
       if (requestedLevel && requestedLevel !== expectedChildLevel) {
         return NextResponse.json(
           {
-            error: `Child branches of ${parentBranch.level} must be created at the ${expectedChildLevel} level`,
+            error: `Child branches of ${
+              parentBranch.levelLabel ?? hierarchyLabels[parentBranch.level] ?? parentBranch.level
+            } must be created at the ${
+              hierarchyLabels[expectedChildLevel] ?? expectedChildLevel
+            } level`,
           },
           { status: 400 }
         )
@@ -204,11 +234,17 @@ export async function POST(
 
       effectiveLevel = expectedChildLevel
     } else {
-      effectiveLevel = requestedLevel ?? 'REGION'
-
-      if (effectiveLevel !== 'REGION') {
+      if (!rootLevel) {
         return NextResponse.json(
-          { error: 'Top-level branches must be created at the REGION level' },
+          { error: 'Hierarchy levels are not configured for this church' },
+          { status: 500 }
+        )
+      }
+      effectiveLevel = requestedLevel ?? rootLevel.key
+
+      if (effectiveLevel !== rootLevel.key) {
+        return NextResponse.json(
+          { error: `Top-level branches must be created at the ${rootLevel.label} level` },
           { status: 400 }
         )
       }
@@ -224,6 +260,20 @@ export async function POST(
     if (!name) {
       return NextResponse.json(
         { error: 'Branch name is required' },
+        { status: 400 }
+      )
+    }
+
+    const levelLabel =
+      typeof rawLevelLabel === 'string' && rawLevelLabel.trim().length > 0
+        ? rawLevelLabel.trim()
+        : hierarchyLabels[effectiveLevel] ?? effectiveLevel
+    if (!levelLabel || levelLabel.length === 0) {
+      return NextResponse.json({ error: 'Level label is required' }, { status: 400 })
+    }
+    if (levelLabel.length > 60) {
+      return NextResponse.json(
+        { error: 'Level label must be 60 characters or fewer' },
         { status: 400 }
       )
     }
@@ -247,6 +297,7 @@ export async function POST(
       churchId: churchId,
       level: effectiveLevel,
       parentBranchId,
+      levelLabel,
       address: address || null,
       city: city || null,
       state: state || null,

@@ -1,6 +1,26 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+const isTelegramUrl = (url: string) => url.includes('t.me/') || url.includes('telegram.')
+
+const isPublicTelegramPostUrl = (url: string) => {
+  if (!url.includes('t.me/')) return false
+  return /t\.me\/(?!c\/)[^\/]+\/\d+/.test(url)
+}
+
+const detectEmbedType = (url: string): 'youtube' | 'vimeo' | 'telegram' | 'direct' => {
+  if (url.includes('youtube.com/embed/') || url.includes('youtu.be')) {
+    return 'youtube'
+  }
+  if (url.includes('vimeo.com') || url.includes('player.vimeo.com')) {
+    return 'vimeo'
+  }
+  if (isPublicTelegramPostUrl(url)) {
+    return 'telegram'
+  }
+  return 'direct'
+}
 
 interface MediaPlayerProps {
   videoUrl?: string
@@ -59,26 +79,6 @@ export default function MediaPlayer({
       }
     }
   }, [embedType, mediaType, initialTime])
-
-  const isTelegramUrl = (url: string) => url.includes('t.me/') || url.includes('telegram.')
-
-  const isPublicTelegramPostUrl = (url: string) => {
-    if (!url.includes('t.me/')) return false
-    return /t\.me\/(?!c\/)[^\/]+\/\d+/.test(url)
-  }
-
-  const detectEmbedType = (url: string): 'youtube' | 'vimeo' | 'telegram' | 'direct' => {
-    if (url.includes('youtube.com/embed/') || url.includes('youtu.be')) {
-      return 'youtube'
-    }
-    if (url.includes('vimeo.com') || url.includes('player.vimeo.com')) {
-      return 'vimeo'
-    }
-    if (isPublicTelegramPostUrl(url)) {
-      return 'telegram'
-    }
-    return 'direct'
-  }
 
   const handleTimeUpdate = () => {
     if (onTimeUpdate) {

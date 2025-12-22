@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 
 interface Event {
@@ -41,12 +41,7 @@ export default function EventCalendar({ isAdmin = false }: EventCalendarProps) {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadBranches()
-    loadEvents()
-  }, [currentDate, view, branchFilter])
-
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const userRes = await fetch('/api/users/me')
       const userData = await userRes.json()
@@ -63,9 +58,9 @@ export default function EventCalendar({ isAdmin = false }: EventCalendarProps) {
     } catch (error) {
       console.error('Error loading branches:', error)
     }
-  }
+  }, [])
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     try {
       const start = new Date(currentDate)
       const end = new Date(currentDate)
@@ -100,7 +95,15 @@ export default function EventCalendar({ isAdmin = false }: EventCalendarProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [branchFilter, currentDate, view])
+
+  useEffect(() => {
+    loadBranches()
+  }, [loadBranches])
+
+  useEffect(() => {
+    loadEvents()
+  }, [loadEvents])
 
   const handleRegister = async (eventId: string) => {
     setRegistering(eventId)

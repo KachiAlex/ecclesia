@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Branch = {
   id: string
@@ -124,7 +124,7 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  async function loadBranches() {
+  const loadBranches = useCallback(async () => {
     try {
       const cur = await fetch('/api/churches/switch', { cache: 'no-store' })
       if (!cur.ok) return
@@ -139,9 +139,9 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     } catch {
       // ignore
     }
-  }
+  }, [])
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -172,13 +172,12 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [queryString])
 
   useEffect(() => {
     loadBranches()
     loadAll()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString])
+  }, [loadAll, loadBranches])
 
   async function createExpense() {
     if (!branchId.trim()) {

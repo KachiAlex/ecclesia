@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
@@ -159,12 +159,7 @@ export default function MemberDirectory() {
     }
   }
 
-  useEffect(() => {
-    loadBranches()
-    loadUsers()
-  }, [pagination.page, search, roleFilter, branchFilter])
-
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const userRes = await fetch('/api/users/me')
       const userData = await userRes.json()
@@ -181,9 +176,9 @@ export default function MemberDirectory() {
     } catch (error) {
       console.error('Error loading branches:', error)
     }
-  }
+  }, [])
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -206,7 +201,15 @@ export default function MemberDirectory() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [branchFilter, pagination.limit, pagination.page, roleFilter, search])
+
+  useEffect(() => {
+    loadBranches()
+  }, [loadBranches])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()

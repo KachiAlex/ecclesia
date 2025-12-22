@@ -29,6 +29,16 @@ export default async function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/hierarchy"
+          className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow"
+        >
+          <div className="text-lg font-semibold">Hierarchy levels</div>
+          <div className="text-sm text-gray-600 mt-1">
+            Configure headquarters, regions, zones, and other tiers.
+          </div>
+        </Link>
+
+        <Link
           href="/settings/branding"
           className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow"
         >

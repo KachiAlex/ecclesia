@@ -2,67 +2,86 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app'
 import { getFirestore, Firestore, FieldValue, Transaction } from 'firebase-admin/firestore'
 import { getStorage, Storage } from 'firebase-admin/storage'
 
+const globalForFirebase = globalThis as typeof globalThis & {
+  firebaseApp?: App
+  firebaseDb?: Firestore
+  firebaseStorage?: Storage
+  firebaseSettingsApplied?: boolean
+}
+
 let app: App
-let _db: Firestore | null = null
-let _storage: Storage | null = null
+let _db: Firestore | null = globalForFirebase.firebaseDb ?? null
+let _storage: Storage | null = globalForFirebase.firebaseStorage ?? null
 
 /**
  * Initialize Firebase Admin SDK
  */
 export function initFirebase() {
-  if (getApps().length === 0) {
-    // Try to get service account from environment variable (for Vercel/Railway/etc)
-    let serviceAccount: any = undefined
-    
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-      } catch (e) {
-        console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e)
-      }
-    }
-    
-    // Try to load from file (for local development)
-    if (!serviceAccount && process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-      try {
-        const fs = require('fs')
-        const path = require('path')
-        const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
-        if (fs.existsSync(serviceAccountPath)) {
-          serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'))
+  if (!globalForFirebase.firebaseApp) {
+    if (getApps().length === 0) {
+      // Try to get service account from environment variable (for Vercel/Railway/etc)
+      let serviceAccount: any = undefined
+      
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+          serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+        } catch (e) {
+          console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e)
         }
-      } catch (e) {
-        console.error('Failed to load service account from file:', e)
+      }
+      
+      // Try to load from file (for local development)
+      if (!serviceAccount && process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+        try {
+          const fs = require('fs')
+          const path = require('path')
+          const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+          if (fs.existsSync(serviceAccountPath)) {
+            serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'))
+          }
+        } catch (e) {
+          console.error('Failed to load service account from file:', e)
+        }
+      }
+
+      if (serviceAccount) {
+        globalForFirebase.firebaseApp = initializeApp({
+          credential: cert(serviceAccount),
+          projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
+        })
+      } else {
+        // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
+        globalForFirebase.firebaseApp = initializeApp({
+          projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
+        })
       }
     }
-
-    if (serviceAccount) {
-      app = initializeApp({
-        credential: cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-      })
-    } else {
-      // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
-      app = initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-      })
-    }
-
-    _db = getFirestore(app)
-    // Enable ignoreUndefinedProperties to handle optional fields
-    _db.settings({ ignoreUndefinedProperties: true })
-    _storage = getStorage(app)
-  } else {
-    app = getApps()[0]
-    _db = getFirestore(app)
-    // Enable ignoreUndefinedProperties to handle optional fields
-    _db.settings({ ignoreUndefinedProperties: true })
-    _storage = getStorage(app)
+  } else if (getApps().length > 0) {
+    // Ensure firebase-admin uses the first registered app (important in local dev with HMR)
+    globalForFirebase.firebaseApp = getApps()[0]
   }
 
-  return _db!
+  app = globalForFirebase.firebaseApp!
+
+  if (!globalForFirebase.firebaseDb) {
+    const instance = getFirestore(app)
+    if (!globalForFirebase.firebaseSettingsApplied) {
+      instance.settings({ ignoreUndefinedProperties: true })
+      globalForFirebase.firebaseSettingsApplied = true
+    }
+    globalForFirebase.firebaseDb = instance
+  }
+
+  if (!globalForFirebase.firebaseStorage) {
+    globalForFirebase.firebaseStorage = getStorage(app)
+  }
+
+  _db = globalForFirebase.firebaseDb!
+  _storage = globalForFirebase.firebaseStorage!
+
+  return _db
 }
 
 /**
