@@ -237,6 +237,45 @@ export class BranchAdminService {
   }
 
   /**
+   * Find admins for multiple branches. Firestore limits `in` queries to 10 items,
+   * so requests are chunked accordingly.
+   */
+  static async findByBranchIds(
+    branchIds: string[],
+  ): Promise<Record<string, BranchAdmin[]>> {
+    const result: Record<string, BranchAdmin[]> = {}
+    const uniqueIds = Array.from(new Set(branchIds.filter((id): id is string => typeof id === 'string' && id.length > 0)))
+    if (uniqueIds.length === 0) {
+      return result
+    }
+
+    const chunkSize = 10
+    for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+      const chunk = uniqueIds.slice(i, i + chunkSize)
+      const snapshot = await db
+        .collection(COLLECTIONS.branchAdmins)
+        .where('branchId', 'in', chunk)
+        .get()
+
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data()
+        const branchId = typeof data.branchId === 'string' ? data.branchId : null
+        if (!branchId) return
+        if (!result[branchId]) {
+          result[branchId] = []
+        }
+        result[branchId].push({
+          id: doc.id,
+          ...data,
+          assignedAt: toDate(data.assignedAt),
+        } as BranchAdmin)
+      })
+    }
+
+    return result
+  }
+
+  /**
    * Find all branches where user is admin
    */
   static async findByUser(userId: string): Promise<BranchAdmin[]> {

@@ -72,17 +72,22 @@ Always reference specific Bible verses when relevant. Be warm, understanding, an
     return completion.choices[0]?.message?.content || 'I apologize, but I could not generate a response.'
   } catch (error: any) {
     console.error('AI API error:', error)
-    
-    // Provide more helpful error messages
-    if (error.message?.includes('API key')) {
-      throw new Error('AI service configuration error. Please check your API key.')
-    } else if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
-      throw new Error('AI service rate limit reached. Please try again later.')
-    } else if (error.message?.includes('timeout')) {
-      throw new Error('AI service timeout. Please try again.')
-    } else {
-      throw new Error('Failed to get AI response. Please try again later.')
+
+    if (error?.response?.status === 401 || error?.code === 'invalid_request_error') {
+      return 'AI coaching is temporarily unavailable because the API key is invalid. Please verify the key in your settings.'
     }
+
+    if (error.message?.includes('API key')) {
+      return 'AI service configuration error. Please check your API key.'
+    }
+    if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+      return 'AI service rate limit reached. Please try again later.'
+    }
+    if (error.message?.includes('timeout')) {
+      return 'AI service timeout. Please try again.'
+    }
+
+    return 'Failed to get AI response. Please try again later.'
   }
 }
 

@@ -3,6 +3,7 @@ import { UserService } from '@/lib/services/user-service'
 import { canManageUser } from '@/lib/permissions'
 import { checkUsageLimit } from '@/lib/subscription'
 import { guardApi } from '@/lib/api-guard'
+import { DesignationService } from '@/lib/services/designation-service'
 
 export async function GET(request: Request) {
   try {
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const roleFilter = searchParams.get('role')
+    const designationFilter = searchParams.get('designationId')
     const search = searchParams.get('search')
     const branchId = searchParams.get('branchId')
     const page = parseInt(searchParams.get('page') || '1')
@@ -38,12 +40,20 @@ export async function GET(request: Request) {
       users = users.filter(user => user.role === roleFilter)
     }
 
+    // Filter by designation
+    if (designationFilter) {
+      users = users.filter((user) => (user as any).designationId === designationFilter)
+    }
+
     // Filter by search
     if (search) {
       users = await UserService.search(church.id, search)
       // Re-apply branch filter after search
       if (branchId) {
         users = users.filter(user => (user as any).branchId === branchId)
+      }
+      if (designationFilter) {
+        users = users.filter((user) => (user as any).designationId === designationFilter)
       }
     }
 
@@ -89,7 +99,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { firstName, lastName, email, phone, password, role: newUserRole, branchId, address, dateOfBirth, employmentStatus } = body
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      role: newUserRole,
+      branchId,
+      address,
+      dateOfBirth,
+      employmentStatus,
+      designationId,
+    } = body
 
     // Validate input
     if (!firstName || !lastName || !email || !password) {
@@ -138,6 +160,15 @@ export async function POST(request: Request) {
       )
     }
 
+    let designationName: string | undefined
+    if (designationId) {
+      const designation = await DesignationService.get(designationId)
+      if (!designation || designation.churchId !== church.id) {
+        return NextResponse.json({ error: 'Invalid designation' }, { status: 400 })
+      }
+      designationName = designation.name
+    }
+
     // Create user
     const user = await UserService.create({
       firstName,
@@ -151,6 +182,8 @@ export async function POST(request: Request) {
       address: address || undefined,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       employmentStatus: employmentStatus || undefined,
+      designationId: designationId || undefined,
+      designationName,
     } as any)
 
     // Remove password from response

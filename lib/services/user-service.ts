@@ -12,6 +12,8 @@ export interface User {
   role: string
   churchId: string
   branchId?: string
+  designationId?: string
+  designationName?: string
   profileImage?: string
   phone?: string
   dateOfBirth?: Date | string
@@ -77,7 +79,7 @@ export class UserService {
    */
   static async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
     const hashedPassword = await bcrypt.hash(data.password, 10)
-    
+
     const userData = {
       ...data,
       password: hashedPassword,

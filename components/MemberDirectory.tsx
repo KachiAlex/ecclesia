@@ -4,6 +4,8 @@ import { useCallback, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
+type RoleCategory = 'Worker' | 'Leader' | 'Admin'
+
 interface User {
   id: string
   firstName: string
@@ -21,6 +23,8 @@ interface User {
       name: string
     }
   }
+  designationId?: string
+  designationName?: string
 }
 
 interface Pagination {
@@ -30,12 +34,21 @@ interface Pagination {
   totalPages: number
 }
 
+interface Designation {
+  id: string
+  name: string
+  description?: string
+  category?: RoleCategory
+}
+
 export default function MemberDirectory() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [roleCategoryFilter, setRoleCategoryFilter] = useState<RoleCategory | ''>('')
   const [branchFilter, setBranchFilter] = useState('')
+  const [designationFilter, setDesignationFilter] = useState('')
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -50,7 +63,18 @@ export default function MemberDirectory() {
     password: '',
     phone: '',
     role: 'MEMBER',
+    designationId: '',
   })
+  const [designations, setDesignations] = useState<Designation[]>([])
+  const [isLoadingDesignations, setIsLoadingDesignations] = useState(false)
+  const [designationModalOpen, setDesignationModalOpen] = useState(false)
+  const [designationForm, setDesignationForm] = useState({
+    name: '',
+    description: '',
+    category: 'Leader' as RoleCategory,
+  })
+  const [designationError, setDesignationError] = useState('')
+  const [savingDesignation, setSavingDesignation] = useState(false)
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 20,
@@ -71,6 +95,67 @@ export default function MemberDirectory() {
     await loadInvite()
   }
 
+  const loadDesignations = useCallback(async () => {
+    setIsLoadingDesignations(true)
+    try {
+      const response = await fetch('/api/designations')
+      if (!response.ok) throw new Error('Failed to load designations')
+      const data = await response.json()
+      setDesignations(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error loading designations:', error)
+      setDesignations([])
+    } finally {
+      setIsLoadingDesignations(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDesignations()
+  }, [loadDesignations])
+
+  const resetDesignationForm = () => {
+    setDesignationForm({
+      name: '',
+      description: '',
+      category: 'Leader',
+    })
+  }
+
+  const openDesignationModal = () => {
+    setDesignationError('')
+    resetDesignationForm()
+    setDesignationModalOpen(true)
+  }
+
+  const handleSaveDesignation = async () => {
+    if (!designationForm.name.trim()) {
+      setDesignationError('Designation name is required.')
+      return
+    }
+    setSavingDesignation(true)
+    setDesignationError('')
+    try {
+      const res = await fetch('/api/designations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: designationForm.name.trim(),
+          description: designationForm.description?.trim() || undefined,
+          category: designationForm.category,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to create designation')
+      await loadDesignations()
+      setDesignationModalOpen(false)
+    } catch (error: any) {
+      setDesignationError(error?.message || 'Unable to create designation.')
+    } finally {
+      setSavingDesignation(false)
+    }
+  }
+
   const createManual = async () => {
     setSavingManual(true)
     setAddError('')
@@ -85,12 +170,13 @@ export default function MemberDirectory() {
           password: manualForm.password,
           phone: manualForm.phone || undefined,
           role: manualForm.role,
+          designationId: manualForm.designationId || undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to create user')
 
-      setManualForm({ firstName: '', lastName: '', email: '', password: '', phone: '', role: 'MEMBER' })
+      setManualForm({ firstName: '', lastName: '', email: '', password: '', phone: '', role: 'MEMBER', designationId: '' })
       await loadUsers()
       setAddOpen(false)
     } catch (e: any) {
@@ -178,6 +264,14 @@ export default function MemberDirectory() {
     }
   }, [])
 
+  const roleCategoryFor = useCallback((role: string): RoleCategory => {
+    const normalized = role?.toUpperCase()
+    if (['ADMIN', 'BRANCH_ADMIN', 'SUPER_ADMIN'].includes(normalized)) return 'Admin'
+    if (['PASTOR', 'LEADER', 'ASSISTANT_PASTOR', 'ASSOCIATE_PASTOR', 'SENIOR_PASTOR', 'RESIDENT_PASTOR', 'LEAD_PASTOR'].includes(normalized))
+      return 'Leader'
+    return 'Worker'
+  }, [])
+
   const loadUsers = useCallback(async () => {
     setLoading(true)
     try {
@@ -188,20 +282,25 @@ export default function MemberDirectory() {
       if (search) params.append('search', search)
       if (roleFilter) params.append('role', roleFilter)
       if (branchFilter) params.append('branchId', branchFilter)
+      if (designationFilter) params.append('designationId', designationFilter)
 
       const response = await fetch(`/api/users?${params}`)
       if (!response.ok) {
         throw new Error('Failed to load users')
       }
       const data = await response.json()
-      setUsers(data.users)
+      let fetchedUsers = data.users as User[]
+      if (roleCategoryFilter) {
+        fetchedUsers = fetchedUsers.filter((user) => roleCategoryFor(user.role) === roleCategoryFilter)
+      }
+      setUsers(fetchedUsers)
       setPagination(data.pagination)
     } catch (error) {
       console.error('Error loading users:', error)
     } finally {
       setLoading(false)
     }
-  }, [branchFilter, pagination.limit, pagination.page, roleFilter, search])
+  }, [branchFilter, designationFilter, pagination.limit, pagination.page, roleFilter, roleCategoryFilter, roleCategoryFor, search])
 
   useEffect(() => {
     loadBranches()
@@ -318,6 +417,30 @@ export default function MemberDirectory() {
                       <option value="BRANCH_ADMIN">Branch Admin</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                      Designation (optional)
+                      <select
+                        value={manualForm.designationId}
+                        onChange={(e) => setManualForm((p) => ({ ...p, designationId: e.target.value }))}
+                        className="px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">{isLoadingDesignations ? 'Loading…' : 'Select designation'}</option>
+                        {designations.map((designation) => (
+                          <option key={designation.id} value={designation.id}>
+                            {designation.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={openDesignationModal}
+                      className="mt-2 text-xs text-primary-600 font-semibold hover:underline"
+                    >
+                      + Manage designations
+                    </button>
+                  </div>
 
                   <div className="flex justify-end">
                     <button
@@ -412,7 +535,7 @@ export default function MemberDirectory() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <form onSubmit={handleSearch} className="flex gap-4 flex-wrap">
+        <form onSubmit={handleSearch} className="flex gap-4 flex-wrap items-center">
           <input
             type="text"
             value={search}
@@ -454,6 +577,50 @@ export default function MemberDirectory() {
               ))}
             </select>
           )}
+          {designations.length > 0 && (
+            <select
+              value={designationFilter}
+              onChange={(e) => {
+                setDesignationFilter(e.target.value)
+                setPagination({ ...pagination, page: 1 })
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="">All designations</option>
+              {designations.map((designation) => (
+                <option key={designation.id} value={designation.id}>
+                  {designation.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {(['Worker', 'Leader', 'Admin'] as RoleCategory[]).map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => {
+                  setRoleCategoryFilter((prev) => (prev === category ? '' : category))
+                  setPagination({ ...pagination, page: 1 })
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                  roleCategoryFilter === category
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={openDesignationModal}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+            disabled={isLoadingDesignations}
+          >
+            {isLoadingDesignations ? 'Loading…' : 'Manage designations'}
+          </button>
           <button
             type="submit"
             className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
@@ -481,7 +648,7 @@ export default function MemberDirectory() {
                       Member
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
+                      Role & Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Position
@@ -528,9 +695,14 @@ export default function MemberDirectory() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-100 text-primary-800">
-                          {user.role}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-100 text-primary-800">
+                            {user.role}
+                          </span>
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-gray-100 text-gray-700">
+                            {roleCategoryFor(user.role)}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.salary?.position.name || '-'}

@@ -29,6 +29,7 @@ export interface DigitalCourse {
   tags?: string[]
   status: DigitalCourseStatus
   pricing: DigitalCoursePricing
+  certificateTheme?: CertificateTheme
   createdBy: string
   updatedBy: string
   createdAt: Date
@@ -46,8 +47,22 @@ export interface DigitalCourseInput {
   tags?: string[]
   status?: DigitalCourseStatus
   pricing?: DigitalCoursePricing
+  certificateTheme?: CertificateTheme
   createdBy: string
   updatedBy?: string
+}
+
+export type CertificateTemplate = 'classic' | 'modern' | 'minimal'
+
+export interface CertificateTheme {
+  template?: CertificateTemplate
+  accentColor?: string
+  secondaryColor?: string
+  backgroundImageUrl?: string
+  logoUrl?: string
+  signatureText?: string
+  sealText?: string
+  issuedBy?: string
 }
 
 export interface DigitalCourseSection {
@@ -77,6 +92,13 @@ export interface DigitalCourseModule {
   description?: string
   order: number
   estimatedMinutes?: number
+  videoUrl?: string
+  audioUrl?: string
+  audioFileName?: string
+  audioStoragePath?: string
+  bookUrl?: string
+  bookFileName?: string
+  bookStoragePath?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -88,6 +110,13 @@ export interface DigitalCourseModuleInput {
   description?: string
   order?: number
   estimatedMinutes?: number
+  videoUrl?: string
+  audioUrl?: string
+  audioFileName?: string
+  audioStoragePath?: string
+  bookUrl?: string
+  bookFileName?: string
+  bookStoragePath?: string
 }
 
 export interface DigitalCourseLesson {
@@ -146,6 +175,9 @@ export interface DigitalCourseEnrollment {
   progressPercent: number
   moduleProgress: Record<string, number>
   badgeIssuedAt?: Date
+  certificateUrl?: string
+  certificateStoragePath?: string
+  certificateIssuedAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -169,6 +201,8 @@ export interface DigitalCourseExam {
   uploadMetadata?: {
     source?: string
     originalFileName?: string
+    fileUrl?: string
+    storagePath?: string
   }
   createdBy: string
   updatedBy: string
@@ -187,6 +221,8 @@ export interface DigitalCourseExamInput {
   uploadMetadata?: {
     source?: string
     originalFileName?: string
+    fileUrl?: string
+    storagePath?: string
   }
   createdBy: string
   updatedBy?: string
@@ -296,6 +332,9 @@ export class DigitalCourseEnrollmentService {
       status: 'active' as DigitalCourseEnrollmentStatus,
       progressPercent: 0,
       moduleProgress: {},
+      certificateUrl: null,
+      certificateStoragePath: null,
+      certificateIssuedAt: null,
       ...serverTimestamps(),
     }
     await docRef.set(payload)
@@ -319,6 +358,11 @@ export class DigitalCourseEnrollmentService {
     moduleProgress?: Record<string, number>,
     status?: DigitalCourseEnrollmentStatus,
     badgeIssuedAt?: Date,
+    certificate?: {
+      url?: string | null
+      storagePath?: string | null
+      issuedAt?: Date | null
+    },
   ): Promise<DigitalCourseEnrollment | null> {
     const docRef = this.collection().doc(enrollmentId)
     const existing = await docRef.get()
@@ -332,6 +376,11 @@ export class DigitalCourseEnrollmentService {
     if (moduleProgress) updatePayload.moduleProgress = moduleProgress
     if (status) updatePayload.status = status
     if (badgeIssuedAt) updatePayload.badgeIssuedAt = badgeIssuedAt
+    if (certificate) {
+      if ('url' in certificate) updatePayload.certificateUrl = certificate.url ?? null
+      if ('storagePath' in certificate) updatePayload.certificateStoragePath = certificate.storagePath ?? null
+      if ('issuedAt' in certificate) updatePayload.certificateIssuedAt = certificate.issuedAt ?? null
+    }
 
     await docRef.update(updatePayload)
     const updated = await docRef.get()
@@ -348,6 +397,9 @@ export class DigitalCourseEnrollmentService {
       progressPercent: data.progressPercent ?? 0,
       moduleProgress: data.moduleProgress || {},
       badgeIssuedAt: data.badgeIssuedAt ? toDate(data.badgeIssuedAt) : undefined,
+      certificateUrl: data.certificateUrl || undefined,
+      certificateStoragePath: data.certificateStoragePath || undefined,
+      certificateIssuedAt: data.certificateIssuedAt ? toDate(data.certificateIssuedAt) : undefined,
       createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
       updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
     }
@@ -662,6 +714,7 @@ export class DigitalCourseService {
       tags: input.tags ?? [],
       status: input.status ?? 'draft',
       pricing: normalizePricing(input.pricing),
+      certificateTheme: input.certificateTheme ?? null,
       createdBy: input.createdBy,
       updatedBy: input.updatedBy ?? input.createdBy,
     })
@@ -684,6 +737,9 @@ export class DigitalCourseService {
 
     if (data.pricing) {
       updateData.pricing = normalizePricing(data.pricing)
+    }
+    if (data.certificateTheme !== undefined) {
+      updateData.certificateTheme = data.certificateTheme ?? null
     }
 
     await docRef.update(updateData)
@@ -708,6 +764,7 @@ export class DigitalCourseService {
       tags: data.tags || [],
       status: data.status ?? 'draft',
       pricing: normalizePricing(data.pricing),
+      certificateTheme: data.certificateTheme || undefined,
       createdBy: data.createdBy,
       updatedBy: data.updatedBy,
       createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
@@ -816,6 +873,13 @@ export class DigitalCourseModuleService {
       description: input.description ?? '',
       order: input.order ?? existingCount.size + 1,
       estimatedMinutes: input.estimatedMinutes ?? null,
+      videoUrl: input.videoUrl ?? null,
+      audioUrl: input.audioUrl ?? null,
+      audioFileName: input.audioFileName ?? null,
+      audioStoragePath: input.audioStoragePath ?? null,
+      bookUrl: input.bookUrl ?? null,
+      bookFileName: input.bookFileName ?? null,
+      bookStoragePath: input.bookStoragePath ?? null,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }
@@ -855,6 +919,13 @@ export class DigitalCourseModuleService {
       description: data.description || undefined,
       order: data.order,
       estimatedMinutes: data.estimatedMinutes ?? undefined,
+      videoUrl: data.videoUrl || undefined,
+      audioUrl: data.audioUrl || undefined,
+      audioFileName: data.audioFileName || undefined,
+      audioStoragePath: data.audioStoragePath || undefined,
+      bookUrl: data.bookUrl || undefined,
+      bookFileName: data.bookFileName || undefined,
+      bookStoragePath: data.bookStoragePath || undefined,
       createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
       updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
     }

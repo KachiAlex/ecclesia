@@ -10,6 +10,7 @@ import {
   getDescendantBranchIds,
 } from '@/lib/services/branch-scope'
 import type { Branch } from '@/lib/services/branch-service'
+import { BranchAdminService } from '@/lib/services/branch-service'
 import { UserService } from '@/lib/services/user-service'
 import { ChurchService } from '@/lib/services/church-service'
 import {
@@ -43,6 +44,14 @@ type FinanceMetrics = {
   net: number
 }
 
+type BranchAdminSummary = {
+  userId: string
+  name: string
+  email: string
+  role: string
+  capabilities: string[]
+}
+
 type BranchReportNode = {
   id: string
   name: string
@@ -50,6 +59,7 @@ type BranchReportNode = {
   levelLabel: string
   parentBranchId: string | null
   status: 'ACTIVE' | 'INACTIVE'
+  admins: BranchAdminSummary[]
   location: {
     city: string | null
     state: string | null
@@ -254,7 +264,7 @@ export async function GET(
 
     const branchIdSet = new Set(candidateBranches.map((branch) => branch.id))
 
-    const [users, attendanceSessions, manualIncome, expenses] = await Promise.all([
+    const [users, attendanceSessions, manualIncome, expenses, branchAdminsMap] = await Promise.all([
       UserService.findByChurch(churchId),
       AttendanceService.listSessionsByChurch(churchId, {
         startAt: startDate,
@@ -271,7 +281,12 @@ export async function GET(
         endDate,
         limit,
       }),
+      BranchAdminService.findByBranchIds(candidateBranches.map((branch) => branch.id)),
     ])
+
+    const userMap = new Map(
+      users.map((member) => [member.id, member])
+    )
 
     const baseMetrics = new Map<string, MetricAccumulator>()
     const ensureBaseEntry = (branchId: string) => {
@@ -353,6 +368,27 @@ export async function GET(
       const subtree = computeTotals(branch.id)
       const children = (childrenByParent.get(branch.id) ?? []).map(buildNode)
       const levelLabel = branch.levelLabel ?? hierarchyLabels[branch.level]
+      const admins =
+        (branchAdminsMap[branch.id] ?? []).map((admin) => {
+          const adminUser = admin.userId ? userMap.get(admin.userId) : undefined
+          const nameParts = [
+            adminUser?.firstName ?? '',
+            adminUser?.lastName ?? '',
+          ].filter(Boolean)
+          const capabilities: string[] = []
+          if (admin.canManageMembers) capabilities.push('Members')
+          if (admin.canManageEvents) capabilities.push('Events')
+          if (admin.canManageGroups) capabilities.push('Groups')
+          if (admin.canManageGiving) capabilities.push('Giving')
+          if (admin.canManageSermons) capabilities.push('Sermons')
+          return {
+            userId: admin.userId,
+            name: nameParts.length > 0 ? nameParts.join(' ') : adminUser?.email ?? 'Branch admin',
+            email: adminUser?.email ?? '',
+            role: adminUser?.role ?? 'MEMBER',
+            capabilities,
+          }
+        }) ?? []
 
       return {
         id: branch.id,
@@ -361,6 +397,7 @@ export async function GET(
         levelLabel,
         parentBranchId: branch.parentBranchId ?? null,
         status: branch.isActive ? 'ACTIVE' : 'INACTIVE',
+        admins,
         location: {
           city: branch.city ?? null,
           state: branch.state ?? null,

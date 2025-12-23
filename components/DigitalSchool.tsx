@@ -27,10 +27,14 @@ type Course = {
 }
 
 type EnrollmentQueueItem = {
+  enrollmentId: string
   courseId: string
   moduleTitle: string
   due: string
   action: string
+  progressPercent?: number
+  isCompleted: boolean
+  certificateUrl?: string
 }
 
 type AdminAction = {
@@ -62,6 +66,19 @@ type ExamUpload = {
   owner: string
 }
 
+type SectionGatingSummary = {
+  enrollmentId: string
+  courseId: string
+  courseTitle: string
+  progress: number
+  lockedModules: number
+  unlockedModules: number
+  statusLabel: string
+  nextAction: string
+  isCompleted: boolean
+  certificateUrl?: string
+}
+
 type ModuleDraft = {
   id: string
   title: string
@@ -69,8 +86,11 @@ type ModuleDraft = {
   estimatedMinutes: number
   videoUrl: string
   audioUrl: string
+  bookUrl: string
   audioFileName?: string
   bookFileName?: string
+  audioStoragePath?: string
+  bookStoragePath?: string
 }
 
 type SectionExamDraft = {
@@ -80,6 +100,8 @@ type SectionExamDraft = {
   questionCount: number
   status: 'draft' | 'ready' | 'published'
   uploadPlaceholder?: string
+  uploadUrl?: string
+  uploadStoragePath?: string
 }
 
 type SectionDraft = {
@@ -99,6 +121,20 @@ type CourseDraft = {
   format: string
   pricing: CoursePricing
   sections: SectionDraft[]
+  certificateTheme: CertificateThemeDraft
+}
+
+type CertificateTemplate = 'classic' | 'modern' | 'minimal'
+
+type CertificateThemeDraft = {
+  template: CertificateTemplate
+  accentColor: string
+  secondaryColor: string
+  logoUrl: string
+  backgroundImageUrl: string
+  signatureText: string
+  sealText: string
+  issuedBy: string
 }
 
 const createModuleDraft = (): ModuleDraft => ({
@@ -108,8 +144,11 @@ const createModuleDraft = (): ModuleDraft => ({
   estimatedMinutes: 30,
   videoUrl: '',
   audioUrl: '',
+  bookUrl: '',
   audioFileName: undefined,
   bookFileName: undefined,
+  audioStoragePath: undefined,
+  bookStoragePath: undefined,
 })
 
 const createExamDraft = (): SectionExamDraft => ({
@@ -119,6 +158,8 @@ const createExamDraft = (): SectionExamDraft => ({
   questionCount: 20,
   status: 'draft',
   uploadPlaceholder: '',
+  uploadUrl: undefined,
+  uploadStoragePath: undefined,
 })
 
 const createSectionDraft = (): SectionDraft => ({
@@ -138,7 +179,35 @@ const createCourseDraft = (): CourseDraft => ({
   format: 'Video lessons, Audio reflections',
   pricing: { type: 'free' },
   sections: [createSectionDraft()],
+  certificateTheme: {
+    template: 'classic',
+    accentColor: '#4338ca',
+    secondaryColor: '#0f172a',
+    logoUrl: '',
+    backgroundImageUrl: '',
+    signatureText: 'Lead Pastor',
+    sealText: 'Ecclesia Training Institute',
+    issuedBy: 'Ecclesia',
+  },
 })
+
+const CERTIFICATE_TEMPLATES: { value: CertificateTemplate; label: string; description: string }[] = [
+  {
+    value: 'classic',
+    label: 'Classic',
+    description: 'Traditional typography with bold borders and seal.',
+  },
+  {
+    value: 'modern',
+    label: 'Modern',
+    description: 'Minimal layout with accent blocks and sans-serif fonts.',
+  },
+  {
+    value: 'minimal',
+    label: 'Minimal',
+    description: 'Clean monochrome layout with subtle dividers.',
+  },
+]
 
 const formatPricingLabel = (pricing?: CoursePricing) => {
   if (!pricing || pricing.type === 'free') return 'Free access'
@@ -157,6 +226,104 @@ const badgeColorForAccess = (access: AccessType) => {
     default:
       return 'bg-indigo-500'
   }
+}
+
+const clampProgress = (value?: number) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 0
+  return Math.max(0, Math.min(100, Math.round(value)))
+}
+
+const buildEnrollmentQueue = (enrollments: ApiEnrollmentResponse[], courses: Course[]): EnrollmentQueueItem[] => {
+  if (!enrollments.length) return []
+  const courseMap = new Map(courses.map((course) => [course.id, course]))
+
+  return enrollments.map((enrollment) => {
+    const course = courseMap.get(enrollment.courseId)
+    const progress = clampProgress(enrollment.progressPercent)
+    const isCompleted = enrollment.status === 'completed'
+    const moduleLabel = isCompleted
+      ? `${course?.title ?? 'Digital Course'} · Completed`
+      : `${course?.title ?? 'Digital Course'} · ${progress}% done`
+    const dueLabel = isCompleted ? 'Certificate ready' : `${progress}% complete`
+    const actionLabel = isCompleted ? 'View certificate' : 'Resume course'
+
+    return {
+      enrollmentId: enrollment.id,
+      courseId: enrollment.courseId,
+      moduleTitle: moduleLabel,
+      due: dueLabel,
+      action: actionLabel,
+      progressPercent: enrollment.progressPercent,
+      isCompleted,
+      certificateUrl: enrollment.certificateUrl,
+    }
+  })
+}
+
+const buildGatingSummaries = (enrollments: ApiEnrollmentResponse[], courses: Course[]): SectionGatingSummary[] => {
+  if (!enrollments.length) return []
+  const courseMap = new Map(courses.map((course) => [course.id, course]))
+
+  return enrollments.map((enrollment) => {
+    const course = courseMap.get(enrollment.courseId)
+    const totalModules = course?.modules ?? 0
+    const completedModules = Math.min(
+      totalModules,
+      Math.round(((enrollment.progressPercent ?? 0) / 100) * totalModules),
+    )
+    const unlockedModules = Math.max(completedModules, 0)
+    const lockedModules = Math.max(totalModules - unlockedModules, 0)
+    const progress = clampProgress(enrollment.progressPercent)
+    const isCompleted = enrollment.status === 'completed'
+
+    const nextAction = isCompleted
+      ? 'Download certificate'
+      : lockedModules > 0
+        ? 'Pass section exam to unlock next modules'
+        : 'All modules unlocked'
+
+    const statusLabel = isCompleted
+      ? 'Completed'
+      : lockedModules > 0
+        ? `${lockedModules} modules locked`
+        : 'Unlocked'
+
+    return {
+      enrollmentId: enrollment.id,
+      courseId: enrollment.courseId,
+      courseTitle: course?.title ?? 'Digital Course',
+      progress,
+      lockedModules,
+      unlockedModules,
+      statusLabel,
+      nextAction,
+      isCompleted,
+      certificateUrl: enrollment.certificateUrl,
+    }
+  })
+}
+
+const buildProgressRows = (enrollments: ApiEnrollmentResponse[], courses: Course[]): ProgressRow[] => {
+  if (!enrollments.length) return []
+  const courseMap = new Map(courses.map((course) => [course.id, course]))
+
+  return enrollments.map((enrollment) => {
+    const course = courseMap.get(enrollment.courseId)
+    const completion = clampProgress(enrollment.progressPercent)
+    const examScore =
+      enrollment.status === 'completed'
+        ? 'Passed'
+        : completion >= 80
+          ? 'Ready for exam'
+          : '-'
+
+    return {
+      member: 'You',
+      course: course?.title ?? 'Digital Course',
+      completion,
+      examScore,
+    }
+  })
 }
 
 type ApiCourseResponse = {
@@ -220,7 +387,34 @@ type ApiExamResponse = {
   status: string
 }
 
-async function requestJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+type ApiEnrollmentResponse = {
+  id: string
+  courseId: string
+  userId: string
+  status: 'active' | 'completed' | 'withdrawn'
+  progressPercent?: number
+  moduleProgress?: Record<string, number>
+  badgeIssuedAt?: string
+  certificateUrl?: string
+}
+
+type DigitalSchoolUploadResponse = {
+  success: boolean
+  url: string
+  path: string
+  fileName: string
+  originalName?: string
+  size: number
+  contentType: string
+  metadata?: {
+    courseId?: string
+    sectionId?: string
+    moduleId?: string
+    type?: string
+  }
+}
+
+const requestJson = async <T,>(url: string, init: RequestInit = {}): Promise<T> => {
   const response = await fetch(url, {
     credentials: 'include',
     ...init,
@@ -238,6 +432,42 @@ async function requestJson<T>(url: string, init: RequestInit = {}): Promise<T> {
   }
 
   return data as T
+}
+
+async function uploadDigitalSchoolFile(
+  file: File,
+  params: {
+    type: 'moduleAudio' | 'moduleBook' | 'examUpload'
+    courseId?: string
+    sectionId?: string
+    moduleId?: string
+  },
+): Promise<DigitalSchoolUploadResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('type', params.type)
+  if (params.courseId) formData.append('courseId', params.courseId)
+  if (params.sectionId) formData.append('sectionId', params.sectionId)
+  if (params.moduleId) formData.append('moduleId', params.moduleId)
+
+  const response = await fetch('/api/digital-school/uploads', {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  })
+
+  let data: any = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+
+  if (!response.ok) {
+    throw new Error((data && data.error) || 'File upload failed')
+  }
+
+  return data as DigitalSchoolUploadResponse
 }
 
 const TODO_ITEMS = [
@@ -315,16 +545,20 @@ const FEATURED_COURSES: Course[] = [
 
 const DEFAULT_ENROLLMENTS: EnrollmentQueueItem[] = [
   {
+    enrollmentId: 'local-foundation',
     courseId: 'foundation',
     moduleTitle: 'Module 3 · Spiritual Disciplines',
     due: 'Due in 2 days',
     action: 'Continue module',
+    isCompleted: false,
   },
   {
+    enrollmentId: 'local-ministry',
     courseId: 'ministry',
     moduleTitle: 'Awaiting cohort approval',
     due: 'Pending admin review',
     action: 'Track request',
+    isCompleted: false,
   },
 ]
 
@@ -373,20 +607,55 @@ const DEFAULT_EXAM_UPLOADS: ExamUpload[] = [
 
 export default function DigitalSchool() {
   const [courses, setCourses] = useState<Course[]>(FEATURED_COURSES)
-  const [enrollments, setEnrollments] = useState<EnrollmentQueueItem[]>(DEFAULT_ENROLLMENTS)
+  const [enrollments, setEnrollments] = useState<EnrollmentQueueItem[]>([])
   const [adminActions, setAdminActions] = useState<AdminAction[]>(DEFAULT_ADMIN_ACTIONS)
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>(DEFAULT_ACCESS_REQUESTS)
   const [examUploads, setExamUploads] = useState<ExamUpload[]>(DEFAULT_EXAM_UPLOADS)
-  const [progressRows, setProgressRows] = useState<ProgressRow[]>(DEFAULT_PROGRESS_ROWS)
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([])
   const [selectedProgress, setSelectedProgress] = useState<ProgressRow | null>(null)
   const [courseDraft, setCourseDraft] = useState<CourseDraft>(createCourseDraft())
   const [draftMessage, setDraftMessage] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
+  const [certificateMessage, setCertificateMessage] = useState<string | null>(null)
   const [reminderMessages, setReminderMessages] = useState<Record<string, string>>({})
+  const [certificateLoading, setCertificateLoading] = useState<Record<string, boolean>>({})
   const [isLoadingCourses, setIsLoadingCourses] = useState(false)
+  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const examUploadInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
+  const [uploadingTargets, setUploadingTargets] = useState<Record<string, boolean>>({})
+  const [enrollmentRecords, setEnrollmentRecords] = useState<ApiEnrollmentResponse[]>([])
+  const [gatingSummaries, setGatingSummaries] = useState<SectionGatingSummary[]>([])
+
+  const setUploadingState = useCallback((key: string, value: boolean) => {
+    setUploadingTargets((prev) => {
+      if (value) {
+        return {
+          ...prev,
+          [key]: true,
+        }
+      }
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }, [])
+
+  const isUploading = useCallback((key: string) => Boolean(uploadingTargets[key]), [uploadingTargets])
+  const setCertificateLoadingState = useCallback((id: string, value: boolean) => {
+    setCertificateLoading((prev) => {
+      if (value) {
+        return {
+          ...prev,
+          [id]: true,
+        }
+      }
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }, [])
 
   const pendingItems = useMemo(
     () =>
@@ -423,9 +692,31 @@ export default function DigitalSchool() {
     }
   }, [])
 
+  const loadEnrollments = useCallback(async () => {
+    setIsLoadingEnrollments(true)
+    try {
+      const apiEnrollments = await requestJson<ApiEnrollmentResponse[]>('/api/digital-school/enrollments')
+      setEnrollmentRecords(Array.isArray(apiEnrollments) ? apiEnrollments : [])
+    } catch (error) {
+      console.error('DigitalSchool.loadEnrollments', error)
+    } finally {
+      setIsLoadingEnrollments(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadCourses()
   }, [loadCourses])
+
+  useEffect(() => {
+    loadEnrollments()
+  }, [loadEnrollments])
+
+  useEffect(() => {
+    setEnrollments(buildEnrollmentQueue(enrollmentRecords, courses))
+    setProgressRows(buildProgressRows(enrollmentRecords, courses))
+    setGatingSummaries(buildGatingSummaries(enrollmentRecords, courses))
+  }, [enrollmentRecords, courses])
 
   const actionLabel = (access: AccessType, status: ProgressState) => {
     if (status === 'completed') return 'View certificate'
@@ -458,6 +749,19 @@ export default function DigitalSchool() {
             : Number(value),
     }))
   }
+
+  const handleCertificateThemeChange = useCallback(
+    (field: keyof CertificateThemeDraft, value: string | CertificateTemplate) => {
+      setCourseDraft((prev) => ({
+        ...prev,
+        certificateTheme: {
+          ...prev.certificateTheme,
+          [field]: value,
+        },
+      }))
+    },
+    []
+  )
 
   const updateSections = (updater: (sections: SectionDraft[]) => SectionDraft[]) => {
     setCourseDraft((prev) => ({
@@ -523,26 +827,46 @@ export default function DigitalSchool() {
     )
   }
 
-  const handleModuleFileChange = (sectionId: string, moduleId: string, type: 'audio' | 'book', file: File | null) => {
+  const handleModuleFileChange = async (sectionId: string, moduleId: string, type: 'audio' | 'book', file: File | null) => {
     if (!file) return
-    updateSections((sections) =>
-      sections.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              modules: section.modules.map((module) =>
-                module.id === moduleId
-                  ? {
-                      ...module,
-                      audioFileName: type === 'audio' ? file.name : module.audioFileName,
-                      bookFileName: type === 'book' ? file.name : module.bookFileName,
-                    }
-                  : module,
-              ),
-            }
-          : section,
-      ),
-    )
+    const uploadKey = `${moduleId}-${type}`
+    setUploadingState(uploadKey, true)
+    try {
+      const upload = await uploadDigitalSchoolFile(file, {
+        type: type === 'audio' ? 'moduleAudio' : 'moduleBook',
+        sectionId,
+        moduleId,
+      })
+
+      updateSections((sections) =>
+        sections.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                modules: section.modules.map((module) =>
+                  module.id === moduleId
+                    ? {
+                        ...module,
+                        audioFileName: type === 'audio' ? upload.originalName || upload.fileName : module.audioFileName,
+                        bookFileName: type === 'book' ? upload.originalName || upload.fileName : module.bookFileName,
+                        audioUrl: type === 'audio' ? upload.url : module.audioUrl,
+                        bookUrl: type === 'book' ? upload.url : module.bookUrl,
+                        audioStoragePath: type === 'audio' ? upload.path : module.audioStoragePath,
+                        bookStoragePath: type === 'book' ? upload.path : module.bookStoragePath,
+                      }
+                    : module,
+                ),
+              }
+            : section,
+        ),
+      )
+      setUploadMessage(`Uploaded ${file.name}`)
+    } catch (error) {
+      console.error('DigitalSchool.handleModuleFileChange', error)
+      setUploadMessage(error instanceof Error ? `Upload failed: ${error.message}` : 'Unable to upload file.')
+    } finally {
+      setUploadingState(uploadKey, false)
+    }
   }
 
   const handleExamChange = (sectionId: string, field: keyof SectionExamDraft, value: string | number) => {
@@ -564,13 +888,34 @@ export default function DigitalSchool() {
     )
   }
 
-  const handleExamFileChange = (sectionId: string, file: File | null) => {
+  const handleExamFileChange = async (sectionId: string, file: File | null) => {
     if (!file) return
-    updateSections((sections) =>
-      sections.map((section) =>
-        section.id === sectionId ? { ...section, exam: { ...section.exam, uploadPlaceholder: file.name } } : section,
-      ),
-    )
+    const uploadKey = `exam-${sectionId}`
+    setUploadingState(uploadKey, true)
+    try {
+      const upload = await uploadDigitalSchoolFile(file, { type: 'examUpload', sectionId })
+      updateSections((sections) =>
+        sections.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                exam: {
+                  ...section.exam,
+                  uploadPlaceholder: upload.originalName || upload.fileName,
+                  uploadUrl: upload.url,
+                  uploadStoragePath: upload.path,
+                },
+              }
+            : section,
+        ),
+      )
+      setUploadMessage(`Uploaded ${file.name}`)
+    } catch (error) {
+      console.error('DigitalSchool.handleExamFileChange', error)
+      setUploadMessage(error instanceof Error ? `Upload failed: ${error.message}` : 'Unable to upload exam file.')
+    } finally {
+      setUploadingState(uploadKey, false)
+    }
   }
 
   const registerFileInput = (key: string) => (element: HTMLInputElement | null) => {
@@ -586,16 +931,18 @@ export default function DigitalSchool() {
   }
 
   const handleModuleFileInput =
-    (sectionId: string, moduleId: string, type: 'audio' | 'book') => (event: ChangeEvent<HTMLInputElement>) => {
+    (sectionId: string, moduleId: string, type: 'audio' | 'book') => async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0] ?? null
-      handleModuleFileChange(sectionId, moduleId, type, file)
       event.target.value = ''
+      if (!file) return
+      await handleModuleFileChange(sectionId, moduleId, type, file)
     }
 
-  const handleExamFileInput = (sectionId: string) => (event: ChangeEvent<HTMLInputElement>) => {
+  const handleExamFileInput = (sectionId: string) => async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
-    handleExamFileChange(sectionId, file)
     event.target.value = ''
+    if (!file) return
+    await handleExamFileChange(sectionId, file)
   }
 
   const handleSendReminder = (courseId: string) => {
@@ -678,6 +1025,13 @@ export default function DigitalSchool() {
               description: module.description,
               order: moduleIndex + 1,
               estimatedMinutes: module.estimatedMinutes,
+              videoUrl: module.videoUrl || undefined,
+              audioUrl: module.audioUrl || undefined,
+              audioFileName: module.audioFileName,
+              audioStoragePath: module.audioStoragePath,
+              bookUrl: module.bookUrl || undefined,
+              bookFileName: module.bookFileName,
+              bookStoragePath: module.bookStoragePath,
             }),
           })
         }
@@ -693,7 +1047,12 @@ export default function DigitalSchool() {
             timeLimitMinutes: section.exam.timeLimitMinutes,
             status: section.exam.status,
             uploadMetadata: section.exam.uploadPlaceholder
-              ? { source: 'admin-upload', originalFileName: section.exam.uploadPlaceholder }
+              ? {
+                  source: 'admin-upload',
+                  originalFileName: section.exam.uploadPlaceholder,
+                  fileUrl: section.exam.uploadUrl,
+                  storagePath: section.exam.uploadStoragePath,
+                }
               : undefined,
           }),
         })
@@ -724,11 +1083,65 @@ export default function DigitalSchool() {
     }
   }
 
-  const handleEnrollAction = (courseId: string) => {
+  const openCertificate = useCallback((url: string) => {
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.target = '_blank'
+    anchor.rel = 'noopener noreferrer'
+    anchor.click()
+  }, [])
+
+  const handleGenerateCertificate = async (enrollmentId: string) => {
+    setCertificateMessage(null)
+    setCertificateLoadingState(enrollmentId, true)
+    try {
+      const response = await requestJson<{ url: string; path: string }>(
+        `/api/digital-school/enrollments/${enrollmentId}/certificate`,
+        {
+          method: 'POST',
+        },
+      )
+      setCertificateMessage('Certificate ready — opening in a new tab.')
+      openCertificate(response.url)
+      await loadEnrollments()
+    } catch (error) {
+      console.error('DigitalSchool.handleGenerateCertificate', error)
+      setCertificateMessage(
+        error instanceof Error ? `Unable to load certificate: ${error.message}` : 'Unable to load certificate.',
+      )
+    } finally {
+      setCertificateLoadingState(enrollmentId, false)
+    }
+  }
+
+  const handleEnrollAction = (
+    courseId: string,
+    options?: {
+      enrollmentId?: string
+      isCompleted?: boolean
+      certificateUrl?: string
+    },
+  ) => {
     const course = courses.find((item) => item.id === courseId)
     if (!course) return
 
-    if (course.status === 'completed') {
+    const enrollment =
+      (options?.enrollmentId && enrollmentRecords.find((record) => record.id === options.enrollmentId)) ||
+      enrollmentRecords.find((record) => record.courseId === courseId)
+
+    const enrollmentId = options?.enrollmentId ?? enrollment?.id
+    const isCompleted = options?.isCompleted ?? enrollment?.status === 'completed'
+    const certificateUrl = options?.certificateUrl ?? enrollment?.certificateUrl
+
+    if (course.status === 'completed' || isCompleted) {
+      if (certificateUrl) {
+        openCertificate(certificateUrl)
+        return
+      }
+      if (enrollmentId) {
+        void handleGenerateCertificate(enrollmentId)
+        return
+      }
       const row = progressRows.find((progress) => progress.course === course.title)
       if (row) setSelectedProgress(row)
       return
@@ -750,10 +1163,12 @@ export default function DigitalSchool() {
 
       return [
         {
+          enrollmentId: options?.enrollmentId ?? `local-${courseId}-${Date.now()}`,
           courseId,
           moduleTitle: `Module 1 · ${course.title}`,
           due: course.access === 'open' ? 'Can start now' : 'Awaiting admin',
           action: course.access === 'open' ? 'Begin orientation' : 'Track request',
+          isCompleted: false,
         },
         ...prev,
       ]
@@ -1028,30 +1443,51 @@ export default function DigitalSchool() {
           </Link>
         </div>
         <div className="space-y-3">
+          {isLoadingEnrollments && (
+            <div className="border rounded-2xl p-4 bg-gray-50 animate-pulse">
+              <div className="h-4 w-1/3 rounded bg-gray-200 mb-2" />
+              <div className="h-4 w-2/3 rounded bg-gray-200 mb-4" />
+              <div className="h-2 w-full rounded bg-gray-200 mb-2" />
+              <div className="h-2 w-5/6 rounded bg-gray-200" />
+            </div>
+          )}
+          {!isLoadingEnrollments && enrollments.length === 0 && (
+            <p className="text-sm text-gray-500">Enroll in a course to see your personalized learning queue.</p>
+          )}
           {enrollments.map((item) => {
             const course = courses.find((course) => course.id === item.courseId)
+            const progressValue =
+              typeof item.progressPercent === 'number'
+                ? clampProgress(item.progressPercent)
+                : course?.progress ?? 0
             return (
               <div
                 key={item.courseId}
                 className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-2xl p-4"
               >
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{course?.title}</p>
+                  <p className="text-sm font-semibold text-gray-900">{course?.title ?? 'Digital Course'}</p>
                   <p className="text-sm text-gray-600">{item.moduleTitle}</p>
-                  {course && (
-                    <div className="mt-2 space-y-1">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-primary-500" style={{ width: `${course.progress}%` }}></div>
-                      </div>
-                      <p className="text-xs text-gray-500">{course.progress}% complete · pass section exams to unlock the next modules.</p>
+                  <div className="mt-2 space-y-1">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 rounded-full bg-primary-500" style={{ width: `${progressValue}%` }}></div>
                     </div>
-                  )}
+                    <p className="text-xs text-gray-500">
+                      {progressValue}% complete · pass section exams to unlock the next modules.
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-col md:flex-row md:items-center gap-2 text-sm">
                   <span className="text-amber-600 font-medium">{item.due}</span>
                   <button
                     className="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50"
-                    onClick={() => handleEnrollAction(item.courseId)}
+                    onClick={() =>
+                      handleEnrollAction(item.courseId, {
+                        enrollmentId: item.enrollmentId,
+                        isCompleted: item.isCompleted,
+                        certificateUrl: item.certificateUrl,
+                      })
+                    }
                   >
                     {item.action}
                   </button>
@@ -1071,6 +1507,104 @@ export default function DigitalSchool() {
           })}
         </div>
       </section>
+
+      {certificateMessage && <p className="text-sm text-emerald-600">{certificateMessage}</p>}
+
+      {gatingSummaries.length > 0 && (
+        <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Module gating & reminders</h2>
+              <p className="text-sm text-gray-500">Track which sections remain locked until the next exam is passed.</p>
+            </div>
+            <button
+              className="px-4 py-2 rounded-lg border border-primary-200 text-sm text-primary-700 hover:bg-primary-50"
+              type="button"
+              onClick={loadEnrollments}
+              disabled={isLoadingEnrollments}
+            >
+              {isLoadingEnrollments ? 'Refreshing…' : 'Refresh status'}
+            </button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {gatingSummaries.map((summary) => (
+              <div key={summary.courseId} className="border rounded-2xl p-4 space-y-3 bg-gray-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{summary.courseTitle}</p>
+                    <p className="text-xs text-gray-500">{summary.nextAction}</p>
+                  </div>
+                  <span
+                    className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                      summary.lockedModules > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {summary.statusLabel}
+                  </span>
+                </div>
+                <div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${summary.progress}%` }}></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{summary.progress}% course progress</p>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>
+                    <span className="font-semibold text-gray-900">{summary.unlockedModules}</span> unlocked
+                  </span>
+                  <span>
+                    <span className="font-semibold text-gray-900">{summary.lockedModules}</span> locked
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    className="flex-1 px-4 py-2 rounded-lg border text-gray-700 hover:bg-white"
+                    type="button"
+                    onClick={() => handleSendReminder(summary.courseId)}
+                  >
+                    Nudge via reminder
+                  </button>
+                  {summary.isCompleted ? (
+                    <button
+                      className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700 disabled:opacity-60"
+                      type="button"
+                      disabled={certificateLoading[summary.enrollmentId]}
+                      onClick={() =>
+                        summary.certificateUrl
+                          ? openCertificate(summary.certificateUrl)
+                          : handleGenerateCertificate(summary.enrollmentId)
+                      }
+                    >
+                      {certificateLoading[summary.enrollmentId]
+                        ? 'Preparing certificate…'
+                        : summary.certificateUrl
+                          ? 'Download certificate'
+                          : 'Generate certificate'}
+                    </button>
+                  ) : (
+                    <button
+                      className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+                      type="button"
+                      onClick={() =>
+                        handleEnrollAction(summary.courseId, {
+                          enrollmentId: summary.enrollmentId,
+                          isCompleted: summary.isCompleted,
+                          certificateUrl: summary.certificateUrl,
+                        })
+                      }
+                    >
+                      Open modules
+                    </button>
+                  )}
+                </div>
+                {reminderMessages[summary.courseId] && (
+                  <p className="text-xs text-emerald-600">{reminderMessages[summary.courseId]}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-5">
@@ -1148,7 +1682,109 @@ export default function DigitalSchool() {
                 rows={3}
               />
             </label>
-            <div className="space-y-4">
+            <div className="space-y-6">
+              <div className="border rounded-2xl p-4 space-y-4 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Certificate branding</p>
+                    <h3 className="text-sm font-semibold text-gray-900">Customize completion certificates</h3>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Certificate template
+                    <select
+                      value={courseDraft.certificateTheme.template}
+                      onChange={(event) =>
+                        handleCertificateThemeChange('template', event.target.value as CertificateTemplate)
+                      }
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    >
+                      {CERTIFICATE_TEMPLATES.map((template) => (
+                        <option key={template.value} value={template.value}>
+                          {template.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-gray-500">
+                      {CERTIFICATE_TEMPLATES.find((item) => item.value === courseDraft.certificateTheme.template)?.description}
+                    </span>
+                  </label>
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Issued by
+                    <input
+                      type="text"
+                      value={courseDraft.certificateTheme.issuedBy}
+                      onChange={(event) => handleCertificateThemeChange('issuedBy', event.target.value)}
+                      placeholder="Ecclesia Digital School"
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Accent color
+                    <input
+                      type="color"
+                      value={courseDraft.certificateTheme.accentColor}
+                      onChange={(event) => handleCertificateThemeChange('accentColor', event.target.value)}
+                      className="h-10 rounded-xl border border-gray-200 px-2 py-1"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Secondary color
+                    <input
+                      type="color"
+                      value={courseDraft.certificateTheme.secondaryColor}
+                      onChange={(event) => handleCertificateThemeChange('secondaryColor', event.target.value)}
+                      className="h-10 rounded-xl border border-gray-200 px-2 py-1"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Seal text
+                    <input
+                      type="text"
+                      value={courseDraft.certificateTheme.sealText}
+                      onChange={(event) => handleCertificateThemeChange('sealText', event.target.value)}
+                      placeholder="Ecclesia Training Institute"
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Signature text
+                    <input
+                      type="text"
+                      value={courseDraft.certificateTheme.signatureText}
+                      onChange={(event) => handleCertificateThemeChange('signatureText', event.target.value)}
+                      placeholder="Lead Pastor"
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Background image URL
+                    <input
+                      type="url"
+                      value={courseDraft.certificateTheme.backgroundImageUrl}
+                      onChange={(event) => handleCertificateThemeChange('backgroundImageUrl', event.target.value)}
+                      placeholder="https://..."
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    />
+                  </label>
+                </div>
+                <label className="text-sm text-gray-600 flex flex-col gap-1">
+                  Logo URL
+                  <input
+                    type="url"
+                    value={courseDraft.certificateTheme.logoUrl}
+                    onChange={(event) => handleCertificateThemeChange('logoUrl', event.target.value)}
+                    placeholder="https://..."
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  />
+                </label>
+              </div>
+
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-wide text-gray-400">Sections, modules & exams</p>
                 <button

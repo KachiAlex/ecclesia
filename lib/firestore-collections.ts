@@ -9,6 +9,7 @@ export const COLLECTIONS = {
   churchAdmins: 'church_admins',
   branchAdmins: 'branch_admins',
   churchInvites: 'church_invites',
+  churchDesignations: 'church_designations',
   
   // Subscription collections
   subscriptions: 'subscriptions',
