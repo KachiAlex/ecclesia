@@ -136,12 +136,16 @@ export class DesignationService {
 
   static async update(
     designationId: string,
+    churchId: string,
     updates: Partial<Omit<ChurchDesignationInput, 'churchId'>>,
   ): Promise<ChurchDesignation | null> {
     const docRef = this.collection().doc(designationId)
     const existing = await docRef.get()
     if (!existing.exists) return null
     const data = existing.data()!
+    if (data.churchId !== churchId) {
+      throw new Error('Cannot edit designation from another church')
+    }
     if (data.isProtected) {
       throw new Error('Cannot edit default designation')
     }
@@ -167,11 +171,14 @@ export class DesignationService {
     }
   }
 
-  static async delete(designationId: string): Promise<void> {
+  static async delete(designationId: string, churchId: string): Promise<void> {
     const docRef = this.collection().doc(designationId)
     const existing = await docRef.get()
     if (!existing.exists) return
     const data = existing.data()!
+    if (data.churchId !== churchId) {
+      throw new Error('Cannot delete designation from another church')
+    }
     if (data.isProtected) {
       throw new Error('Cannot delete default designation')
     }

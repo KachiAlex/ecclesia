@@ -169,6 +169,43 @@ export class RoleService {
     }
   }
 
+  static async update(
+    roleId: string,
+    churchId: string,
+    updates: Partial<Omit<ChurchRoleInput, 'churchId'>>,
+  ): Promise<ChurchRole | null> {
+    const docRef = this.collection().doc(roleId)
+    const existing = await docRef.get()
+    if (!existing.exists) return null
+    const data = existing.data()!
+    if (data.churchId !== churchId) {
+      throw new Error('Cannot edit role from another church')
+    }
+    if (data.isProtected) {
+      throw new Error('Cannot edit default roles')
+    }
+
+    await docRef.update({
+      ...updates,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    const updated = await docRef.get()
+    const updatedData = updated.data()!
+    return {
+      id: updated.id,
+      churchId: updatedData.churchId,
+      name: updatedData.name,
+      description: updatedData.description,
+      key: updatedData.key,
+      isDefault: Boolean(updatedData.isDefault),
+      isProtected: Boolean(updatedData.isProtected),
+      order: typeof updatedData.order === 'number' ? updatedData.order : 99,
+      createdAt: toDate(updatedData.createdAt),
+      updatedAt: toDate(updatedData.updatedAt),
+    }
+  }
+
   static async delete(roleId: string, churchId: string): Promise<void> {
     const docRef = this.collection().doc(roleId)
     const existing = await docRef.get()
