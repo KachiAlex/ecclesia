@@ -10,6 +10,7 @@ export const COLLECTIONS = {
   branchAdmins: 'branch_admins',
   churchInvites: 'church_invites',
   churchDesignations: 'church_designations',
+  churchRoles: 'church_roles',
   
   // Subscription collections
   subscriptions: 'subscriptions',

@@ -39,6 +39,16 @@ export default async function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/roles"
+          className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow"
+        >
+          <div className="text-lg font-semibold">Roles &amp; designations</div>
+          <div className="text-sm text-gray-600 mt-1">
+            Define custom worker roles and ministry designations.
+          </div>
+        </Link>
+
+        <Link
           href="/settings/branding"
           className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow"
         >

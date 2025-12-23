@@ -12,6 +12,8 @@ export interface User {
   role: string
   churchId: string
   branchId?: string
+  churchRoleId?: string
+  churchRoleName?: string
   designationId?: string
   designationName?: string
   profileImage?: string
