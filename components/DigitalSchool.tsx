@@ -562,51 +562,6 @@ const TODO_ITEMS = [
   },
 ]
 
-const FEATURED_COURSES: Course[] = [
-  {
-    id: 'foundation',
-    title: 'Foundation Class',
-    description: 'Establish solid doctrine, grow devotional rhythms, and learn Ecclesia DNA.',
-    access: 'open',
-    modules: 8,
-    hours: 12,
-    mentors: ['Pastor Ada', 'Coach Ben'],
-    format: ['Video lessons', 'Audio reflection', 'Weekly quizzes'],
-    status: 'in-progress',
-    progress: 45,
-    badgeColor: 'bg-amber-500',
-    pricing: { type: 'free' },
-  },
-  {
-    id: 'ministry',
-    title: 'School of Ministry',
-    description: 'Leadership intensives for ordained ministers and ministry trainees.',
-    access: 'request',
-    modules: 12,
-    hours: 20,
-    mentors: ['Rev. Daniel'],
-    format: ['Live cohorts', 'Embedded sermons', 'Capstone exam'],
-    status: 'not-started',
-    progress: 0,
-    badgeColor: 'bg-indigo-500',
-    pricing: { type: 'paid', amount: 50000, currency: 'NGN' },
-  },
-  {
-    id: 'marriage',
-    title: 'Marriage Preparation Labs',
-    description: 'Three-module journey for engaged couples with guided conversations.',
-    access: 'invite',
-    modules: 3,
-    hours: 6,
-    mentors: ['Couples Council'],
-    format: ['Audio coaching', 'Couple worksheets', 'Certification quiz'],
-    status: 'completed',
-    progress: 100,
-    badgeColor: 'bg-rose-500',
-    pricing: { type: 'free' },
-  },
-]
-
 const DEFAULT_ENROLLMENTS: EnrollmentQueueItem[] = [
   {
     enrollmentId: 'local-foundation',
@@ -670,7 +625,7 @@ const DEFAULT_EXAM_UPLOADS: ExamUpload[] = [
 ]
 
 export default function DigitalSchool() {
-  const [courses, setCourses] = useState<Course[]>(FEATURED_COURSES)
+  const [courses, setCourses] = useState<Course[]>([])
   const [draftCourses, setDraftCourses] = useState<ApiCourseResponse[]>([])
   const [enrollments, setEnrollments] = useState<EnrollmentQueueItem[]>([])
   const [adminActions, setAdminActions] = useState<AdminAction[]>(DEFAULT_ADMIN_ACTIONS)
@@ -688,7 +643,8 @@ export default function DigitalSchool() {
   const [certificateLoading, setCertificateLoading] = useState<Record<string, boolean>>({})
   const [isLoadingCourses, setIsLoadingCourses] = useState(false)
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false)
-  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isSavingCourse, setIsSavingCourse] = useState(false)
+  const [submitIntent, setSubmitIntent] = useState<'draft' | 'published'>('draft')
   const [resumingCourseId, setResumingCourseId] = useState<string | null>(null)
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
   const [isCourseManager, setIsCourseManager] = useState(false)
@@ -1273,7 +1229,11 @@ export default function DigitalSchool() {
 
   const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (isSavingDraft) return
+    if (isSavingCourse) return
+
+    const submitEvent = event.nativeEvent as SubmitEvent
+    const submitter = submitEvent?.submitter as HTMLButtonElement | null
+    const desiredIntent = (submitter?.dataset.intent as 'draft' | 'published') ?? submitIntent ?? 'draft'
 
     if (!courseDraft.title.trim()) {
       setDraftMessage('Course title is required before saving.')
@@ -1301,12 +1261,13 @@ export default function DigitalSchool() {
       mentors,
       estimatedHours: Math.max(1, Math.round(courseDraft.estimatedHours)),
       tags: formatTags,
-      status: 'draft' as const,
+      status: desiredIntent,
       pricing: courseDraft.pricing,
       certificateTheme: courseDraft.certificateTheme,
     }
 
-    setIsSavingDraft(true)
+    setIsSavingCourse(true)
+    setSubmitIntent(desiredIntent)
     setDraftMessage(null)
 
     try {
@@ -1578,7 +1539,10 @@ export default function DigitalSchool() {
         setAdminActions((prev) => [
           {
             title: `${coursePayload.title} · Module Builder`,
-            status: `Draft saved (${courseDraft.sections.length} sections · ${moduleCount} modules)`,
+            status:
+              desiredIntent === 'published'
+                ? `Published (${courseDraft.sections.length} sections · ${moduleCount} modules)`
+                : `Draft saved (${courseDraft.sections.length} sections · ${moduleCount} modules)`,
             updatedBy: 'You',
             timestamp: 'Just now',
           },
@@ -1588,15 +1552,28 @@ export default function DigitalSchool() {
         setCourseDraft(createCourseDraft())
         setResumeMetadata(null)
         fileInputsRef.current = {}
-        setDraftMessage(`Saved "${coursePayload.title}" draft – ready for scheduled reminders and exams.`)
+        setDraftMessage(
+          desiredIntent === 'published'
+            ? `Published "${coursePayload.title}" — now visible in the catalog.`
+            : `Saved "${coursePayload.title}" draft – ready for scheduled reminders and exams.`,
+        )
       }
+
+      setToast({
+        message:
+          desiredIntent === 'published'
+            ? `Published "${coursePayload.title}".`
+            : `Saved "${coursePayload.title}" as draft.`,
+        tone: 'success',
+      })
     } catch (error) {
       console.error('DigitalSchool.handleSaveDraft', error)
       setDraftMessage(
         error instanceof Error ? `Unable to save draft: ${error.message}` : 'Unable to save draft right now.',
       )
     } finally {
-      setIsSavingDraft(false)
+      setIsSavingCourse(false)
+      setSubmitIntent('draft')
     }
   }
 
@@ -2734,10 +2711,19 @@ export default function DigitalSchool() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700 disabled:opacity-60 disabled:hover:bg-primary-600"
-                disabled={isSavingDraft}
+                data-intent="draft"
+                className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-black disabled:opacity-60"
+                disabled={isSavingCourse}
               >
-                {isSavingDraft ? 'Saving draft…' : 'Save draft'}
+                {isSavingCourse && submitIntent === 'draft' ? 'Saving…' : 'Save as draft'}
+              </button>
+              <button
+                type="submit"
+                data-intent="published"
+                className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700 disabled:opacity-60"
+                disabled={isSavingCourse}
+              >
+                {isSavingCourse && submitIntent === 'published' ? 'Publishing…' : 'Publish course'}
               </button>
               <button type="button" className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">
                 Upload cover
