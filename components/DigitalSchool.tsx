@@ -937,7 +937,14 @@ export default function DigitalSchool() {
         setDraftMessage(`Loaded "${courseDetails.title}" draft — continue editing then save to update.`)
       } catch (error) {
         console.error('DigitalSchool.handleResumeDraft', error)
-        setDraftMessage(error instanceof Error ? `Unable to load draft: ${error.message}` : 'Unable to load draft.')
+        setDraftMessage(null)
+        const message =
+          error instanceof Error && /requires an index/i.test(error.message)
+            ? 'Unable to load draft. Please create the suggested Firestore index and try again.'
+            : error instanceof Error
+              ? `Unable to load draft: ${error.message}`
+              : 'Unable to load draft right now.'
+        setToast({ message, tone: 'error' })
       } finally {
         setResumingCourseId(null)
       }
