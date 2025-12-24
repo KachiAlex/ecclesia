@@ -418,13 +418,35 @@ export class DigitalCourseExamService {
   }
 
   static async listByCourse(courseId: string): Promise<DigitalCourseExam[]> {
-    const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('createdAt', 'desc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('createdAt', 'desc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+      if (!needsIndex) throw error
+      const fallbackSnapshot = await this.collection().where('courseId', '==', courseId).get()
+      const exams = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return exams.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    }
   }
 
   static async listBySection(sectionId: string): Promise<DigitalCourseExam[]> {
-    const snapshot = await this.collection().where('sectionId', '==', sectionId).orderBy('createdAt', 'desc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('sectionId', '==', sectionId).orderBy('createdAt', 'desc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+      if (!needsIndex) throw error
+      const fallbackSnapshot = await this.collection().where('sectionId', '==', sectionId).get()
+      const exams = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return exams.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    }
   }
 
   static async get(examId: string): Promise<DigitalCourseExam | null> {
@@ -804,8 +826,23 @@ export class DigitalCourseSectionService {
   }
 
   static async listByCourse(courseId: string): Promise<DigitalCourseSection[]> {
-    const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('order', 'asc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('order', 'asc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+
+      if (!needsIndex) {
+        throw error
+      }
+
+      const fallbackSnapshot = await this.collection().where('courseId', '==', courseId).get()
+      const sections = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return sections.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    }
   }
 
   static async get(sectionId: string): Promise<DigitalCourseSection | null> {
@@ -873,13 +910,35 @@ export class DigitalCourseModuleService {
   }
 
   static async listByCourse(courseId: string): Promise<DigitalCourseModule[]> {
-    const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('order', 'asc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('courseId', '==', courseId).orderBy('order', 'asc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+      if (!needsIndex) throw error
+      const fallbackSnapshot = await this.collection().where('courseId', '==', courseId).get()
+      const modules = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return modules.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    }
   }
 
   static async listBySection(sectionId: string): Promise<DigitalCourseModule[]> {
-    const snapshot = await this.collection().where('sectionId', '==', sectionId).orderBy('order', 'asc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('sectionId', '==', sectionId).orderBy('order', 'asc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+      if (!needsIndex) throw error
+      const fallbackSnapshot = await this.collection().where('sectionId', '==', sectionId).get()
+      const modules = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return modules.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    }
   }
 
   static async get(moduleId: string): Promise<DigitalCourseModule | null> {
