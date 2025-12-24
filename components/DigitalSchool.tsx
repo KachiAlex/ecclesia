@@ -79,6 +79,8 @@ type SectionGatingSummary = {
   certificateUrl?: string
 }
 
+type ModuleContentType = 'video' | 'audio' | 'text'
+
 type ModuleDraft = {
   id: string
   title: string
@@ -91,6 +93,8 @@ type ModuleDraft = {
   bookFileName?: string
   audioStoragePath?: string
   bookStoragePath?: string
+  contentType: ModuleContentType
+  textContent: string
 }
 
 type SectionExamDraft = {
@@ -116,7 +120,7 @@ type CourseDraft = {
   title: string
   access: AccessType
   mentors: string
-  moduleBrief: string
+  summary: string
   estimatedHours: number
   format: string
   pricing: CoursePricing
@@ -149,6 +153,8 @@ const createModuleDraft = (): ModuleDraft => ({
   bookFileName: undefined,
   audioStoragePath: undefined,
   bookStoragePath: undefined,
+  contentType: 'video',
+  textContent: '',
 })
 
 const createExamDraft = (): SectionExamDraft => ({
@@ -174,7 +180,7 @@ const createCourseDraft = (): CourseDraft => ({
   title: '',
   access: 'open',
   mentors: '',
-  moduleBrief: '',
+  summary: 'Outline what learners should expect from this discipleship track.',
   estimatedHours: 6,
   format: 'Video lessons, Audio reflections',
   pricing: { type: 'free' },
@@ -986,7 +992,7 @@ export default function DigitalSchool() {
         headers,
         body: JSON.stringify({
           title: courseDraft.title.trim(),
-          summary: courseDraft.moduleBrief || 'New discipleship modules launching soon.',
+          summary: courseDraft.summary?.trim() || 'New discipleship modules launching soon.',
           accessType: courseDraft.access,
           mentors,
           estimatedHours: Math.max(1, Math.round(courseDraft.estimatedHours)),
@@ -1676,8 +1682,8 @@ export default function DigitalSchool() {
               Module brief
               <textarea
                 placeholder="Outline each module with video/audio references..."
-                value={courseDraft.moduleBrief}
-                onChange={(event) => handleDraftChange('moduleBrief', event.target.value)}
+                value={courseDraft.summary}
+                onChange={(event) => handleDraftChange('summary', event.target.value)}
                 className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
                 rows={3}
               />

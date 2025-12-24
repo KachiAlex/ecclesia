@@ -2,6 +2,21 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
+import {
+  Bot,
+  Users2,
+  MessageCircle,
+  Tv,
+  PiggyBank,
+  CalendarDays,
+  Trophy,
+  BarChart3,
+  UsersRound,
+  CreditCard,
+  Wallet,
+  Building2,
+  type LucideIcon,
+} from 'lucide-react'
 import { plans } from '@/lib/plans-data'
 
 export default function Home() {
@@ -37,9 +52,16 @@ export default function Home() {
     }
   }, [])
 
-  const features = [
+  const features: {
+    icon: LucideIcon
+    title: string
+    description: string
+    gradient: string
+    color: string
+    details: string[]
+  }[] = [
     {
-      icon: '🤖',
+      icon: Bot,
       title: 'AI-Powered Discipleship',
       description: 'Personalized spiritual growth plans, AI coaching chat, and automated follow-up systems for new converts',
       gradient: 'from-emerald-500 to-teal-600',
@@ -47,7 +69,7 @@ export default function Home() {
       details: ['AI Spiritual Coach', 'Reading Plan Recommendations', '7-Day Follow-up Automation', 'Mentor Assignment'],
     },
     {
-      icon: '👥',
+      icon: Users2,
       title: 'Member Management',
       description: 'Comprehensive member directory with role-based access control, payroll system, and visitor conversion',
       gradient: 'from-blue-500 to-cyan-600',
@@ -55,7 +77,7 @@ export default function Home() {
       details: ['6 Role Types', '18+ Permissions', 'Payroll System', 'Visitor Pipeline'],
     },
     {
-      icon: '💬',
+      icon: MessageCircle,
       title: 'Social Network',
       description: 'Community feed, groups, prayer wall, and real-time messaging to keep everyone connected',
       gradient: 'from-amber-500 to-orange-600',
@@ -63,7 +85,7 @@ export default function Home() {
       details: ['Community Feed', 'Prayer Wall', 'Groups & Departments', 'Real-time Messaging'],
     },
     {
-      icon: '📺',
+      icon: Tv,
       title: 'Sermon Hub',
       description: 'Netflix-style streaming with AI summaries, offline downloads, and personalized recommendations',
       gradient: 'from-purple-500 to-pink-600',
@@ -71,7 +93,7 @@ export default function Home() {
       details: ['Video/Audio Player', 'AI Summaries', 'Offline Downloads', 'Progress Tracking'],
     },
     {
-      icon: '💰',
+      icon: PiggyBank,
       title: 'Giving & Finance',
       description: 'Project-based giving with full transparency, financial tracking, and automated receipts',
       gradient: 'from-rose-500 to-red-600',
@@ -79,7 +101,7 @@ export default function Home() {
       details: ['Project Giving', 'Giving Streaks', 'Financial Dashboard', 'PDF Receipts'],
     },
     {
-      icon: '📅',
+      icon: CalendarDays,
       title: 'Event System',
       description: 'Smart calendar, event registration with QR codes, and check-in system',
       gradient: 'from-indigo-500 to-blue-600',
@@ -87,7 +109,7 @@ export default function Home() {
       details: ['Smart Calendar', 'QR Ticketing', 'Event Check-in', 'Registration Tracking'],
     },
     {
-      icon: '🏆',
+      icon: Trophy,
       title: 'Gamification',
       description: 'Badges, leaderboards, and XP levels to encourage engagement and spiritual growth',
       gradient: 'from-yellow-500 to-amber-600',
@@ -95,7 +117,7 @@ export default function Home() {
       details: ['Spiritual Badges', 'Leaderboards', 'XP System', 'Level Progression'],
     },
     {
-      icon: '📊',
+      icon: BarChart3,
       title: 'Analytics Dashboard',
       description: 'Engagement analytics, disengagement warnings, and first-timer pipeline tracking',
       gradient: 'from-violet-500 to-purple-600',
@@ -103,7 +125,7 @@ export default function Home() {
       details: ['Engagement Metrics', 'Disengagement Alerts', 'First-timer Pipeline', 'Workforce Management'],
     },
     {
-      icon: '👨‍👩‍👧‍👦',
+      icon: UsersRound,
       title: 'Family Module',
       description: 'Parent dashboard, secure children check-in, and family devotion mode',
       gradient: 'from-green-500 to-emerald-600',
@@ -111,7 +133,7 @@ export default function Home() {
       details: ['Parent Dashboard', 'Children Check-in', 'Family Devotions', 'Family Groups'],
     },
     {
-      icon: '💳',
+      icon: CreditCard,
       title: 'Digital Membership',
       description: 'QR code check-in, digital membership cards, and location-based group matching',
       gradient: 'from-cyan-500 to-blue-600',
@@ -119,7 +141,7 @@ export default function Home() {
       details: ['QR Check-in', 'Digital Cards', 'Location Matching', 'Service Tracking'],
     },
     {
-      icon: '💼',
+      icon: Wallet,
       title: 'Payroll System',
       description: 'Complete payroll management with positions, wage scales, and automated calculations',
       gradient: 'from-slate-500 to-gray-600',
@@ -127,7 +149,7 @@ export default function Home() {
       details: ['Position Management', 'Wage Scales', 'Payroll Calculation', 'Payment Tracking'],
     },
     {
-      icon: '🏢',
+      icon: Building2,
       title: 'Multi-Tenant SaaS',
       description: 'Church switching, custom branding, subscription management, and usage tracking',
       gradient: 'from-pink-500 to-rose-600',
@@ -155,15 +177,16 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-white overflow-hidden">
-      {/* Enhanced background with animations */}
+      {/* Hero background */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.08),transparent_50%)] animate-pulse-slow"></div>
-        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,rgba(99,102,241,0.08),transparent_50%)] animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.03]"></div>
-        {/* Floating orbs */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+        <img
+          src="/home-bg.svg"
+          alt="Ecclesia brand background"
+          className="w-full h-full object-cover"
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-white/55 backdrop-blur-[1px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-white/60"></div>
       </div>
 
       {/* Enhanced Navigation */}
@@ -203,7 +226,7 @@ export default function Home() {
       </nav>
 
       {/* Enhanced Hero Section */}
-      <section className="relative z-10 pt-16 md:pt-24 pb-20 md:pb-32 lg:pt-32 lg:pb-40">
+      <section className="relative z-10 pt-16 md:pt-20 pb-14 md:pb-20 lg:pt-28 lg:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div
@@ -234,7 +257,7 @@ export default function Home() {
               </p>
 
               {/* Stats Row */}
-              <div className="flex flex-wrap gap-6 md:gap-8 mb-8 md:mb-12">
+              <div className="flex flex-wrap gap-6 md:gap-8 mb-8 md:mb-10">
                 {[
                   { value: '100+', label: 'Churches' },
                   { value: '10K+', label: 'Active Users' },
@@ -251,7 +274,7 @@ export default function Home() {
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-12">
+              <div className="flex flex-col sm:flex-row gap-4 mb-10">
                 <Link
                   href="/auth/register"
                   className="group relative px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl font-semibold text-lg hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 w-full sm:w-auto overflow-hidden"
@@ -278,7 +301,7 @@ export default function Home() {
       </section>
 
       {/* Features Showcase Section */}
-      <section id="features" className="relative z-10 py-20 md:py-24 lg:py-32 bg-gradient-to-b from-white via-gray-50/30 to-white">
+      <section id="features" className="relative z-10 pt-10 pb-16 md:pt-16 md:pb-24 lg:pt-20 lg:pb-28 bg-gradient-to-b from-white via-gray-50/30 to-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16 md:mb-20">
@@ -314,19 +337,24 @@ export default function Home() {
             </div>
 
             {/* Active Feature Display */}
-            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center mb-16">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center mb-14">
               <div className={`transition-all duration-500 ${mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
-                <div className="bg-white rounded-3xl p-8 md:p-10 border border-gray-100 shadow-xl">
-                  <div className={`w-20 h-20 bg-gradient-to-br ${features[activeFeature].gradient} rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-lg`}>
-                    {features[activeFeature].icon}
-                  </div>
+                <div className="bg-white rounded-3xl p-8 md:p-10 border border-gray-100 shadow-xl flex flex-col h-full">
+                  {(() => {
+                    const ActiveIcon = features[activeFeature].icon
+                    return (
+                      <div className={`w-20 h-20 bg-gradient-to-br ${features[activeFeature].gradient} rounded-2xl flex items-center justify-center text-4xl text-white mb-6 shadow-lg`}>
+                        <ActiveIcon className="w-10 h-10" />
+                      </div>
+                    )
+                  })()}
                   <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                     {features[activeFeature].title}
                   </h3>
                   <p className="text-lg md:text-xl text-gray-600 mb-6 leading-relaxed">
                     {features[activeFeature].description}
                   </p>
-                  <ul className="space-y-3">
+                  <ul className="space-y-3 mb-8">
                     {features[activeFeature].details.map((detail, idx) => (
                       <li key={idx} className="flex items-center gap-3 text-gray-700">
                         <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${features[activeFeature].gradient}`}></div>
@@ -334,6 +362,21 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
+                  <div className="mt-auto bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">What leaders say</p>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      {[
+                        { value: '92%', label: 'Faster follow-ups' },
+                        { value: '3x', label: 'Engagement' },
+                        { value: '24/7', label: 'AI Support' },
+                      ].map((stat) => (
+                        <div key={stat.label}>
+                          <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                          <p className="text-xs text-gray-500">{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div
@@ -341,9 +384,9 @@ export default function Home() {
                   mounted ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'
                 }`}
               >
-                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 md:p-12 border border-gray-200 shadow-2xl overflow-hidden">
+                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 md:p-12 border border-gray-200 shadow-2xl overflow-hidden h-full">
                   <div className="absolute -top-16 -right-10 w-48 h-48 bg-blue-200/50 rounded-full blur-3xl"></div>
-                  <div className="relative space-y-6">
+                  <div className="relative space-y-6 h-full flex flex-col">
                     <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
                       <div className="flex items-center justify-between mb-4">
                         <div>
@@ -416,6 +459,30 @@ export default function Home() {
                         </button>
                       </div>
                     </div>
+                    <div className="mt-auto">
+                      <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-[0.3em] mb-4">Progress</p>
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex justify-between text-sm text-gray-600 mb-1">
+                              <span>Completion</span>
+                              <span>65%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 w-2/3"></div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Current streak</span>
+                            <span className="font-semibold text-gray-900">11 days 🔥</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Mentor check-ins</span>
+                            <span className="font-semibold text-gray-900">Every Friday</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -441,7 +508,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="relative z-10 py-20 md:py-24 lg:py-32 bg-white">
+      <section id="testimonials" className="relative z-10 pt-10 pb-20 md:pt-14 md:pb-24 lg:pt-16 lg:pb-28 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16 md:mb-20">
@@ -653,7 +720,7 @@ function FeatureCard({
   delay,
   mounted,
 }: {
-  icon: string
+  icon: LucideIcon
   title: string
   description: string
   gradient: string
@@ -661,6 +728,7 @@ function FeatureCard({
   delay: number
   mounted: boolean
 }) {
+  const Icon = icon
   return (
     <div
       className={`group relative bg-white rounded-3xl p-6 md:p-8 lg:p-10 border border-gray-100 hover:border-gray-200 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl ${
@@ -671,8 +739,8 @@ function FeatureCard({
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 rounded-3xl transition-opacity duration-500`}></div>
       
       <div className="relative z-10">
-        <div className={`relative w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 bg-gradient-to-br ${gradient} rounded-2xl flex items-center justify-center text-2xl md:text-3xl lg:text-4xl mb-4 md:mb-6 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
-          {icon}
+        <div className={`relative w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 bg-gradient-to-br ${gradient} rounded-2xl flex items-center justify-center text-2xl md:text-3xl lg:text-4xl mb-4 md:mb-6 shadow-lg group-hover:scale-110 transition-transform duration-500 text-white`}>
+          <Icon className="w-7 h-7 md:w-8 md:h-8 lg:w-9 lg:h-9" />
         </div>
         <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 md:mb-4 group-hover:text-gray-800 transition-colors">
           {title}
