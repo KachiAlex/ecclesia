@@ -692,13 +692,32 @@ export class DigitalCourseService {
   }
 
   static async list(churchId: string, limit: number = 50): Promise<DigitalCourse[]> {
-    const snapshot = await this.collection()
-      .where('churchId', '==', churchId)
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-      .get()
+    try {
+      const snapshot = await this.collection()
+        .where('churchId', '==', churchId)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get()
 
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+
+      if (!needsIndex) {
+        throw error
+      }
+
+      const fallbackSnapshot = await this.collection()
+        .where('churchId', '==', churchId)
+        .limit(limit)
+        .get()
+
+      const courses = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return courses.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    }
   }
 
   static async get(courseId: string): Promise<DigitalCourse | null> {
