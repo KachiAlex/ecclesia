@@ -41,6 +41,7 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
   const [ledger, setLedger] = useState<LedgerItem[]>([])
   const [totals, setTotals] = useState<{ income: number; expenses: number; net: number } | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
 
   const [incomeSaving, setIncomeSaving] = useState(false)
   const [incomeForm, setIncomeForm] = useState({
@@ -174,6 +175,40 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
     }
   }, [queryString])
 
+  const downloadFile = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    if (!branchId.trim()) {
+      setError('Select a branch to export.')
+      return
+    }
+
+    setExporting(format)
+    setError(null)
+    try {
+      const res = await fetch(`/api/accounting/export/${format}${queryString}`, {
+        cache: 'no-store',
+      })
+
+      if (!res.ok) throw new Error(await readApiError(res))
+      const blob = await res.blob()
+      downloadFile(blob, `accounting-balance-sheet.${format}`)
+    } catch (e: any) {
+      setError(e?.message || `Failed to export ${format.toUpperCase()}`)
+    } finally {
+      setExporting(null)
+    }
+  }
+
   useEffect(() => {
     loadBranches()
     loadAll()
@@ -306,18 +341,30 @@ export default function AccountingHub({ isAdmin }: { isAdmin: boolean }) {
         <div className="bg-white rounded-xl border p-4 flex flex-col justify-between">
           <div className="text-xs font-semibold text-gray-600">Exports</div>
           <div className="mt-2 flex gap-2">
-            <a
-              className={`px-3 py-2 rounded-lg border text-sm ${branchId.trim() ? 'hover:bg-gray-50' : 'opacity-50 pointer-events-none'}`}
-              href={`/api/accounting/export/csv${queryString}`}
+            <button
+              type="button"
+              onClick={() => handleExport('csv')}
+              disabled={!branchId.trim() || exporting === 'csv'}
+              className={`px-3 py-2 rounded-lg border text-sm transition ${
+                branchId.trim()
+                  ? 'hover:bg-gray-50'
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
             >
-              Excel (CSV)
-            </a>
-            <a
-              className={`px-3 py-2 rounded-lg border text-sm ${branchId.trim() ? 'hover:bg-gray-50' : 'opacity-50 pointer-events-none'}`}
-              href={`/api/accounting/export/pdf${queryString}`}
+              {exporting === 'csv' ? 'Exporting…' : 'Excel (CSV)'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExport('pdf')}
+              disabled={!branchId.trim() || exporting === 'pdf'}
+              className={`px-3 py-2 rounded-lg border text-sm transition ${
+                branchId.trim()
+                  ? 'hover:bg-gray-50'
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
             >
-              PDF
-            </a>
+              {exporting === 'pdf' ? 'Exporting…' : 'PDF'}
+            </button>
           </div>
           {!branchId.trim() && <div className="text-xs text-gray-500 mt-2">Select a branch to export.</div>}
         </div>
