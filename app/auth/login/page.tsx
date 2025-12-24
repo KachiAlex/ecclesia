@@ -241,7 +241,7 @@ function LoginForm() {
             href="/auth/register"
             className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
           >
-            Create one now
+            Sign up
           </Link>
         </p>
 

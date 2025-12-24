@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { plans } from '@/lib/plans-data'
 
 export default function Home() {
@@ -168,9 +167,11 @@ export default function Home() {
       </div>
 
       {/* Enhanced Navigation */}
-      <nav className={`relative z-50 backdrop-blur-md transition-all duration-300 ${
-        isScrolled ? 'bg-white/95 shadow-lg border-b border-gray-100' : 'bg-white/80 border-b border-gray-100/50'
-      } sticky top-0`}>
+      <nav
+        className={`relative z-50 backdrop-blur-md transition-all duration-300 ${
+          isScrolled ? 'bg-white/95 shadow-lg border-b border-gray-100' : 'bg-white/80 border-b border-gray-100/50'
+        } sticky top-0`}
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <Link href="/" className="flex items-center space-x-3 group">
@@ -189,21 +190,14 @@ export default function Home() {
               <a href="#testimonials" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">Testimonials</a>
               <a href="#pricing" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">Pricing</a>
             </div>
-                   <div className="flex items-center space-x-4">
-                     <Link
-                       href="/auth/login"
-                       className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 text-sm md:text-base"
-                     >
-                       Sign In
-                     </Link>
-                     <Link
-                       href="/auth/register"
-                       className="relative px-4 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold text-sm md:text-base transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 group overflow-hidden"
-                     >
-                       <span className="relative z-10">Get Started</span>
-                       <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                     </Link>
-                   </div>
+            <div className="flex items-center">
+              <Link
+                href="/auth/login"
+                className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 text-sm md:text-base"
+              >
+                Sign In
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -279,16 +273,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Church Login Form - Collapsible */}
-            <div className={`mb-12 transition-all duration-1000 delay-200 ease-out max-w-md ${
-              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-            }`}>
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Church Login</h2>
-                <p className="text-gray-600 text-center mb-6 text-sm md:text-base">Sign in to your church portal</p>
-                <ChurchLoginForm />
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -352,23 +336,85 @@ export default function Home() {
                   </ul>
                 </div>
               </div>
-              <div className={`transition-all duration-500 delay-100 ${mounted ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
-                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 md:p-12 border border-gray-200 shadow-2xl">
-                  {/* Mock UI Preview */}
-                  <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`w-12 h-12 bg-gradient-to-br ${features[activeFeature].gradient} rounded-xl flex items-center justify-center text-2xl`}>
-                        {features[activeFeature].icon}
+              <div
+                className={`transition-all duration-500 delay-100 ${
+                  mounted ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'
+                }`}
+              >
+                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 md:p-12 border border-gray-200 shadow-2xl overflow-hidden">
+                  <div className="absolute -top-16 -right-10 w-48 h-48 bg-blue-200/50 rounded-full blur-3xl"></div>
+                  <div className="relative space-y-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-widest text-blue-500 font-semibold">Reading Plan</p>
+                          <h4 className="text-xl font-bold text-gray-900">30-Day Gospel Immersion</h4>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
+                          Day 12
+                        </span>
                       </div>
-                      <div>
-                        <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-                        <div className="h-3 bg-gray-100 rounded w-16"></div>
+                      <div className="space-y-3">
+                        {[
+                          { day: 'Day 10', title: 'Luke 8 • Mark 3', status: 'Completed' },
+                          { day: 'Day 11', title: 'Luke 9 • Psalm 34', status: 'Completed' },
+                          { day: 'Day 12', title: 'John 4 • Proverbs 3', status: 'In Progress' },
+                          { day: 'Day 13', title: 'Acts 2 • Psalm 27', status: 'Up next' },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3 bg-gray-50/60"
+                          >
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{item.day}</p>
+                              <p className="text-sm font-medium text-gray-900">{item.title}</p>
+                            </div>
+                            <span
+                              className={`text-xs font-semibold ${
+                                item.status === 'Completed'
+                                  ? 'text-emerald-600'
+                                  : item.status === 'In Progress'
+                                  ? 'text-indigo-600'
+                                  : 'text-gray-500'
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-16 bg-gray-50 rounded-lg border border-gray-100"></div>
-                      ))}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl p-5 shadow-xl">
+                        <p className="text-xs uppercase tracking-[0.2em] opacity-80 mb-2">AI Coach</p>
+                        <p className="text-lg font-semibold mb-3">Discipleship Insights</p>
+                        <ul className="space-y-2 text-sm text-blue-50">
+                          <li className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-white/80 rounded-full"></span>
+                            Recommend prayer focus on gratitude
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-white/80 rounded-full"></span>
+                            Invite mentor follow-up on Day 14
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-white/80 rounded-full"></span>
+                            Celebrate 10-day streak 🎉
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 flex flex-col justify-between">
+                        <div>
+                          <p className="text-xs uppercase tracking-widest text-gray-500 font-semibold">Next Action</p>
+                          <h5 className="text-lg font-bold text-gray-900 mt-1 mb-3">AI Discipleship Coaching</h5>
+                          <p className="text-sm text-gray-600">
+                            Schedule a 1:1 check-in or let the AI mentor send a personalized encouragement.
+                          </p>
+                        </div>
+                        <button className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold">
+                          Launch Coach
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -595,57 +641,6 @@ export default function Home() {
         </div>
       </footer>
     </main>
-  )
-}
-
-function ChurchLoginForm() {
-  const router = useRouter()
-  const [churchSlug, setChurchSlug] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    
-    if (!churchSlug.trim()) {
-      setError('Please enter your church name')
-      return
-    }
-
-    router.push(`/login/${churchSlug.trim().toLowerCase()}`)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-      <div>
-        <label htmlFor="churchSlug" className="block text-sm font-medium text-gray-700 mb-2">
-          Church Name
-        </label>
-        <input
-          id="churchSlug"
-          type="text"
-          value={churchSlug}
-          onChange={(e) => setChurchSlug(e.target.value)}
-          placeholder="e.g., grace-community-church"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
-          required
-        />
-        <p className="mt-1 text-xs text-gray-500">Enter your church name (e.g., &quot;grace-community-church&quot;)</p>
-      </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? 'Loading...' : 'Continue to Login'}
-      </button>
-    </form>
   )
 }
 
