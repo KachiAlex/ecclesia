@@ -5,6 +5,8 @@ import { Providers } from './providers'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Ecclesia Church App',
   description: 'Comprehensive church management and community app with AI-powered discipleship',

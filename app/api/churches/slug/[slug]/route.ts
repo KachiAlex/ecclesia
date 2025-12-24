@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { ChurchService } from '@/lib/services/church-service'
 
@@ -42,4 +44,3 @@ export async function GET(
     )
   }
 }
-

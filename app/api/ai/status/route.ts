@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getSpiritualCoachingResponse } from '@/lib/ai/openai'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Public AI status check endpoint
  * Tests if AI is actually working with a simple test query

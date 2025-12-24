@@ -11,6 +11,8 @@ type CoursePricing =
   | { type: 'free' }
   | { type: 'paid'; amount: number; currency?: string }
 
+const COURSE_MANAGER_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR'])
+
 type Course = {
   id: string
   title: string
@@ -23,7 +25,16 @@ type Course = {
   status: ProgressState
   progress: number
   badgeColor: string
-  pricing?: CoursePricing
+  pricing: CoursePricing
+  rawStatus?: ApiCourseResponse['status']
+}
+
+type ResumeMetadata = {
+  courseId: string
+  courseTitle: string
+  sectionIds: string[]
+  modulesBySection: Record<string, string[]>
+  examIdsBySection: Record<string, string[]>
 }
 
 type EnrollmentQueueItem = {
@@ -83,6 +94,7 @@ type ModuleContentType = 'video' | 'audio' | 'text'
 
 type ModuleDraft = {
   id: string
+  persistedId?: string
   title: string
   description: string
   estimatedMinutes: number
@@ -98,6 +110,7 @@ type ModuleDraft = {
 }
 
 type SectionExamDraft = {
+  persistedId?: string
   title: string
   description: string
   timeLimitMinutes: number
@@ -110,6 +123,7 @@ type SectionExamDraft = {
 
 type SectionDraft = {
   id: string
+  persistedId?: string
   title: string
   description: string
   modules: ModuleDraft[]
@@ -141,39 +155,62 @@ type CertificateThemeDraft = {
   issuedBy: string
 }
 
-const createModuleDraft = (): ModuleDraft => ({
-  id: typeof crypto !== 'undefined' ? crypto.randomUUID() : `module-${Date.now()}-${Math.random()}`,
-  title: '',
-  description: '',
-  estimatedMinutes: 30,
-  videoUrl: '',
-  audioUrl: '',
-  bookUrl: '',
-  audioFileName: undefined,
-  bookFileName: undefined,
-  audioStoragePath: undefined,
-  bookStoragePath: undefined,
-  contentType: 'video',
-  textContent: '',
+const DEFAULT_CERTIFICATE_THEME: CertificateThemeDraft = {
+  template: 'classic',
+  accentColor: '#4338ca',
+  secondaryColor: '#0f172a',
+  logoUrl: '',
+  backgroundImageUrl: '',
+  signatureText: 'Lead Pastor',
+  sealText: 'Ecclesia Training Institute',
+  issuedBy: 'Ecclesia',
+}
+
+const mergeCertificateTheme = (theme?: Partial<CertificateThemeDraft>): CertificateThemeDraft => ({
+  ...DEFAULT_CERTIFICATE_THEME,
+  ...theme,
 })
 
-const createExamDraft = (): SectionExamDraft => ({
-  title: '',
-  description: '',
-  timeLimitMinutes: 30,
-  questionCount: 20,
-  status: 'draft',
-  uploadPlaceholder: '',
-  uploadUrl: undefined,
-  uploadStoragePath: undefined,
+const createModuleDraft = (overrides: Partial<ModuleDraft> = {}): ModuleDraft => ({
+  id:
+    overrides.id ??
+    (typeof crypto !== 'undefined' ? crypto.randomUUID() : `module-${Date.now()}-${Math.random()}`),
+  persistedId: overrides.persistedId,
+  title: overrides.title ?? '',
+  description: overrides.description ?? '',
+  estimatedMinutes: overrides.estimatedMinutes ?? 30,
+  videoUrl: overrides.videoUrl ?? '',
+  audioUrl: overrides.audioUrl ?? '',
+  bookUrl: overrides.bookUrl ?? '',
+  audioFileName: overrides.audioFileName,
+  bookFileName: overrides.bookFileName,
+  audioStoragePath: overrides.audioStoragePath,
+  bookStoragePath: overrides.bookStoragePath,
+  contentType: overrides.contentType ?? 'video',
+  textContent: overrides.textContent ?? '',
 })
 
-const createSectionDraft = (): SectionDraft => ({
-  id: typeof crypto !== 'undefined' ? crypto.randomUUID() : `section-${Date.now()}-${Math.random()}`,
-  title: '',
-  description: '',
-  modules: [createModuleDraft()],
-  exam: createExamDraft(),
+const createExamDraft = (overrides: Partial<SectionExamDraft> = {}): SectionExamDraft => ({
+  persistedId: overrides.persistedId,
+  title: overrides.title ?? '',
+  description: overrides.description ?? '',
+  timeLimitMinutes: overrides.timeLimitMinutes ?? 30,
+  questionCount: overrides.questionCount ?? 20,
+  status: overrides.status ?? 'draft',
+  uploadPlaceholder: overrides.uploadPlaceholder ?? '',
+  uploadUrl: overrides.uploadUrl,
+  uploadStoragePath: overrides.uploadStoragePath,
+})
+
+const createSectionDraft = (overrides: Partial<SectionDraft> = {}): SectionDraft => ({
+  id:
+    overrides.id ??
+    (typeof crypto !== 'undefined' ? crypto.randomUUID() : `section-${Date.now()}-${Math.random()}`),
+  persistedId: overrides.persistedId,
+  title: overrides.title ?? '',
+  description: overrides.description ?? '',
+  modules: overrides.modules ?? [createModuleDraft()],
+  exam: overrides.exam ?? createExamDraft(),
 })
 
 const createCourseDraft = (): CourseDraft => ({
@@ -185,16 +222,7 @@ const createCourseDraft = (): CourseDraft => ({
   format: 'Video lessons, Audio reflections',
   pricing: { type: 'free' },
   sections: [createSectionDraft()],
-  certificateTheme: {
-    template: 'classic',
-    accentColor: '#4338ca',
-    secondaryColor: '#0f172a',
-    logoUrl: '',
-    backgroundImageUrl: '',
-    signatureText: 'Lead Pastor',
-    sealText: 'Ecclesia Training Institute',
-    issuedBy: 'Ecclesia',
-  },
+  certificateTheme: mergeCertificateTheme(),
 })
 
 const CERTIFICATE_TEMPLATES: { value: CertificateTemplate; label: string; description: string }[] = [
@@ -213,6 +241,12 @@ const CERTIFICATE_TEMPLATES: { value: CertificateTemplate; label: string; descri
     label: 'Minimal',
     description: 'Clean monochrome layout with subtle dividers.',
   },
+]
+
+const MODULE_CONTENT_TYPES: { value: ModuleContentType; label: string; description: string }[] = [
+  { value: 'video', label: 'Video lesson', description: 'Embed a sermon or teaching clip.' },
+  { value: 'audio', label: 'Audio reflection', description: 'Upload sermon audio or guided prayer.' },
+  { value: 'text', label: 'Text-based study', description: 'Paste a devotional, transcript, or study notes.' },
 ]
 
 const formatPricingLabel = (pricing?: CoursePricing) => {
@@ -277,6 +311,7 @@ const buildGatingSummaries = (enrollments: ApiEnrollmentResponse[], courses: Cou
       totalModules,
       Math.round(((enrollment.progressPercent ?? 0) / 100) * totalModules),
     )
+
     const unlockedModules = Math.max(completedModules, 0)
     const lockedModules = Math.max(totalModules - unlockedModules, 0)
     const progress = clampProgress(enrollment.progressPercent)
@@ -345,6 +380,7 @@ type ApiCourseResponse = {
   moduleCount?: number
   modules?: number
   progressPercent?: number
+  certificateTheme?: Partial<CertificateThemeDraft>
 }
 
 const mapApiCourseToUi = (apiCourse: ApiCourseResponse): Course => {
@@ -369,6 +405,7 @@ const mapApiCourseToUi = (apiCourse: ApiCourseResponse): Course => {
     progress,
     badgeColor: badgeColorForAccess(access),
     pricing: apiCourse.pricing ?? { type: 'free' },
+    rawStatus: apiCourse.status ?? 'draft',
   }
 }
 
@@ -384,13 +421,34 @@ type ApiModuleResponse = {
   id: string
   sectionId: string
   title: string
+  description?: string
+  order?: number
+  estimatedMinutes?: number
+  videoUrl?: string
+  audioUrl?: string
+  audioFileName?: string
+  audioStoragePath?: string
+  bookUrl?: string
+  bookFileName?: string
+  bookStoragePath?: string
+  contentType?: ModuleContentType
+  textContent?: string
 }
 
 type ApiExamResponse = {
   id: string
   sectionId: string
   title: string
+  description?: string
   status: string
+  timeLimitMinutes?: number
+  questionCount?: number
+  uploadMetadata?: {
+    source?: string
+    originalFileName?: string
+    fileUrl?: string
+    storagePath?: string
+  }
 }
 
 type ApiEnrollmentResponse = {
@@ -613,6 +671,7 @@ const DEFAULT_EXAM_UPLOADS: ExamUpload[] = [
 
 export default function DigitalSchool() {
   const [courses, setCourses] = useState<Course[]>(FEATURED_COURSES)
+  const [draftCourses, setDraftCourses] = useState<ApiCourseResponse[]>([])
   const [enrollments, setEnrollments] = useState<EnrollmentQueueItem[]>([])
   const [adminActions, setAdminActions] = useState<AdminAction[]>(DEFAULT_ADMIN_ACTIONS)
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>(DEFAULT_ACCESS_REQUESTS)
@@ -620,19 +679,27 @@ export default function DigitalSchool() {
   const [progressRows, setProgressRows] = useState<ProgressRow[]>([])
   const [selectedProgress, setSelectedProgress] = useState<ProgressRow | null>(null)
   const [courseDraft, setCourseDraft] = useState<CourseDraft>(createCourseDraft())
+  const [resumeMetadata, setResumeMetadata] = useState<ResumeMetadata | null>(null)
   const [draftMessage, setDraftMessage] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [certificateMessage, setCertificateMessage] = useState<string | null>(null)
   const [reminderMessages, setReminderMessages] = useState<Record<string, string>>({})
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null)
   const [certificateLoading, setCertificateLoading] = useState<Record<string, boolean>>({})
   const [isLoadingCourses, setIsLoadingCourses] = useState(false)
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [resumingCourseId, setResumingCourseId] = useState<string | null>(null)
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
+  const [isCourseManager, setIsCourseManager] = useState(false)
   const examUploadInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
+  const builderRef = useRef<HTMLDivElement | null>(null)
   const [uploadingTargets, setUploadingTargets] = useState<Record<string, boolean>>({})
   const [enrollmentRecords, setEnrollmentRecords] = useState<ApiEnrollmentResponse[]>([])
   const [gatingSummaries, setGatingSummaries] = useState<SectionGatingSummary[]>([])
+
+  const supportsCourseArchive = false // TODO: replace deletions with archive/undo flow when audit requirements land.
 
   const setUploadingState = useCallback((key: string, value: boolean) => {
     setUploadingTargets((prev) => {
@@ -690,6 +757,9 @@ export default function DigitalSchool() {
       const apiCourses = await requestJson<ApiCourseResponse[]>('/api/digital-school/courses')
       if (Array.isArray(apiCourses) && apiCourses.length) {
         setCourses(apiCourses.map(mapApiCourseToUi))
+        setDraftCourses(apiCourses.filter((course) => course.status === 'draft'))
+      } else {
+        setDraftCourses([])
       }
     } catch (error) {
       console.error('DigitalSchool.loadCourses', error)
@@ -719,10 +789,201 @@ export default function DigitalSchool() {
   }, [loadEnrollments])
 
   useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/users/me', { credentials: 'include' })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled) {
+          const role = String(data?.role || '').toUpperCase()
+          setIsCourseManager(COURSE_MANAGER_ROLES.has(role))
+        }
+      } catch (error) {
+        console.error('DigitalSchool.loadViewerRole', error)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(null), 5000)
+    return () => window.clearTimeout(id)
+  }, [toast])
+
+  useEffect(() => {
     setEnrollments(buildEnrollmentQueue(enrollmentRecords, courses))
     setProgressRows(buildProgressRows(enrollmentRecords, courses))
     setGatingSummaries(buildGatingSummaries(enrollmentRecords, courses))
   }, [enrollmentRecords, courses])
+
+  const handleResetBuilder = useCallback(() => {
+    setCourseDraft(createCourseDraft())
+    setResumeMetadata(null)
+    setDraftMessage('Started a fresh draft builder.')
+    fileInputsRef.current = {}
+  }, [])
+
+  const scrollToBuilder = useCallback(() => {
+    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  const handleResumeDraft = useCallback(
+    async (courseId: string) => {
+      setResumingCourseId(courseId)
+      setDraftMessage(null)
+      try {
+        const courseDetails = await requestJson<ApiCourseResponse>(`/api/digital-school/courses/${courseId}`)
+        const sections = await requestJson<ApiSectionResponse[]>(`/api/digital-school/sections?courseId=${courseId}`)
+
+        const builtSections = await Promise.all(
+          (sections ?? []).map(async (section) => {
+            const [modules, exams] = await Promise.all([
+              requestJson<ApiModuleResponse[]>(
+                `/api/digital-school/modules?courseId=${courseId}&sectionId=${section.id}`,
+              ),
+              requestJson<ApiExamResponse[]>(
+                `/api/digital-school/exams?courseId=${courseId}&sectionId=${section.id}`,
+              ),
+            ])
+
+            const moduleDrafts =
+              Array.isArray(modules) && modules.length
+                ? modules.map((module) =>
+                    createModuleDraft({
+                      id: module.id,
+                      persistedId: module.id,
+                      title: module.title,
+                      description: module.description ?? '',
+                      estimatedMinutes: module.estimatedMinutes ?? 30,
+                      videoUrl: module.videoUrl ?? '',
+                      audioUrl: module.audioUrl ?? '',
+                      audioFileName: module.audioFileName,
+                      audioStoragePath: module.audioStoragePath,
+                      bookUrl: module.bookUrl ?? '',
+                      bookFileName: module.bookFileName,
+                      bookStoragePath: module.bookStoragePath,
+                      contentType: module.contentType ?? 'video',
+                      textContent: module.textContent ?? '',
+                    }),
+                  )
+                : [createModuleDraft()]
+
+            const examPayload = Array.isArray(exams) ? exams[0] : undefined
+            const examDraft = createExamDraft({
+              persistedId: examPayload?.id,
+              title: examPayload?.title ?? '',
+              description: examPayload?.description ?? '',
+              timeLimitMinutes: examPayload?.timeLimitMinutes ?? 30,
+              questionCount: examPayload?.questionCount ?? 20,
+              status: (examPayload?.status as SectionExamDraft['status']) ?? 'draft',
+              uploadPlaceholder: examPayload?.uploadMetadata?.originalFileName ?? '',
+              uploadUrl: examPayload?.uploadMetadata?.fileUrl,
+              uploadStoragePath: examPayload?.uploadMetadata?.storagePath,
+            })
+
+            return createSectionDraft({
+              id: section.id,
+              persistedId: section.id,
+              title: section.title,
+              description: section.description ?? '',
+              modules: moduleDrafts,
+              exam: examDraft,
+            })
+          }),
+        )
+
+        const nextSections = builtSections.length ? builtSections : [createSectionDraft()]
+        const mentors = courseDetails.mentors?.join(', ') ?? ''
+        const formatTags = courseDetails.tags?.join(', ') ?? ''
+
+        setCourseDraft({
+          title: courseDetails.title ?? '',
+          access: courseDetails.accessType ?? 'open',
+          mentors,
+          summary: courseDetails.summary ?? '',
+          estimatedHours: courseDetails.estimatedHours ?? 6,
+          format: formatTags,
+          pricing: courseDetails.pricing ?? { type: 'free' },
+          sections: nextSections,
+          certificateTheme: mergeCertificateTheme(courseDetails.certificateTheme),
+        })
+
+        const modulesBySection: ResumeMetadata['modulesBySection'] = {}
+        const examIdsBySection: ResumeMetadata['examIdsBySection'] = {}
+
+        nextSections.forEach((section) => {
+          const sectionKey = section.persistedId ?? section.id
+          modulesBySection[sectionKey] = section.modules
+            .map((module) => module.persistedId)
+            .filter((id): id is string => Boolean(id))
+          if (section.exam.persistedId) {
+            examIdsBySection[sectionKey] = [section.exam.persistedId]
+          }
+        })
+
+        setResumeMetadata({
+          courseId,
+          courseTitle: courseDetails.title ?? 'Draft course',
+          sectionIds: nextSections.map((section) => section.persistedId ?? section.id),
+          modulesBySection,
+          examIdsBySection,
+        })
+        fileInputsRef.current = {}
+        setDraftMessage(`Loaded "${courseDetails.title}" draft — continue editing then save to update.`)
+      } catch (error) {
+        console.error('DigitalSchool.handleResumeDraft', error)
+        setDraftMessage(error instanceof Error ? `Unable to load draft: ${error.message}` : 'Unable to load draft.')
+      } finally {
+        setResumingCourseId(null)
+      }
+    },
+    [],
+  )
+
+  const handleEditCourse = useCallback(
+    (courseId: string) => {
+      scrollToBuilder()
+      void handleResumeDraft(courseId)
+    },
+    [handleResumeDraft, scrollToBuilder],
+  )
+
+  const handleDeleteCourse = useCallback(
+    async (courseId: string) => {
+      if (deletingCourseId || supportsCourseArchive) return
+      const course = courses.find((item) => item.id === courseId)
+      const confirmed = window.confirm(
+        course ? `Delete "${course.title}" and its draft data? This cannot be undone.` : 'Delete this course draft?',
+      )
+      if (!confirmed) return
+      setDeletingCourseId(courseId)
+      try {
+        await requestJson(`/api/digital-school/courses/${courseId}`, { method: 'DELETE' })
+        if (resumeMetadata?.courseId === courseId) {
+          handleResetBuilder()
+        }
+        await loadCourses()
+        setToast({
+          message: `Removed "${course?.title ?? 'draft'}" from catalog.`,
+          tone: 'success',
+        })
+      } catch (error) {
+        console.error('DigitalSchool.handleDeleteCourse', error)
+        setToast({
+          message: error instanceof Error ? `Unable to delete: ${error.message}` : 'Unable to delete course.',
+          tone: 'error',
+        })
+      } finally {
+        setDeletingCourseId(null)
+      }
+    },
+    [courses, deletingCourseId, handleResetBuilder, loadCourses, resumeMetadata?.courseId],
+  )
 
   const actionLabel = (access: AccessType, status: ProgressState) => {
     if (status === 'completed') return 'View certificate'
@@ -808,12 +1069,17 @@ export default function DigitalSchool() {
     )
   }
 
-  const handleModuleChange = (
-    sectionId: string,
-    moduleId: string,
-    field: keyof Pick<ModuleDraft, 'title' | 'description' | 'videoUrl' | 'audioUrl' | 'estimatedMinutes'>,
-    value: string,
-  ) => {
+  type ModuleEditableField =
+    | 'title'
+    | 'description'
+    | 'videoUrl'
+    | 'audioUrl'
+    | 'bookUrl'
+    | 'estimatedMinutes'
+    | 'contentType'
+    | 'textContent'
+
+  const handleModuleChange = (sectionId: string, moduleId: string, field: ModuleEditableField, value: string) => {
     updateSections((sections) =>
       sections.map((section) =>
         section.id === sectionId
@@ -821,10 +1087,48 @@ export default function DigitalSchool() {
               ...section,
               modules: section.modules.map((module) =>
                 module.id === moduleId
-                  ? {
-                      ...module,
-                      [field]: field === 'estimatedMinutes' ? Math.max(5, Number(value) || 0) : value,
-                    }
+                  ? (() => {
+                      if (field === 'estimatedMinutes') {
+                        return {
+                          ...module,
+                          estimatedMinutes: Math.max(5, Number(value) || 0),
+                        }
+                      }
+
+                      if (field === 'contentType') {
+                        const nextType = value as ModuleContentType
+                        const resets: Partial<ModuleDraft> =
+                          nextType === 'video'
+                            ? {
+                                audioUrl: '',
+                                audioFileName: undefined,
+                                audioStoragePath: undefined,
+                                textContent: '',
+                              }
+                            : nextType === 'audio'
+                              ? {
+                                  videoUrl: '',
+                                  textContent: '',
+                                }
+                              : {
+                                  videoUrl: '',
+                                  audioUrl: '',
+                                  audioFileName: undefined,
+                                  audioStoragePath: undefined,
+                                }
+
+                        return {
+                          ...module,
+                          ...resets,
+                          contentType: nextType,
+                        }
+                      }
+
+                      return {
+                        ...module,
+                        [field]: value,
+                      }
+                    })()
                   : module,
               ),
             }
@@ -983,50 +1287,77 @@ export default function DigitalSchool() {
       'Content-Type': 'application/json',
     }
 
+    const coursePayload = {
+      title: courseDraft.title.trim(),
+      summary: courseDraft.summary?.trim() || 'New discipleship modules launching soon.',
+      accessType: courseDraft.access,
+      mentors,
+      estimatedHours: Math.max(1, Math.round(courseDraft.estimatedHours)),
+      tags: formatTags,
+      status: 'draft' as const,
+      pricing: courseDraft.pricing,
+      certificateTheme: courseDraft.certificateTheme,
+    }
+
     setIsSavingDraft(true)
     setDraftMessage(null)
 
     try {
-      const createdCourse = await requestJson<ApiCourseResponse>('/api/digital-school/courses', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          title: courseDraft.title.trim(),
-          summary: courseDraft.summary?.trim() || 'New discipleship modules launching soon.',
-          accessType: courseDraft.access,
-          mentors,
-          estimatedHours: Math.max(1, Math.round(courseDraft.estimatedHours)),
-          tags: formatTags,
-          status: 'draft',
-          pricing: courseDraft.pricing,
-        }),
-      })
-
-      const courseId = createdCourse.id
-
-      for (const [sectionIndex, section] of courseDraft.sections.entries()) {
-        const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
-        const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
-
-        const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
-          method: 'POST',
+      if (resumeMetadata?.courseId) {
+        const courseId = resumeMetadata.courseId
+        await requestJson<ApiCourseResponse>(`/api/digital-school/courses/${courseId}`, {
+          method: 'PUT',
           headers,
-          body: JSON.stringify({
-            courseId,
+          body: JSON.stringify(coursePayload),
+        })
+
+        const existingSectionIds = new Set(resumeMetadata.sectionIds)
+        const nextSectionIds: string[] = []
+        const nextModulesBySection: ResumeMetadata['modulesBySection'] = {}
+        const nextExamIdsBySection: ResumeMetadata['examIdsBySection'] = {}
+        const sectionPersistedMap: Record<string, string> = {}
+        const modulePersistedMap: Record<string, string> = {}
+        const examPersistedMap: Record<string, string | undefined> = {}
+
+        for (const [sectionIndex, section] of courseDraft.sections.entries()) {
+          const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
+          const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
+          const baseSectionPayload = {
             title: section.title.trim() || `Section ${sectionIndex + 1}`,
             description: section.description,
             order: sectionIndex + 1,
             estimatedHours: sectionHours,
-          }),
-        })
+          }
 
-        for (const [moduleIndex, module] of section.modules.entries()) {
-          await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              courseId,
-              sectionId: createdSection.id,
+          let persistedSectionId = section.persistedId
+          if (persistedSectionId) {
+            await requestJson<ApiSectionResponse>(`/api/digital-school/sections/${persistedSectionId}`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(baseSectionPayload),
+            })
+            existingSectionIds.delete(persistedSectionId)
+          } else {
+            const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                ...baseSectionPayload,
+                courseId,
+              }),
+            })
+            persistedSectionId = createdSection.id
+          }
+
+          if (!persistedSectionId) continue
+          sectionPersistedMap[section.id] = persistedSectionId
+          nextSectionIds.push(persistedSectionId)
+
+          const existingModuleIds = new Set(resumeMetadata.modulesBySection[persistedSectionId] ?? [])
+          const moduleIdsForMetadata: string[] = []
+
+          for (const [moduleIndex, module] of section.modules.entries()) {
+            const modulePayload = {
               title: module.title.trim() || `Module ${moduleIndex + 1}`,
               description: module.description,
               order: moduleIndex + 1,
@@ -1038,20 +1369,49 @@ export default function DigitalSchool() {
               bookUrl: module.bookUrl || undefined,
               bookFileName: module.bookFileName,
               bookStoragePath: module.bookStoragePath,
-            }),
-          })
-        }
+              contentType: module.contentType,
+              textContent: module.textContent || undefined,
+            }
 
-        await requestJson<ApiExamResponse>('/api/digital-school/exams', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            courseId,
-            sectionId: createdSection.id,
+            if (module.persistedId) {
+              await requestJson<ApiModuleResponse>(`/api/digital-school/modules/${module.persistedId}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(modulePayload),
+              })
+              existingModuleIds.delete(module.persistedId)
+              moduleIdsForMetadata.push(module.persistedId)
+              modulePersistedMap[module.id] = module.persistedId
+            } else {
+              const createdModule = await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                  ...modulePayload,
+                  courseId,
+                  sectionId: persistedSectionId,
+                }),
+              })
+              moduleIdsForMetadata.push(createdModule.id)
+              modulePersistedMap[module.id] = createdModule.id
+            }
+          }
+
+          for (const orphanModuleId of existingModuleIds) {
+            await requestJson(`/api/digital-school/modules/${orphanModuleId}`, {
+              method: 'DELETE',
+            })
+          }
+
+          nextModulesBySection[persistedSectionId] = moduleIdsForMetadata
+
+          const previousExamId = resumeMetadata.examIdsBySection[persistedSectionId]?.[0]
+          const examPayload = {
             title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
             description: section.exam.description,
             timeLimitMinutes: section.exam.timeLimitMinutes,
             status: section.exam.status,
+            questionCount: section.exam.questionCount,
             uploadMetadata: section.exam.uploadPlaceholder
               ? {
                   source: 'admin-upload',
@@ -1060,25 +1420,169 @@ export default function DigitalSchool() {
                   storagePath: section.exam.uploadStoragePath,
                 }
               : undefined,
-          }),
+          }
+
+          let resolvedExamId = section.exam.persistedId
+          if (resolvedExamId) {
+            await requestJson<ApiExamResponse>(`/api/digital-school/exams/${resolvedExamId}`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(examPayload),
+            })
+          } else {
+            if (previousExamId) {
+              await requestJson(`/api/digital-school/exams/${previousExamId}`, {
+                method: 'DELETE',
+              })
+            }
+            const createdExam = await requestJson<ApiExamResponse>('/api/digital-school/exams', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                ...examPayload,
+                courseId,
+                sectionId: persistedSectionId,
+              }),
+            })
+            resolvedExamId = createdExam.id
+          }
+
+          if (resolvedExamId) {
+            nextExamIdsBySection[persistedSectionId] = [resolvedExamId]
+            examPersistedMap[section.id] = resolvedExamId
+          } else {
+            nextExamIdsBySection[persistedSectionId] = []
+          }
+        }
+
+        for (const orphanSectionId of existingSectionIds) {
+          const orphanModuleIds = resumeMetadata.modulesBySection[orphanSectionId] ?? []
+          for (const moduleId of orphanModuleIds) {
+            await requestJson(`/api/digital-school/modules/${moduleId}`, { method: 'DELETE' })
+          }
+          const orphanExamIds = resumeMetadata.examIdsBySection[orphanSectionId] ?? []
+          for (const examId of orphanExamIds) {
+            await requestJson(`/api/digital-school/exams/${examId}`, { method: 'DELETE' })
+          }
+          await requestJson(`/api/digital-school/sections/${orphanSectionId}`, { method: 'DELETE' })
+        }
+
+        await loadCourses()
+
+        setResumeMetadata({
+          courseId,
+          courseTitle: coursePayload.title,
+          sectionIds: nextSectionIds,
+          modulesBySection: nextModulesBySection,
+          examIdsBySection: nextExamIdsBySection,
         })
+
+        setCourseDraft((prev) => ({
+          ...prev,
+          sections: prev.sections.map((section) => ({
+            ...section,
+            persistedId: sectionPersistedMap[section.id] ?? section.persistedId,
+            modules: section.modules.map((module) => ({
+              ...module,
+              persistedId: modulePersistedMap[module.id] ?? module.persistedId,
+            })),
+            exam: {
+              ...section.exam,
+              persistedId: examPersistedMap[section.id] ?? section.exam.persistedId,
+            },
+          })),
+        }))
+
+        setDraftMessage(`Updated "${coursePayload.title}" draft – ${courseDraft.sections.length} sections synced.`)
+      } else {
+        const createdCourse = await requestJson<ApiCourseResponse>('/api/digital-school/courses', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(coursePayload),
+        })
+
+        const courseId = createdCourse.id
+
+        for (const [sectionIndex, section] of courseDraft.sections.entries()) {
+          const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
+          const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
+
+          const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              courseId,
+              title: section.title.trim() || `Section ${sectionIndex + 1}`,
+              description: section.description,
+              order: sectionIndex + 1,
+              estimatedHours: sectionHours,
+            }),
+          })
+
+          for (const [moduleIndex, module] of section.modules.entries()) {
+            await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                courseId,
+                sectionId: createdSection.id,
+                title: module.title.trim() || `Module ${moduleIndex + 1}`,
+                description: module.description,
+                order: moduleIndex + 1,
+                estimatedMinutes: module.estimatedMinutes,
+                videoUrl: module.videoUrl || undefined,
+                audioUrl: module.audioUrl || undefined,
+                audioFileName: module.audioFileName,
+                audioStoragePath: module.audioStoragePath,
+                bookUrl: module.bookUrl || undefined,
+                bookFileName: module.bookFileName,
+                bookStoragePath: module.bookStoragePath,
+                contentType: module.contentType,
+                textContent: module.textContent || undefined,
+              }),
+            })
+          }
+
+          await requestJson<ApiExamResponse>('/api/digital-school/exams', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              courseId,
+              sectionId: createdSection.id,
+              title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
+              description: section.exam.description,
+              timeLimitMinutes: section.exam.timeLimitMinutes,
+              status: section.exam.status,
+              questionCount: section.exam.questionCount,
+              uploadMetadata: section.exam.uploadPlaceholder
+                ? {
+                    source: 'admin-upload',
+                    originalFileName: section.exam.uploadPlaceholder,
+                    fileUrl: section.exam.uploadUrl,
+                    storagePath: section.exam.uploadStoragePath,
+                  }
+                : undefined,
+            }),
+          })
+        }
+
+        await loadCourses()
+
+        setAdminActions((prev) => [
+          {
+            title: `${coursePayload.title} · Module Builder`,
+            status: `Draft saved (${courseDraft.sections.length} sections · ${moduleCount} modules)`,
+            updatedBy: 'You',
+            timestamp: 'Just now',
+          },
+          ...prev,
+        ])
+
+        setCourseDraft(createCourseDraft())
+        setResumeMetadata(null)
+        fileInputsRef.current = {}
+        setDraftMessage(`Saved "${coursePayload.title}" draft – ready for scheduled reminders and exams.`)
       }
-
-      await loadCourses()
-
-      setAdminActions((prev) => [
-        {
-          title: `${createdCourse.title} · Module Builder`,
-          status: `Draft saved (${courseDraft.sections.length} sections · ${moduleCount} modules)`,
-          updatedBy: 'You',
-          timestamp: 'Just now',
-        },
-        ...prev,
-      ])
-
-      setCourseDraft(createCourseDraft())
-      fileInputsRef.current = {}
-      setDraftMessage(`Saved "${createdCourse.title}" draft – ready for scheduled reminders and exams.`)
     } catch (error) {
       console.error('DigitalSchool.handleSaveDraft', error)
       setDraftMessage(
@@ -1338,70 +1842,93 @@ export default function DigitalSchool() {
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {courses.map((course) => (
-              <div key={course.id} className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition">
-              <div className="flex items-center justify-between">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
-                  {course.access === 'open'
-                    ? 'Open'
-                    : course.access === 'request'
-                      ? 'Request access'
-                      : 'Invitation only'}
-                </span>
-                <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-                <p className="text-sm text-gray-600 mt-1">{course.description}</p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                {course.format.map((item) => (
-                  <span key={item} className="bg-gray-100 px-2 py-1 rounded-full">
-                    {item}
+              <div
+                key={course.id}
+                className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition relative"
+              >
+                {isCourseManager && (
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                      onClick={() => handleEditCourse(course.id)}
+                      disabled={resumingCourseId === course.id}
+                    >
+                      {resumingCourseId === course.id ? 'Loading…' : 'Edit'}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      onClick={() => handleDeleteCourse(course.id)}
+                      disabled={deletingCourseId === course.id}
+                    >
+                      {deletingCourseId === course.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
+                    {course.access === 'open'
+                      ? 'Open'
+                      : course.access === 'request'
+                        ? 'Request access'
+                        : 'Invitation only'}
                   </span>
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
+                </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Mentors</p>
-                  <p className="text-sm text-gray-800">{course.mentors.join(', ')}</p>
+                  <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{course.description}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Hours</p>
-                  <p className="text-sm text-gray-800">{course.hours} hrs</p>
+                <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                  {course.format.map((item) => (
+                    <span key={item} className="bg-gray-100 px-2 py-1 rounded-full">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-400">Mentors</p>
+                    <p className="text-sm text-gray-800">{course.mentors.join(', ')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-gray-400">Hours</p>
+                    <p className="text-sm text-gray-800">{course.hours} hrs</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-400">Format</p>
+                    <p className="text-sm text-gray-800">{course.format.join(', ')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-gray-400">Pricing</p>
+                    <p className="text-sm font-semibold text-gray-900">{formatPricingLabel(course.pricing)}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`${course.badgeColor} h-2 rounded-full`}
+                      style={{ width: `${course.progress}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{course.status === 'completed' ? 'Completed' : `${course.progress}% progress`}</span>
+                    {course.status === 'completed' && <span className="text-emerald-600 font-semibold">Badge issued</span>}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+                    onClick={() => handleEnrollAction(course.id)}
+                  >
+                    {actionLabel(course.access, course.status)}
+                  </button>
+                  <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Format</p>
-                  <p className="text-sm text-gray-800">{course.format.join(', ')}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Pricing</p>
-                  <p className="text-sm font-semibold text-gray-900">{formatPricingLabel(course.pricing)}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`${course.badgeColor} h-2 rounded-full`}
-                    style={{ width: `${course.progress}%` }}
-                  ></div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{course.status === 'completed' ? 'Completed' : `${course.progress}% progress`}</span>
-                  {course.status === 'completed' && <span className="text-emerald-600 font-semibold">Badge issued</span>}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
-                  onClick={() => handleEnrollAction(course.id)}
-                >
-                  {actionLabel(course.access, course.status)}
-                </button>
-                <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
-              </div>
-            </div>
             ))}
           </div>
         )}
@@ -1612,15 +2139,102 @@ export default function DigitalSchool() {
         </section>
       )}
 
+      {toast && (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            toast.tone === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-5">
+        <div
+          className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-5"
+          ref={builderRef}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Admin cockpit</p>
               <h2 className="text-xl font-semibold">Course creation workflow</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                {resumeMetadata ? `Resuming "${resumeMetadata.courseTitle}"` : 'Starting a new draft'}
+              </p>
             </div>
-            <button className="px-4 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-sm">Open builder</button>
+            {isCourseManager && (
+              <button
+                className="px-4 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-sm"
+                type="button"
+                onClick={scrollToBuilder}
+              >
+                Open builder
+              </button>
+            )}
           </div>
+
+          {isCourseManager && (
+            <div className="rounded-2xl border border-dashed border-gray-200 p-4 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Resume draft</p>
+                <p className="text-sm text-gray-600">
+                  Pull an existing Digital School draft into this builder without losing your latest edits.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetBuilder}
+                className="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+                disabled={!resumeMetadata}
+              >
+                Start fresh
+              </button>
+            </div>
+
+            {draftCourses.length === 0 ? (
+              <p className="text-xs text-gray-500">
+                No saved drafts yet—click <span className="font-semibold text-gray-700">Save draft</span> after filling the form
+                to store your progress.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {draftCourses.map((draft) => {
+                  const isActive = resumeMetadata?.courseId === draft.id
+                  const isLoading = resumingCourseId === draft.id
+                  return (
+                    <div
+                      key={draft.id}
+                      className={`rounded-2xl border p-3 flex flex-col gap-1 ${
+                        isActive ? 'border-primary-300 bg-primary-50/40' : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{draft.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {draft.estimatedHours ?? '—'} hrs · {(draft.tags?.length ?? 0) + (draft.moduleCount ?? 0)} items
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleResumeDraft(draft.id)}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60"
+                        >
+                          {isLoading ? 'Loading…' : isActive ? 'Draft loaded' : 'Resume draft'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2">{draft.summary || 'Draft summary pending.'}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          )}
 
           <form className="space-y-4" onSubmit={handleSaveDraft}>
             <div className="grid gap-3 md:grid-cols-2">
@@ -1679,9 +2293,9 @@ export default function DigitalSchool() {
               />
             </label>
             <label className="text-sm text-gray-600 flex flex-col gap-1">
-              Module brief
+              Course summary
               <textarea
-                placeholder="Outline each module with video/audio references..."
+                placeholder="Outline what learners should expect from this discipleship journey..."
                 value={courseDraft.summary}
                 onChange={(event) => handleDraftChange('summary', event.target.value)}
                 className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
@@ -1897,6 +2511,27 @@ export default function DigitalSchool() {
 
                             <div className="grid gap-3 md:grid-cols-2">
                               <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Content format
+                                <select
+                                  value={module.contentType}
+                                  onChange={(event) => handleModuleChange(section.id, module.id, 'contentType', event.target.value)}
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                >
+                                  {MODULE_CONTENT_TYPES.map((type) => (
+                                    <option key={type.value} value={type.value}>
+                                      {type.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="text-xs text-gray-500 bg-white rounded-xl border border-dashed border-gray-200 px-3 py-3">
+                                {MODULE_CONTENT_TYPES.find((type) => type.value === module.contentType)?.description ??
+                                  'Select the media format for this module.'}
+                              </div>
+                            </div>
+
+                            {module.contentType === 'video' && (
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
                                 Video URL
                                 <input
                                   type="url"
@@ -1906,17 +2541,55 @@ export default function DigitalSchool() {
                                   placeholder="https://..."
                                 />
                               </label>
+                            )}
+
+                            {module.contentType === 'audio' && (
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                  Audio URL
+                                  <input
+                                    type="url"
+                                    value={module.audioUrl}
+                                    onChange={(event) => handleModuleChange(section.id, module.id, 'audioUrl', event.target.value)}
+                                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                    placeholder="https://..."
+                                  />
+                                </label>
+                                <div className="flex flex-col gap-2">
+                                  <p className="text-sm text-gray-600">Attach audio</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    <input
+                                      type="file"
+                                      accept="audio/*"
+                                      ref={registerFileInput(`${module.id}-audio`)}
+                                      className="hidden"
+                                      onChange={handleModuleFileInput(section.id, module.id, 'audio')}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="px-3 py-2 rounded-lg border text-xs text-gray-700 hover:bg-gray-100"
+                                      onClick={() => triggerFilePicker(`${module.id}-audio`)}
+                                    >
+                                      Upload audio
+                                    </button>
+                                    {module.audioFileName && <span className="text-xs text-gray-500">{module.audioFileName}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {module.contentType === 'text' && (
                               <label className="text-sm text-gray-600 flex flex-col gap-1">
-                                Audio URL
-                                <input
-                                  type="url"
-                                  value={module.audioUrl}
-                                  onChange={(event) => handleModuleChange(section.id, module.id, 'audioUrl', event.target.value)}
+                                Lesson text
+                                <textarea
+                                  value={module.textContent}
+                                  onChange={(event) => handleModuleChange(section.id, module.id, 'textContent', event.target.value)}
+                                  placeholder="Paste your devotional, transcript, or study outline…"
                                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                                  placeholder="https://..."
+                                  rows={4}
                                 />
                               </label>
-                            </div>
+                            )}
 
                             <div className="grid gap-3 md:grid-cols-3">
                               <label className="text-sm text-gray-600 flex flex-col gap-1">
@@ -1929,28 +2602,6 @@ export default function DigitalSchool() {
                                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
                                 />
                               </label>
-                              <div className="flex flex-col gap-2">
-                                <p className="text-sm text-gray-600">Attach audio</p>
-                                <div className="flex flex-wrap gap-2">
-                                  <input
-                                    type="file"
-                                    accept="audio/*"
-                                    ref={registerFileInput(`${module.id}-audio`)}
-                                    className="hidden"
-                                    onChange={handleModuleFileInput(section.id, module.id, 'audio')}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="px-3 py-2 rounded-lg border text-xs text-gray-700 hover:bg-gray-100"
-                                    onClick={() => triggerFilePicker(`${module.id}-audio`)}
-                                  >
-                                    Upload audio
-                                  </button>
-                                  {module.audioFileName && (
-                                    <span className="text-xs text-gray-500">{module.audioFileName}</span>
-                                  )}
-                                </div>
-                              </div>
                               <div className="flex flex-col gap-2">
                                 <p className="text-sm text-gray-600">Attach workbook / notes</p>
                                 <div className="flex flex-wrap gap-2">

@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { UserService } from '@/lib/services/user-service'
 import { db, FieldValue } from '@/lib/firestore'

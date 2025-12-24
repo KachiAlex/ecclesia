@@ -226,7 +226,7 @@ export default function Home() {
       </nav>
 
       {/* Enhanced Hero Section */}
-      <section className="relative z-10 pt-16 md:pt-20 pb-14 md:pb-20 lg:pt-28 lg:pb-24">
+      <section className="relative z-10 pt-16 md:pt-18 pb-10 md:pb-16 lg:pt-24 lg:pb-18">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div
@@ -301,7 +301,7 @@ export default function Home() {
       </section>
 
       {/* Features Showcase Section */}
-      <section id="features" className="relative z-10 pt-10 pb-16 md:pt-16 md:pb-24 lg:pt-20 lg:pb-28 bg-gradient-to-b from-white via-gray-50/30 to-white">
+      <section id="features" className="relative z-10 pt-8 pb-14 md:pt-12 md:pb-22 lg:pt-16 lg:pb-26 bg-gradient-to-b from-white via-gray-50/30 to-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16 md:mb-20">
@@ -362,19 +362,36 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-auto bg-gray-50 rounded-2xl border border-gray-100 p-5">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">What leaders say</p>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      {[
-                        { value: '92%', label: 'Faster follow-ups' },
-                        { value: '3x', label: 'Engagement' },
-                        { value: '24/7', label: 'AI Support' },
-                      ].map((stat) => (
-                        <div key={stat.label}>
-                          <p className="text-xl font-bold text-gray-900">{stat.value}</p>
-                          <p className="text-xs text-gray-500">{stat.label}</p>
-                        </div>
-                      ))}
+                  <div className="mt-auto space-y-5">
+                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">What leaders say</p>
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        {[
+                          { value: '92%', label: 'Faster follow-ups' },
+                          { value: '3x', label: 'Engagement' },
+                          { value: '24/7', label: 'AI Support' },
+                        ].map((stat) => (
+                          <div key={stat.label}>
+                            <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                            <p className="text-xs text-gray-500">{stat.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-[0.3em] mb-2">Automation recipes</p>
+                      <div className="space-y-3">
+                        {[
+                          'Route first-timers to mentors after 2 days',
+                          'Trigger reading-plan nudges when streak < 3 days',
+                          'Notify pastors when discipleship score dips below 70',
+                        ].map((item) => (
+                          <div key={item} className="flex items-start gap-2 text-sm text-gray-600">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600"></span>
+                            {item}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -507,59 +524,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="relative z-10 pt-10 pb-20 md:pt-14 md:pb-24 lg:pt-16 lg:pb-28 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16 md:mb-20">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 md:mb-6 tracking-tight">
-                Loved by Churches
-                <br />
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Everywhere
-                </span>
-              </h2>
-              <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto font-light">
-                See what pastors and administrators are saying about Ecclesia
-              </p>
-            </div>
-
-            {testimonials.length > 0 && (
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-                {testimonials.map((testimonial, index) => (
-                  <div
-                    key={index}
-                    className={`bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 ${
-                      mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-                    }`}
-                    style={{ transitionDelay: `${index * 100}ms` }}
-                  >
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <span key={i} className="text-yellow-400 text-xl">★</span>
-                      ))}
-                    </div>
-                    <p className="text-gray-700 mb-6 leading-relaxed text-base md:text-lg">
-                      &quot;{testimonial.content}&quot;
-                    </p>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl">
-                        {testimonial.avatar}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                        <div className="text-sm text-gray-600">{testimonial.role}</div>
-                        <div className="text-xs text-gray-500">{testimonial.church}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
       {/* Pricing Section */}
       <section id="pricing" className="relative z-10 py-20 md:py-24 lg:py-32 bg-gradient-to-b from-gray-50 to-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -650,12 +614,6 @@ export default function Home() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                  </Link>
-                  <Link
-                    href="/auth/login"
-                    className="inline-flex items-center justify-center px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-2xl font-semibold text-lg border-2 border-white/30 hover:bg-white/20 transition-all duration-300"
-                  >
-                    Sign In
                   </Link>
                 </div>
               </div>

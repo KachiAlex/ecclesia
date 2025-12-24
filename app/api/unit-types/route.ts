@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import { UnitTypeService, UnitTypeJoinPolicy, UnitTypeCreationPolicy } from '@/lib/services/unit-type-service'

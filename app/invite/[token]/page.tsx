@@ -4,13 +4,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-type Branch = { id: string; name: string }
+type Branch = { id: string; name: string; level?: string; levelLabel?: string | null; parentBranchId?: string | null }
 
 type InviteContext = {
-  invite: { id: string; churchId: string; branchId?: string | null }
+  invite: { id: string; churchId: string; branchId?: string | null; purpose: string; targetRole?: string | null }
   church: { id: string; name: string }
   branches: Branch[]
+  hierarchy?: {
+    levels: { key: string; label: string; order: number }[]
+    labels: Record<string, string>
+  }
 }
+
+type LevelSelections = Record<string, string>
 
 export default function InviteSignupPage({ params }: { params: { token: string } }) {
   const router = useRouter()
@@ -22,6 +28,8 @@ export default function InviteSignupPage({ params }: { params: { token: string }
   const [ctx, setCtx] = useState<InviteContext | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [levelSelections, setLevelSelections] = useState<LevelSelections>({})
+  const [branchValidationError, setBranchValidationError] = useState('')
 
   const [form, setForm] = useState({
     firstName: '',
@@ -58,10 +66,96 @@ export default function InviteSignupPage({ params }: { params: { token: string }
     load()
   }, [token])
 
-  const branchOptions = useMemo(() => (ctx?.branches || []), [ctx])
+  const hierarchyLevels = useMemo(() => ctx?.hierarchy?.levels ?? [], [ctx])
+  const hierarchyLabels = useMemo(() => ctx?.hierarchy?.labels ?? {}, [ctx])
+  const branchMap = useMemo(() => {
+    const map = new Map<string, Branch>()
+    ctx?.branches?.forEach((branch) => map.set(branch.id, branch))
+    return map
+  }, [ctx])
+  const branchesByParent = useMemo(() => {
+    const result: Record<string, Branch[]> = {}
+    ctx?.branches?.forEach((branch) => {
+      const key = branch.parentBranchId ?? 'ROOT'
+      if (!result[key]) result[key] = []
+      result[key].push(branch)
+    })
+    return result
+  }, [ctx])
+  const lockedBranch = ctx?.invite?.branchId ? branchMap.get(ctx.invite.branchId) ?? null : null
+  const lockedBranchPath = useMemo(() => {
+    if (!lockedBranch) return []
+    const path: Branch[] = []
+    let current: Branch | null | undefined = lockedBranch
+    while (current) {
+      path.unshift(current)
+      if (!current.parentBranchId) break
+      current = branchMap.get(current.parentBranchId) ?? null
+    }
+    return path
+  }, [lockedBranch, branchMap])
+
+  useEffect(() => {
+    if (!ctx) return
+    if (ctx.invite.branchId) {
+      const selections: LevelSelections = {}
+      let current: Branch | null | undefined = branchMap.get(ctx.invite.branchId)
+      while (current) {
+        if (current.level) selections[current.level] = current.id
+        if (!current.parentBranchId) break
+        current = branchMap.get(current.parentBranchId) ?? null
+      }
+      setLevelSelections(selections)
+      setForm((prev) => ({ ...prev, branchId: ctx.invite.branchId ?? '' }))
+    } else {
+      setLevelSelections({})
+      setForm((prev) => ({ ...prev, branchId: '' }))
+    }
+  }, [ctx, branchMap])
+
+  const getLevelOptions = (levelIndex: number): Branch[] => {
+    const level = hierarchyLevels[levelIndex]
+    if (!level) return []
+    const parentKey =
+      levelIndex === 0
+        ? 'ROOT'
+        : levelSelections[hierarchyLevels[levelIndex - 1].key] || 'ROOT'
+    return (branchesByParent[parentKey] || []).filter((branch) => branch.level === level.key)
+  }
+
+  const resolveDeepestSelection = (selections: LevelSelections): string => {
+    for (let i = hierarchyLevels.length - 1; i >= 0; i -= 1) {
+      const levelKey = hierarchyLevels[i].key
+      if (selections[levelKey]) {
+        return selections[levelKey]
+      }
+    }
+    return ''
+  }
+
+  const handleLevelSelection = (levelKey: string, branchId: string) => {
+    setLevelSelections((prev) => {
+      const next: LevelSelections = { ...prev, [levelKey]: branchId }
+      const levelIndex = hierarchyLevels.findIndex((level) => level.key === levelKey)
+      if (levelIndex !== -1) {
+        for (let i = levelIndex + 1; i < hierarchyLevels.length; i += 1) {
+          delete next[hierarchyLevels[i].key]
+        }
+      }
+      const resolvedBranchId = resolveDeepestSelection(next)
+      setForm((p) => ({ ...p, branchId: branchId ? resolvedBranchId || branchId : '' }))
+      if (branchId) {
+        setBranchValidationError('')
+      }
+      return next
+    })
+  }
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }))
+    if (e.target.name === 'branchId' && e.target.value) {
+      setBranchValidationError('')
+    }
     setError('')
   }
 
@@ -76,6 +170,11 @@ export default function InviteSignupPage({ params }: { params: { token: string }
 
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters')
+      return
+    }
+
+    if (!ctx?.invite.branchId && !form.branchId) {
+      setBranchValidationError('Please select a branch.')
       return
     }
 
@@ -208,18 +307,76 @@ export default function InviteSignupPage({ params }: { params: { token: string }
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Branch</label>
-            <select
-              name="branchId"
-              value={form.branchId}
-              onChange={onChange}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-            >
-              <option value="">Select branch</option>
-              {branchOptions.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
+            {lockedBranch ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm text-gray-600 mb-2">This invite automatically assigns you to:</p>
+                <div className="flex flex-wrap gap-2 text-sm font-medium text-gray-900">
+                  {lockedBranchPath.map((node, index) => (
+                    <span key={node.id} className="flex items-center gap-2">
+                      {index > 0 && <span className="text-gray-400">/</span>}
+                      <span>{node.name}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : hierarchyLevels.length > 0 ? (
+              <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50">
+                {hierarchyLevels.map((level, index) => {
+                  const options = getLevelOptions(index)
+                  if (options.length === 0 && index === 0) {
+                    return (
+                      <p key={level.key} className="text-sm text-gray-500">
+                        No {hierarchyLabels[level.key] ?? level.label ?? 'branches'} available yet.
+                      </p>
+                    )
+                  }
+                  if (options.length === 0) {
+                    return null
+                  }
+                  return (
+                    <div key={level.key} className="space-y-1">
+                      <span className="text-xs font-semibold text-gray-600">
+                        {hierarchyLabels[level.key] ?? level.label ?? `Level ${index + 1}`}
+                      </span>
+                      <select
+                        value={levelSelections[level.key] ?? ''}
+                        onChange={(e) => handleLevelSelection(level.key, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                      >
+                        <option value="">
+                          Select {hierarchyLabels[level.key] ?? level.label ?? `Level ${index + 1}`}
+                        </option>
+                        {options.map((branchOption) => (
+                          <option key={branchOption.id} value={branchOption.id}>
+                            {branchOption.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
+                {branchValidationError && (
+                  <p className="text-sm text-red-600">{branchValidationError}</p>
+                )}
+              </div>
+            ) : (
+              <select
+                name="branchId"
+                value={form.branchId}
+                onChange={onChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              >
+                <option value="">Select branch</option>
+                {ctx?.branches?.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!lockedBranch && branchValidationError && hierarchyLevels.length === 0 && (
+              <p className="text-sm text-red-600 mt-2">{branchValidationError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

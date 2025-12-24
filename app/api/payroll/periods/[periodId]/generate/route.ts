@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { generatePayrollRecords } from '@/lib/payroll'
 import { guardApi } from '@/lib/api-guard'
@@ -28,4 +30,3 @@ export async function POST(
     )
   }
 }
-

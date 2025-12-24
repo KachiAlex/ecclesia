@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import {
@@ -70,6 +72,15 @@ export async function POST(request: Request) {
       description: body.description,
       order: body.order,
       estimatedMinutes: body.estimatedMinutes,
+      videoUrl: body.videoUrl,
+      audioUrl: body.audioUrl,
+      audioFileName: body.audioFileName,
+      audioStoragePath: body.audioStoragePath,
+      bookUrl: body.bookUrl,
+      bookFileName: body.bookFileName,
+      bookStoragePath: body.bookStoragePath,
+      contentType: body.contentType,
+      textContent: body.textContent,
     })
 
     return NextResponse.json(createdModule, { status: 201 })

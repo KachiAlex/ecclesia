@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { UserService } from '@/lib/services/user-service'
 import { PasswordResetService } from '@/lib/services/password-reset-service'
@@ -58,4 +60,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

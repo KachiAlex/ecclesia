@@ -2,10 +2,11 @@ import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
 import crypto from 'crypto'
+import { UserRole } from '@/types'
 
 export type ChurchInviteStatus = 'ACTIVE' | 'REVOKED' | 'USED'
 
-export type ChurchInvitePurpose = 'MEMBER_SIGNUP'
+export type ChurchInvitePurpose = 'MEMBER_SIGNUP' | 'BRANCH_ADMIN_SIGNUP'
 
 export interface ChurchInvite {
   id: string
@@ -14,7 +15,8 @@ export interface ChurchInvite {
   purpose: ChurchInvitePurpose
   tokenHash: string
   status: ChurchInviteStatus
-  branchId?: string
+  branchId?: string | null
+  targetRole?: UserRole
   expiresAt?: Date
   createdAt: Date
   updatedAt: Date
@@ -47,14 +49,22 @@ export class ChurchInviteService {
     } as ChurchInvite
   }
 
-  static async findActiveByChurch(churchId: string, purpose: ChurchInvitePurpose): Promise<ChurchInvite | null> {
-    const snap = await db
+  static async findActiveByChurch(
+    churchId: string,
+    purpose: ChurchInvitePurpose,
+    options: { branchId?: string | null } = {},
+  ): Promise<ChurchInvite | null> {
+    let query: FirebaseFirestore.Query = db
       .collection(COLLECTIONS.churchInvites)
       .where('churchId', '==', churchId)
       .where('purpose', '==', purpose)
       .where('status', '==', 'ACTIVE')
-      .limit(1)
-      .get()
+
+    if (options.branchId !== undefined) {
+      query = query.where('branchId', '==', options.branchId ?? null)
+    }
+
+    const snap = await query.limit(1).get()
 
     if (snap.empty) return null
     const doc = snap.docs[0]
@@ -95,8 +105,9 @@ export class ChurchInviteService {
     churchId: string
     createdByUserId: string
     purpose: ChurchInvitePurpose
-    branchId?: string
+    branchId?: string | null
     expiresAt?: Date
+    targetRole?: UserRole
   }): Promise<{ invite: ChurchInvite; token: string }> {
     const token = generateInviteToken()
     const tokenHash = hashInviteToken(token)
@@ -107,7 +118,8 @@ export class ChurchInviteService {
       purpose: params.purpose,
       tokenHash,
       status: 'ACTIVE',
-      branchId: params.branchId || null,
+      branchId: params.branchId ?? null,
+      targetRole: params.targetRole ?? null,
       expiresAt: params.expiresAt ? params.expiresAt : null,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

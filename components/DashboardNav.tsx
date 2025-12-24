@@ -18,6 +18,7 @@ const navigation = [
   { name: 'Messages', href: '/messages', icon: '✉️', gradient: 'from-indigo-500 to-purple-600' },
   { name: 'Groups', href: '/groups', icon: '👥', gradient: 'from-teal-500 to-cyan-600' },
   { name: 'Reading Plans', href: '/reading-plans', icon: '📖', gradient: 'from-amber-500 to-orange-600' },
+  { name: 'Digital School', href: '/digital-school', icon: '🎓', gradient: 'from-violet-500 to-fuchsia-600' },
   { name: 'Leaderboard', href: '/leaderboard', icon: '🏆', gradient: 'from-yellow-500 to-orange-600' },
   { name: 'Users', href: '/users', icon: '👤', gradient: 'from-gray-600 to-gray-700' },
   { name: 'Branches', href: '/branches', icon: '🏢', gradient: 'from-blue-600 to-indigo-700' },

@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { PaymentService } from '@/lib/services/payment-service'
 
@@ -38,7 +40,6 @@ export async function POST(request: Request) {
     )
   }
 }
-
 
 
 

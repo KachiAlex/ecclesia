@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { redirect } from 'next/navigation'
 import { PaymentService } from '@/lib/services/payment-service'
@@ -52,4 +54,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

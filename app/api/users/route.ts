@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { UserService } from '@/lib/services/user-service'
 import { canManageUser } from '@/lib/permissions'
@@ -204,4 +206,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

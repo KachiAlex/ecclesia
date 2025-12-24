@@ -10,6 +10,8 @@ import BranchSwitcher from '@/components/BranchSwitcher'
 import OnboardingBanner from '@/components/OnboardingBanner'
 import DashboardNav from '@/components/DashboardNav'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({
   children,
 }: {

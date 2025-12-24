@@ -1,10 +1,31 @@
 'use client'
 
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
+import {
+  getHierarchyLevelLabels,
+  getHierarchyLevels,
+  type HierarchyLevelDefinition,
+} from '@/lib/services/branch-hierarchy'
 
 type RoleCategory = 'Worker' | 'Leader' | 'Admin'
+
+type BranchOption = {
+  id: string
+  name: string
+  level?: string
+  parentBranchId?: string | null
+}
+
+type MemberInviteState = {
+  invite: any | null
+  token: string
+  url: string
+  loading: boolean
+  submitting: boolean
+  error: string
+}
 
 interface User {
   id: string
@@ -49,12 +70,14 @@ export default function MemberDirectory() {
   const [roleCategoryFilter, setRoleCategoryFilter] = useState<RoleCategory | ''>('')
   const [branchFilter, setBranchFilter] = useState('')
   const [designationFilter, setDesignationFilter] = useState('')
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
+  const [branches, setBranches] = useState<BranchOption[]>(() => [])
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [addTab, setAddTab] = useState<'manual' | 'invite'>('manual')
   const [addError, setAddError] = useState('')
-
+  const [hierarchyLevels, setHierarchyLevels] = useState<HierarchyLevelDefinition[]>(() => [])
+  const [levelLabels, setLevelLabels] = useState<Record<string, string>>({})
+  const [inviteLevelSelections, setInviteLevelSelections] = useState<Record<string, string>>({})
   const [savingManual, setSavingManual] = useState(false)
   const [manualForm, setManualForm] = useState({
     firstName: '',
@@ -81,18 +104,121 @@ export default function MemberDirectory() {
     total: 0,
     totalPages: 0,
   })
-  const [inviteLoading, setInviteLoading] = useState(false)
-  const [inviteSubmitting, setInviteSubmitting] = useState(false)
-  const [invite, setInvite] = useState<any>(null)
-  const [inviteToken, setInviteToken] = useState<string>('')
-  const [inviteUrl, setInviteUrl] = useState<string>('')
+  const [memberInvite, setMemberInvite] = useState<MemberInviteState>({
+    invite: null,
+    token: '',
+    url: '',
+    loading: false,
+    submitting: false,
+    error: '',
+  })
   const [inviteBranchId, setInviteBranchId] = useState<string>('')
+  const memberInviteLink = useMemo(() => {
+    if (memberInvite.url) return memberInvite.url
+    if (memberInvite.token && typeof window !== 'undefined') {
+      return `${window.location.origin}/invite/${memberInvite.token}`
+    }
+    return ''
+  }, [memberInvite.token, memberInvite.url])
 
-  const openAdd = async () => {
+  const branchesByParent = useMemo(() => {
+    const map: Record<string, BranchOption[]> = {}
+    branches.forEach((branch) => {
+      const key = branch.parentBranchId ?? 'ROOT'
+      if (!map[key]) map[key] = []
+      map[key].push(branch)
+    })
+    return map
+  }, [branches])
+
+  const determineDeepestSelection = useCallback(
+    (selections: Record<string, string>) => {
+      let final = ''
+      for (const level of hierarchyLevels) {
+        const value = selections[level.key]
+        if (value) {
+          final = value
+        } else {
+          break
+        }
+      }
+      return final
+    },
+    [hierarchyLevels]
+  )
+
+  const handleLevelSelection = useCallback(
+    (levelKey: string, value: string) => {
+      setInviteLevelSelections((prev) => {
+        const next = { ...prev, [levelKey]: value }
+        const levelIndex = hierarchyLevels.findIndex((level) => level.key === levelKey)
+        if (levelIndex !== -1) {
+          for (let i = levelIndex + 1; i < hierarchyLevels.length; i += 1) {
+            delete next[hierarchyLevels[i].key]
+          }
+        }
+        const deepest = determineDeepestSelection(next)
+        setInviteBranchId(deepest)
+        return next
+      })
+    },
+    [determineDeepestSelection, hierarchyLevels]
+  )
+
+  const getLevelOptions = useCallback(
+    (levelIndex: number): BranchOption[] => {
+      const level = hierarchyLevels[levelIndex]
+      if (!level) return []
+      const parentKey =
+        levelIndex === 0
+          ? 'ROOT'
+          : inviteLevelSelections[hierarchyLevels[levelIndex - 1].key] ?? 'ROOT'
+      const normalizedParentKey = parentKey || 'ROOT'
+      return (branchesByParent[normalizedParentKey] || []).filter(
+        (branch) => branch.level === level.key
+      )
+    },
+    [branchesByParent, hierarchyLevels, inviteLevelSelections]
+  )
+
+  const selectedInviteBranch = useMemo(
+    () => branches.find((branch) => branch.id === inviteBranchId) ?? null,
+    [branches, inviteBranchId]
+  )
+
+  const fetchMemberInvite = useCallback(async (branchId?: string | null) => {
+    setMemberInvite((prev) => ({ ...prev, loading: true, error: '' }))
+    try {
+      const params = new URLSearchParams({ purpose: 'MEMBER_SIGNUP' })
+      if (branchId !== undefined) {
+        params.set('branchId', branchId ?? '')
+      }
+      const res = await fetch(`/api/church-invites?${params.toString()}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to load invite')
+      }
+      setMemberInvite((prev) => ({
+        ...prev,
+        invite: data.invite ?? null,
+        token: '',
+        url: '',
+      }))
+    } catch (error: any) {
+      setMemberInvite((prev) => ({
+        ...prev,
+        invite: null,
+        error: error?.message || 'Failed to load invite',
+      }))
+    } finally {
+      setMemberInvite((prev) => ({ ...prev, loading: false }))
+    }
+  }, [])
+
+  const openAdd = () => {
     setAddError('')
     setAddTab('manual')
     setAddOpen(true)
-    await loadInvite()
   }
 
   const loadDesignations = useCallback(async () => {
@@ -186,64 +312,80 @@ export default function MemberDirectory() {
     }
   }
 
-  const inviteLink = inviteUrl || (typeof window !== 'undefined' && inviteToken ? `${window.location.origin}/invite/${inviteToken}` : '')
-
-  const loadInvite = async () => {
-    setInviteLoading(true)
-    try {
-      const res = await fetch('/api/church-invites')
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setInvite(data.invite || null)
-        setInviteToken('')
-        setInviteUrl('')
-      }
-    } catch (e) {
-      // ignore
-    } finally {
-      setInviteLoading(false)
-    }
-  }
-
-  const createInvite = async () => {
-    setInviteSubmitting(true)
+  const handleCreateMemberInvite = useCallback(async () => {
     setAddError('')
+    setMemberInvite((prev) => ({ ...prev, submitting: true }))
     try {
       const res = await fetch('/api/church-invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ branchId: inviteBranchId || undefined }),
+        body: JSON.stringify({
+          purpose: 'MEMBER_SIGNUP',
+          branchId: inviteBranchId || null,
+        }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.error || 'Failed to create invite')
-      setInvite(data.invite)
-      setInviteToken(String(data.token || ''))
-      setInviteUrl(String(data.url || ''))
-    } catch (e: any) {
-      setAddError(e?.message || 'Failed to create invite')
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to create invite')
+      }
+      setMemberInvite((prev) => ({
+        ...prev,
+        invite: data.invite ?? null,
+        token: data.token || '',
+        url: data.url || '',
+      }))
+    } catch (error: any) {
+      setAddError(error?.message || 'Failed to create invite')
     } finally {
-      setInviteSubmitting(false)
+      setMemberInvite((prev) => ({ ...prev, submitting: false }))
     }
-  }
+  }, [inviteBranchId])
 
-  const revokeInvite = async () => {
-    if (!invite?.id) return
-    setInviteSubmitting(true)
+  const handleRevokeMemberInvite = useCallback(async () => {
+    if (!memberInvite.invite?.id) return
     setAddError('')
+    setMemberInvite((prev) => ({ ...prev, submitting: true }))
     try {
-      const res = await fetch(`/api/church-invites/${invite.id}/revoke`, { method: 'POST' })
+      const res = await fetch(`/api/church-invites/${memberInvite.invite.id}/revoke`, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.error || 'Failed to revoke invite')
-      setInvite(null)
-      setInviteToken('')
-      setInviteUrl('')
-      await loadInvite()
-    } catch (e: any) {
-      setAddError(e?.message || 'Failed to revoke invite')
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to revoke invite')
+      }
+      await fetchMemberInvite(undefined)
+    } catch (error: any) {
+      setAddError(error?.message || 'Failed to revoke invite')
     } finally {
-      setInviteSubmitting(false)
+      setMemberInvite((prev) => ({ ...prev, submitting: false }))
     }
-  }
+  }, [fetchMemberInvite, memberInvite.invite?.id])
+
+  useEffect(() => {
+    if (!addOpen || addTab !== 'invite') return
+    setInviteBranchId('')
+    setInviteLevelSelections({})
+  }, [addOpen, addTab])
+
+  useEffect(() => {
+    if (!addOpen || addTab !== 'invite') return
+    fetchMemberInvite(inviteBranchId || undefined)
+  }, [addOpen, addTab, inviteBranchId, fetchMemberInvite])
+
+  const loadHierarchy = useCallback(async (churchId: string) => {
+    try {
+      const res = await fetch(`/api/churches/${churchId}`)
+      if (!res.ok) {
+        throw new Error('Unable to load church configuration')
+      }
+      const data = await res.json()
+      const normalizedLevels = getHierarchyLevels(data)
+      setHierarchyLevels(normalizedLevels)
+      setLevelLabels(getHierarchyLevelLabels(data))
+    } catch (error) {
+      console.error('Error loading hierarchy:', error)
+      setHierarchyLevels([])
+      setLevelLabels({})
+    }
+  }, [])
 
   const loadBranches = useCallback(async () => {
     try {
@@ -252,7 +394,9 @@ export default function MemberDirectory() {
       
       if (userData.churchId) {
         setCurrentBranchId(userData.branchId || null)
-        
+
+        await loadHierarchy(userData.churchId)
+
         const res = await fetch(`/api/churches/${userData.churchId}/branches`)
         if (res.ok) {
           const data = await res.json()
@@ -262,7 +406,7 @@ export default function MemberDirectory() {
     } catch (error) {
       console.error('Error loading branches:', error)
     }
-  }, [])
+  }, [loadHierarchy])
 
   const roleCategoryFor = useCallback((role: string): RoleCategory => {
     const normalized = role?.toUpperCase()
@@ -454,78 +598,117 @@ export default function MemberDirectory() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="text-sm text-gray-700">
                     Create a link members can use to sign up and join your church. You can revoke it anytime.
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <select
-                      value={inviteBranchId}
-                      onChange={(e) => setInviteBranchId(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">Default branch (optional)</option>
-                      {branches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={createInvite}
-                      disabled={inviteSubmitting}
-                      className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
-                    >
-                      {inviteSubmitting ? 'Generating...' : 'Generate Link'}
-                    </button>
+                  <div className="space-y-4 rounded-lg border border-gray-200 p-4 bg-gray-50">
+                    <div className="text-xs font-semibold text-gray-500 uppercase">Choose branch destination</div>
+                    {hierarchyLevels.length === 0 && (
+                      <div className="text-sm text-gray-500">Loading hierarchy configuration…</div>
+                    )}
+                    {hierarchyLevels.length > 0 && (
+                      <div className="space-y-3">
+                        {hierarchyLevels.map((level, index) => {
+                          const options = getLevelOptions(index)
+                          const label = levelLabels[level.key] ?? level.label ?? `Level ${index + 1}`
+                          if (options.length === 0) {
+                            if (index === 0) {
+                              return (
+                                <div key={level.key} className="text-sm text-gray-500">
+                                  No {label} branches found. Create branches first before generating branch-specific invites.
+                                </div>
+                              )
+                            }
+                            return null
+                          }
+                          return (
+                            <div key={level.key} className="space-y-1">
+                              <label className="text-xs font-semibold text-gray-600">{label}</label>
+                              <select
+                                value={inviteLevelSelections[level.key] ?? ''}
+                                onChange={(e) => handleLevelSelection(level.key, e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                              >
+                                <option value="">Select {label}</option>
+                                {options.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      {inviteBranchId
+                        ? `Members will be added directly to ${selectedInviteBranch?.name ?? 'the selected branch'}.`
+                        : 'Leave selections blank to allow members to choose their branch during signup.'}
+                    </div>
                   </div>
 
-                  {inviteLoading ? (
-                    <div className="text-sm text-gray-500">Loading invite...</div>
-                  ) : (
-                    <>
-                      {(inviteToken || invite) ? (
-                        <div className="space-y-2">
-                          <div className="text-xs text-gray-500">Share this link</div>
-                          <div className="flex gap-2">
-                            <input
-                              readOnly
-                              value={inviteLink || 'Generate a new link to copy'}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                            />
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!inviteLink) return
-                                await navigator.clipboard.writeText(inviteLink)
-                              }}
-                              disabled={!inviteLink}
-                              className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm disabled:opacity-50"
-                            >
-                              Copy
-                            </button>
-                          </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCreateMemberInvite}
+                      disabled={memberInvite.submitting}
+                      className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      {memberInvite.submitting ? 'Generating…' : 'Generate Link'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fetchMemberInvite(inviteBranchId || undefined)}
+                      disabled={memberInvite.loading}
+                      className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {memberInvite.loading ? 'Refreshing…' : 'Refresh link'}
+                    </button>
+                    {memberInvite.invite?.id && (
+                      <button
+                        type="button"
+                        onClick={handleRevokeMemberInvite}
+                        disabled={memberInvite.submitting}
+                        className="px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Revoke link
+                      </button>
+                    )}
+                  </div>
 
-                          {invite?.id && (
-                            <div className="flex justify-end">
-                              <button
-                                type="button"
-                                onClick={revokeInvite}
-                                disabled={inviteSubmitting}
-                                className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm disabled:opacity-50"
-                              >
-                                Revoke Link
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500">No active invite link.</div>
-                      )}
-                    </>
+                  {memberInvite.error && (
+                    <div className="text-sm text-red-600 bg-red-100 border border-red-200 rounded-lg p-2">
+                      {memberInvite.error}
+                    </div>
                   )}
+
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-500">Share this link</div>
+                    <div className="flex gap-2">
+                      <input
+                        readOnly
+                        value={memberInviteLink || 'Generate a link to copy'}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!memberInviteLink) return
+                          await navigator.clipboard.writeText(memberInviteLink)
+                        }}
+                        disabled={!memberInviteLink}
+                        className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm disabled:opacity-50"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    {!memberInvite.invite && (
+                      <div className="text-sm text-gray-500">No active invite link.</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

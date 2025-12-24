@@ -1,8 +1,12 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { ChurchInviteService, hashInviteToken } from '@/lib/services/church-invite-service'
 import { ChurchService } from '@/lib/services/church-service'
 import { BranchService } from '@/lib/services/branch-service'
+import { BranchAdminService } from '@/lib/services/branch-service'
 import { UserService } from '@/lib/services/user-service'
+import { getHierarchyLevels, getHierarchyLevelLabels } from '@/lib/services/branch-hierarchy'
 
 export async function GET(
   _: Request,
@@ -15,7 +19,7 @@ export async function GET(
     const tokenHash = hashInviteToken(token)
     const invite = await ChurchInviteService.findByTokenHash(tokenHash)
 
-    if (!invite || invite.purpose !== 'MEMBER_SIGNUP') {
+    if (!invite) {
       return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
     }
 
@@ -31,6 +35,8 @@ export async function GET(
     if (!church) return NextResponse.json({ error: 'Church not found' }, { status: 404 })
 
     const branches = await BranchService.findByChurch(invite.churchId)
+    const hierarchyLevels = getHierarchyLevels(church)
+    const hierarchyLabels = getHierarchyLevelLabels(church)
 
     return NextResponse.json({
       invite: {
@@ -38,12 +44,23 @@ export async function GET(
         churchId: invite.churchId,
         branchId: invite.branchId || null,
         purpose: invite.purpose,
+        targetRole: invite.targetRole ?? null,
       },
       church: {
         id: church.id,
         name: (church as any).name,
       },
-      branches: branches.map((b) => ({ id: b.id, name: b.name })),
+      branches: branches.map((b) => ({
+        id: b.id,
+        name: b.name,
+        level: b.level,
+        levelLabel: b.levelLabel ?? null,
+        parentBranchId: b.parentBranchId ?? null,
+      })),
+      hierarchy: {
+        levels: hierarchyLevels,
+        labels: hierarchyLabels,
+      },
     })
   } catch (error: any) {
     console.error('Error loading invite context:', error)
@@ -62,7 +79,7 @@ export async function POST(
     const tokenHash = hashInviteToken(token)
     const invite = await ChurchInviteService.findByTokenHash(tokenHash)
 
-    if (!invite || invite.purpose !== 'MEMBER_SIGNUP') {
+    if (!invite || !['MEMBER_SIGNUP', 'BRANCH_ADMIN_SIGNUP'].includes(invite.purpose)) {
       return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
     }
 
@@ -87,7 +104,19 @@ export async function POST(
     const dateOfBirthRaw = body?.dateOfBirth ? String(body.dateOfBirth).trim() : ''
     const dateOfBirth = dateOfBirthRaw || undefined
 
-    const branchId = body?.branchId ? String(body.branchId).trim() : invite.branchId
+    const requestedBranchId = body?.branchId ? String(body.branchId).trim() : ''
+    const branchId = invite.branchId ?? (requestedBranchId || null)
+
+    if (invite.branchId && requestedBranchId && requestedBranchId !== invite.branchId) {
+      return NextResponse.json(
+        { error: 'This invite is restricted to a specific branch' },
+        { status: 400 },
+      )
+    }
+
+    if (invite.purpose === 'BRANCH_ADMIN_SIGNUP' && !branchId) {
+      return NextResponse.json({ error: 'Branch admin invites must include a branch' }, { status: 400 })
+    }
 
     if (!firstName || !lastName || !email || !password) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -109,12 +138,16 @@ export async function POST(
       }
     }
 
+    const targetRole =
+      invite.targetRole ||
+      (invite.purpose === 'BRANCH_ADMIN_SIGNUP' ? 'BRANCH_ADMIN' : 'MEMBER')
+
     const created = await UserService.create({
       firstName,
       lastName,
       email,
       password,
-      role: 'MEMBER',
+      role: targetRole,
       churchId: invite.churchId,
       branchId: branchId || undefined,
       phone: phone || undefined,
@@ -122,6 +155,19 @@ export async function POST(
       dateOfBirth: dateOfBirth || undefined,
       employmentStatus: employmentStatus || undefined,
     } as any)
+
+    if (targetRole === 'BRANCH_ADMIN' && branchId) {
+      await BranchAdminService.assignAdmin({
+        branchId,
+        userId: created.id,
+        canManageMembers: true,
+        canManageEvents: true,
+        canManageGroups: true,
+        canManageGiving: false,
+        canManageSermons: false,
+        assignedBy: 'invite',
+      })
+    }
 
     await ChurchInviteService.markUsed(invite.id, created.id)
 

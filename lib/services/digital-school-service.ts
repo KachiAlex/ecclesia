@@ -84,6 +84,8 @@ export interface DigitalCourseSectionInput {
   estimatedHours?: number
 }
 
+export type DigitalCourseModuleContentType = 'video' | 'audio' | 'text'
+
 export interface DigitalCourseModule {
   id: string
   courseId: string
@@ -99,6 +101,8 @@ export interface DigitalCourseModule {
   bookUrl?: string
   bookFileName?: string
   bookStoragePath?: string
+  contentType?: DigitalCourseModuleContentType
+  textContent?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -117,6 +121,8 @@ export interface DigitalCourseModuleInput {
   bookUrl?: string
   bookFileName?: string
   bookStoragePath?: string
+  contentType?: DigitalCourseModuleContentType
+  textContent?: string
 }
 
 export interface DigitalCourseLesson {
@@ -880,6 +886,8 @@ export class DigitalCourseModuleService {
       bookUrl: input.bookUrl ?? null,
       bookFileName: input.bookFileName ?? null,
       bookStoragePath: input.bookStoragePath ?? null,
+      contentType: input.contentType ?? 'video',
+      textContent: input.textContent ?? '',
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }
@@ -926,6 +934,8 @@ export class DigitalCourseModuleService {
       bookUrl: data.bookUrl || undefined,
       bookFileName: data.bookFileName || undefined,
       bookStoragePath: data.bookStoragePath || undefined,
+      contentType: (data.contentType as DigitalCourseModuleContentType) || 'video',
+      textContent: data.textContent || undefined,
       createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
       updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
     }

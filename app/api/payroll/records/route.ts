@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { PayrollRecordService, PayrollPeriodService, PayrollPositionService } from '@/lib/services/payroll-service'
 import { UserService } from '@/lib/services/user-service'
@@ -79,4 +81,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

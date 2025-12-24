@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { SermonService } from '@/lib/services/sermon-service'
 import { db } from '@/lib/firestore'
@@ -169,4 +171,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

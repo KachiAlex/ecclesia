@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { WageScaleService, PayrollPositionService } from '@/lib/services/payroll-service'
 import { db, FieldValue } from '@/lib/firestore'
@@ -135,4 +137,3 @@ export async function POST(request: Request) {
     )
   }
 }
-
