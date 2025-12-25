@@ -725,6 +725,10 @@ export default function DigitalSchool() {
     }
   }, [isBuilderOpen])
 
+  const closeBuilder = useCallback(() => {
+    setIsBuilderOpen(false)
+  }, [])
+
   useEffect(() => {
     if (!isBuilderOpen) return
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -743,10 +747,6 @@ export default function DigitalSchool() {
     setResumeMetadata(null)
     setDraftMessage(options?.message ?? null)
     fileInputsRef.current = {}
-  }, [])
-
-  const closeBuilder = useCallback(() => {
-    setIsBuilderOpen(false)
   }, [])
 
   const closeAndResetBuilder = useCallback(
@@ -923,7 +923,7 @@ export default function DigitalSchool() {
         setDeletingCourseId(null)
       }
     },
-    [closeAndResetBuilder, courses, deletingCourseId, loadCourses, resumeMetadata?.courseId],
+    [closeAndResetBuilder, courses, deletingCourseId, loadCourses, resumeMetadata?.courseId, supportsCourseArchive],
   )
 
   const actionLabel = (access: AccessType, status: ProgressState) => {
@@ -1203,6 +1203,356 @@ export default function DigitalSchool() {
       ...prev,
       [courseId]: `Reminder scheduled — we’ll nudge you to resume ${courseTitle}.`,
     }))
+  }
+
+  const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (isSavingCourse) return
+
+    const submitEvent = event.nativeEvent as SubmitEvent
+    const submitter = submitEvent?.submitter as HTMLButtonElement | null
+    const desiredIntent = (submitter?.dataset.intent as 'draft' | 'published') ?? submitIntent ?? 'draft'
+
+    if (!courseDraft.title.trim()) {
+      setDraftMessage('Course title is required before saving.')
+      return
+    }
+
+    const mentors = courseDraft.mentors
+      .split(',')
+      .map((mentor) => mentor.trim())
+      .filter(Boolean)
+    const formatTags = courseDraft.format
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+
+    const moduleCount = courseDraft.sections.reduce((total, section) => total + section.modules.length, 0)
+    const headers = {
+      'Content-Type': 'application/json',
+    }
+
+    const coursePayload = {
+      title: courseDraft.title.trim(),
+      summary: courseDraft.summary?.trim() || 'New discipleship modules launching soon.',
+      accessType: courseDraft.access,
+      mentors,
+      estimatedHours: Math.max(1, Math.round(courseDraft.estimatedHours)),
+      tags: formatTags,
+      status: desiredIntent,
+      pricing: courseDraft.pricing,
+      certificateTheme: courseDraft.certificateTheme,
+    }
+
+    setIsSavingCourse(true)
+    setSubmitIntent(desiredIntent)
+    setDraftMessage(null)
+
+    try {
+      if (resumeMetadata?.courseId) {
+        const courseId = resumeMetadata.courseId
+        await requestJson<ApiCourseResponse>(`/api/digital-school/courses/${courseId}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(coursePayload),
+        })
+
+        const existingSectionIds = new Set(resumeMetadata.sectionIds)
+        const nextSectionIds: string[] = []
+        const nextModulesBySection: ResumeMetadata['modulesBySection'] = {}
+        const nextExamIdsBySection: ResumeMetadata['examIdsBySection'] = {}
+        const sectionPersistedMap: Record<string, string> = {}
+        const modulePersistedMap: Record<string, string> = {}
+        const examPersistedMap: Record<string, string | undefined> = {}
+
+        for (const [sectionIndex, section] of courseDraft.sections.entries()) {
+          const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
+          const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
+          const baseSectionPayload = {
+            title: section.title.trim() || `Section ${sectionIndex + 1}`,
+            description: section.description,
+            order: sectionIndex + 1,
+            estimatedHours: sectionHours,
+          }
+
+          let persistedSectionId = section.persistedId
+          if (persistedSectionId) {
+            await requestJson<ApiSectionResponse>(`/api/digital-school/sections/${persistedSectionId}`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(baseSectionPayload),
+            })
+            existingSectionIds.delete(persistedSectionId)
+          } else {
+            const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                ...baseSectionPayload,
+                courseId,
+              }),
+            })
+            persistedSectionId = createdSection.id
+          }
+
+          if (!persistedSectionId) continue
+          sectionPersistedMap[section.id] = persistedSectionId
+          nextSectionIds.push(persistedSectionId)
+
+          const existingModuleIds = new Set(resumeMetadata.modulesBySection[persistedSectionId] ?? [])
+          const moduleIdsForMetadata: string[] = []
+
+          for (const [moduleIndex, module] of section.modules.entries()) {
+            const modulePayload = {
+              title: module.title.trim() || `Module ${moduleIndex + 1}`,
+              description: module.description,
+              order: moduleIndex + 1,
+              estimatedMinutes: module.estimatedMinutes,
+              videoUrl: module.videoUrl || undefined,
+              audioUrl: module.audioUrl || undefined,
+              audioFileName: module.audioFileName,
+              audioStoragePath: module.audioStoragePath,
+              bookUrl: module.bookUrl || undefined,
+              bookFileName: module.bookFileName,
+              bookStoragePath: module.bookStoragePath,
+              contentType: module.contentType,
+              textContent: module.textContent || undefined,
+            }
+
+            if (module.persistedId) {
+              await requestJson<ApiModuleResponse>(`/api/digital-school/modules/${module.persistedId}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(modulePayload),
+              })
+              existingModuleIds.delete(module.persistedId)
+              moduleIdsForMetadata.push(module.persistedId)
+              modulePersistedMap[module.id] = module.persistedId
+            } else {
+              const createdModule = await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                  ...modulePayload,
+                  courseId,
+                  sectionId: persistedSectionId,
+                }),
+              })
+              moduleIdsForMetadata.push(createdModule.id)
+              modulePersistedMap[module.id] = createdModule.id
+            }
+          }
+
+          for (const orphanModuleId of existingModuleIds) {
+            await requestJson(`/api/digital-school/modules/${orphanModuleId}`, {
+              method: 'DELETE',
+            })
+          }
+
+          nextModulesBySection[persistedSectionId] = moduleIdsForMetadata
+
+          const previousExamId = resumeMetadata.examIdsBySection[persistedSectionId]?.[0]
+          const examPayload = {
+            title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
+            description: section.exam.description,
+            timeLimitMinutes: section.exam.timeLimitMinutes,
+            status: section.exam.status,
+            questionCount: section.exam.questionCount,
+            uploadMetadata: section.exam.uploadPlaceholder
+              ? {
+                  source: 'admin-upload',
+                  originalFileName: section.exam.uploadPlaceholder,
+                  fileUrl: section.exam.uploadUrl,
+                  storagePath: section.exam.uploadStoragePath,
+                }
+              : undefined,
+          }
+
+          let resolvedExamId = section.exam.persistedId
+          if (resolvedExamId) {
+            await requestJson<ApiExamResponse>(`/api/digital-school/exams/${resolvedExamId}`, {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(examPayload),
+            })
+          } else {
+            if (previousExamId) {
+              await requestJson(`/api/digital-school/exams/${previousExamId}`, {
+                method: 'DELETE',
+              })
+            }
+            const createdExam = await requestJson<ApiExamResponse>('/api/digital-school/exams', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                ...examPayload,
+                courseId,
+                sectionId: persistedSectionId,
+              }),
+            })
+            resolvedExamId = createdExam.id
+          }
+
+          if (resolvedExamId) {
+            nextExamIdsBySection[persistedSectionId] = [resolvedExamId]
+            examPersistedMap[section.id] = resolvedExamId
+          } else {
+            nextExamIdsBySection[persistedSectionId] = []
+          }
+        }
+
+        for (const orphanSectionId of existingSectionIds) {
+          const orphanModuleIds = resumeMetadata.modulesBySection[orphanSectionId] ?? []
+          for (const moduleId of orphanModuleIds) {
+            await requestJson(`/api/digital-school/modules/${moduleId}`, { method: 'DELETE' })
+          }
+          const orphanExamIds = resumeMetadata.examIdsBySection[orphanSectionId] ?? []
+          for (const examId of orphanExamIds) {
+            await requestJson(`/api/digital-school/exams/${examId}`, { method: 'DELETE' })
+          }
+          await requestJson(`/api/digital-school/sections/${orphanSectionId}`, { method: 'DELETE' })
+        }
+
+        await loadCourses()
+
+        setResumeMetadata({
+          courseId,
+          courseTitle: coursePayload.title,
+          sectionIds: nextSectionIds,
+          modulesBySection: nextModulesBySection,
+          examIdsBySection: nextExamIdsBySection,
+        })
+
+        setCourseDraft((prev) => ({
+          ...prev,
+          sections: prev.sections.map((section) => ({
+            ...section,
+            persistedId: sectionPersistedMap[section.id] ?? section.persistedId,
+            modules: section.modules.map((module) => ({
+              ...module,
+              persistedId: modulePersistedMap[module.id] ?? module.persistedId,
+            })),
+            exam: {
+              ...section.exam,
+              persistedId: examPersistedMap[section.id] ?? section.exam.persistedId,
+            },
+          })),
+        }))
+
+        setDraftMessage(`Updated "${coursePayload.title}" draft – ${courseDraft.sections.length} sections synced.`)
+      } else {
+        const createdCourse = await requestJson<ApiCourseResponse>('/api/digital-school/courses', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(coursePayload),
+        })
+
+        const courseId = createdCourse.id
+
+        for (const [sectionIndex, section] of courseDraft.sections.entries()) {
+          const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
+          const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
+
+          const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              courseId,
+              title: section.title.trim() || `Section ${sectionIndex + 1}`,
+              description: section.description,
+              order: sectionIndex + 1,
+              estimatedHours: sectionHours,
+            }),
+          })
+
+          for (const [moduleIndex, module] of section.modules.entries()) {
+            await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                courseId,
+                sectionId: createdSection.id,
+                title: module.title.trim() || `Module ${moduleIndex + 1}`,
+                description: module.description,
+                order: moduleIndex + 1,
+                estimatedMinutes: module.estimatedMinutes,
+                videoUrl: module.videoUrl || undefined,
+                audioUrl: module.audioUrl || undefined,
+                audioFileName: module.audioFileName,
+                audioStoragePath: module.audioStoragePath,
+                bookUrl: module.bookUrl || undefined,
+                bookFileName: module.bookFileName,
+                bookStoragePath: module.bookStoragePath,
+                contentType: module.contentType,
+                textContent: module.textContent || undefined,
+              }),
+            })
+          }
+
+          await requestJson<ApiExamResponse>('/api/digital-school/exams', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              courseId,
+              sectionId: createdSection.id,
+              title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
+              description: section.exam.description,
+              timeLimitMinutes: section.exam.timeLimitMinutes,
+              status: section.exam.status,
+              questionCount: section.exam.questionCount,
+              uploadMetadata: section.exam.uploadPlaceholder
+                ? {
+                    source: 'admin-upload',
+                    originalFileName: section.exam.uploadPlaceholder,
+                    fileUrl: section.exam.uploadUrl,
+                    storagePath: section.exam.uploadStoragePath,
+                  }
+                : undefined,
+            }),
+          })
+        }
+
+        await loadCourses()
+
+        setAdminActions((prev) => [
+          {
+            title: `${coursePayload.title} · Module Builder`,
+            status:
+              desiredIntent === 'published'
+                ? `Published (${courseDraft.sections.length} sections · ${moduleCount} modules)`
+                : `Draft saved (${courseDraft.sections.length} sections · ${moduleCount} modules)`,
+            updatedBy: 'You',
+            timestamp: 'Just now',
+          },
+          ...prev,
+        ])
+
+        setCourseDraft(createCourseDraft())
+        setResumeMetadata(null)
+        fileInputsRef.current = {}
+        setDraftMessage(
+          desiredIntent === 'published'
+            ? `Published "${coursePayload.title}" — now visible in the catalog.`
+            : `Saved "${coursePayload.title}" draft – ready for scheduled reminders and exams.`,
+        )
+      }
+
+      setToast({
+        message:
+          desiredIntent === 'published' ? `Published "${coursePayload.title}".` : `Saved "${coursePayload.title}" as draft.`,
+        tone: 'success',
+      })
+
+      if (desiredIntent === 'published') {
+        closeAndResetBuilder()
+      }
+    } catch (error) {
+      console.error('DigitalSchool.handleSaveDraft', error)
+      setDraftMessage(error instanceof Error ? `Unable to save draft: ${error.message}` : 'Unable to save draft right now.')
+    } finally {
+      setIsSavingCourse(false)
+      setSubmitIntent('draft')
+    }
   }
 
   const builderModal =
@@ -1840,360 +2190,6 @@ export default function DigitalSchool() {
         </div>
       </div>
     ) : null
-
-  const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (isSavingCourse) return
-
-    const submitEvent = event.nativeEvent as SubmitEvent
-    const submitter = submitEvent?.submitter as HTMLButtonElement | null
-    const desiredIntent = (submitter?.dataset.intent as 'draft' | 'published') ?? submitIntent ?? 'draft'
-
-    if (!courseDraft.title.trim()) {
-      setDraftMessage('Course title is required before saving.')
-      return
-    }
-
-    const mentors = courseDraft.mentors
-      .split(',')
-      .map((mentor) => mentor.trim())
-      .filter(Boolean)
-    const formatTags = courseDraft.format
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-
-    const moduleCount = courseDraft.sections.reduce((total, section) => total + section.modules.length, 0)
-    const headers = {
-      'Content-Type': 'application/json',
-    }
-
-    const coursePayload = {
-      title: courseDraft.title.trim(),
-      summary: courseDraft.summary?.trim() || 'New discipleship modules launching soon.',
-      accessType: courseDraft.access,
-      mentors,
-      estimatedHours: Math.max(1, Math.round(courseDraft.estimatedHours)),
-      tags: formatTags,
-      status: desiredIntent,
-      pricing: courseDraft.pricing,
-      certificateTheme: courseDraft.certificateTheme,
-    }
-
-    setIsSavingCourse(true)
-    setSubmitIntent(desiredIntent)
-    setDraftMessage(null)
-
-    try {
-      if (resumeMetadata?.courseId) {
-        const courseId = resumeMetadata.courseId
-        await requestJson<ApiCourseResponse>(`/api/digital-school/courses/${courseId}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(coursePayload),
-        })
-
-        const existingSectionIds = new Set(resumeMetadata.sectionIds)
-        const nextSectionIds: string[] = []
-        const nextModulesBySection: ResumeMetadata['modulesBySection'] = {}
-        const nextExamIdsBySection: ResumeMetadata['examIdsBySection'] = {}
-        const sectionPersistedMap: Record<string, string> = {}
-        const modulePersistedMap: Record<string, string> = {}
-        const examPersistedMap: Record<string, string | undefined> = {}
-
-        for (const [sectionIndex, section] of courseDraft.sections.entries()) {
-          const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
-          const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
-          const baseSectionPayload = {
-            title: section.title.trim() || `Section ${sectionIndex + 1}`,
-            description: section.description,
-            order: sectionIndex + 1,
-            estimatedHours: sectionHours,
-          }
-
-          let persistedSectionId = section.persistedId
-          if (persistedSectionId) {
-            await requestJson<ApiSectionResponse>(`/api/digital-school/sections/${persistedSectionId}`, {
-              method: 'PUT',
-              headers,
-              body: JSON.stringify(baseSectionPayload),
-            })
-            existingSectionIds.delete(persistedSectionId)
-          } else {
-            const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                ...baseSectionPayload,
-                courseId,
-              }),
-            })
-            persistedSectionId = createdSection.id
-          }
-
-          if (!persistedSectionId) continue
-          sectionPersistedMap[section.id] = persistedSectionId
-          nextSectionIds.push(persistedSectionId)
-
-          const existingModuleIds = new Set(resumeMetadata.modulesBySection[persistedSectionId] ?? [])
-          const moduleIdsForMetadata: string[] = []
-
-          for (const [moduleIndex, module] of section.modules.entries()) {
-            const modulePayload = {
-              title: module.title.trim() || `Module ${moduleIndex + 1}`,
-              description: module.description,
-              order: moduleIndex + 1,
-              estimatedMinutes: module.estimatedMinutes,
-              videoUrl: module.videoUrl || undefined,
-              audioUrl: module.audioUrl || undefined,
-              audioFileName: module.audioFileName,
-              audioStoragePath: module.audioStoragePath,
-              bookUrl: module.bookUrl || undefined,
-              bookFileName: module.bookFileName,
-              bookStoragePath: module.bookStoragePath,
-              contentType: module.contentType,
-              textContent: module.textContent || undefined,
-            }
-
-            if (module.persistedId) {
-              await requestJson<ApiModuleResponse>(`/api/digital-school/modules/${module.persistedId}`, {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify(modulePayload),
-              })
-              existingModuleIds.delete(module.persistedId)
-              moduleIdsForMetadata.push(module.persistedId)
-              modulePersistedMap[module.id] = module.persistedId
-            } else {
-              const createdModule = await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                  ...modulePayload,
-                  courseId,
-                  sectionId: persistedSectionId,
-                }),
-              })
-              moduleIdsForMetadata.push(createdModule.id)
-              modulePersistedMap[module.id] = createdModule.id
-            }
-          }
-
-          for (const orphanModuleId of existingModuleIds) {
-            await requestJson(`/api/digital-school/modules/${orphanModuleId}`, {
-              method: 'DELETE',
-            })
-          }
-
-          nextModulesBySection[persistedSectionId] = moduleIdsForMetadata
-
-          const previousExamId = resumeMetadata.examIdsBySection[persistedSectionId]?.[0]
-          const examPayload = {
-            title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
-            description: section.exam.description,
-            timeLimitMinutes: section.exam.timeLimitMinutes,
-            status: section.exam.status,
-            questionCount: section.exam.questionCount,
-            uploadMetadata: section.exam.uploadPlaceholder
-              ? {
-                  source: 'admin-upload',
-                  originalFileName: section.exam.uploadPlaceholder,
-                  fileUrl: section.exam.uploadUrl,
-                  storagePath: section.exam.uploadStoragePath,
-                }
-              : undefined,
-          }
-
-          let resolvedExamId = section.exam.persistedId
-          if (resolvedExamId) {
-            await requestJson<ApiExamResponse>(`/api/digital-school/exams/${resolvedExamId}`, {
-              method: 'PUT',
-              headers,
-              body: JSON.stringify(examPayload),
-            })
-          } else {
-            if (previousExamId) {
-              await requestJson(`/api/digital-school/exams/${previousExamId}`, {
-                method: 'DELETE',
-              })
-            }
-            const createdExam = await requestJson<ApiExamResponse>('/api/digital-school/exams', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                ...examPayload,
-                courseId,
-                sectionId: persistedSectionId,
-              }),
-            })
-            resolvedExamId = createdExam.id
-          }
-
-          if (resolvedExamId) {
-            nextExamIdsBySection[persistedSectionId] = [resolvedExamId]
-            examPersistedMap[section.id] = resolvedExamId
-          } else {
-            nextExamIdsBySection[persistedSectionId] = []
-          }
-        }
-
-        for (const orphanSectionId of existingSectionIds) {
-          const orphanModuleIds = resumeMetadata.modulesBySection[orphanSectionId] ?? []
-          for (const moduleId of orphanModuleIds) {
-            await requestJson(`/api/digital-school/modules/${moduleId}`, { method: 'DELETE' })
-          }
-          const orphanExamIds = resumeMetadata.examIdsBySection[orphanSectionId] ?? []
-          for (const examId of orphanExamIds) {
-            await requestJson(`/api/digital-school/exams/${examId}`, { method: 'DELETE' })
-          }
-          await requestJson(`/api/digital-school/sections/${orphanSectionId}`, { method: 'DELETE' })
-        }
-
-        await loadCourses()
-
-        setResumeMetadata({
-          courseId,
-          courseTitle: coursePayload.title,
-          sectionIds: nextSectionIds,
-          modulesBySection: nextModulesBySection,
-          examIdsBySection: nextExamIdsBySection,
-        })
-
-        setCourseDraft((prev) => ({
-          ...prev,
-          sections: prev.sections.map((section) => ({
-            ...section,
-            persistedId: sectionPersistedMap[section.id] ?? section.persistedId,
-            modules: section.modules.map((module) => ({
-              ...module,
-              persistedId: modulePersistedMap[module.id] ?? module.persistedId,
-            })),
-            exam: {
-              ...section.exam,
-              persistedId: examPersistedMap[section.id] ?? section.exam.persistedId,
-            },
-          })),
-        }))
-
-        setDraftMessage(`Updated "${coursePayload.title}" draft – ${courseDraft.sections.length} sections synced.`)
-      } else {
-        const createdCourse = await requestJson<ApiCourseResponse>('/api/digital-school/courses', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(coursePayload),
-        })
-
-        const courseId = createdCourse.id
-
-        for (const [sectionIndex, section] of courseDraft.sections.entries()) {
-          const sectionMinutes = section.modules.reduce((total, module) => total + module.estimatedMinutes, 0)
-          const sectionHours = Math.max(1, Math.round(sectionMinutes / 60) || 1)
-
-          const createdSection = await requestJson<ApiSectionResponse>('/api/digital-school/sections', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              courseId,
-              title: section.title.trim() || `Section ${sectionIndex + 1}`,
-              description: section.description,
-              order: sectionIndex + 1,
-              estimatedHours: sectionHours,
-            }),
-          })
-
-          for (const [moduleIndex, module] of section.modules.entries()) {
-            await requestJson<ApiModuleResponse>('/api/digital-school/modules', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                courseId,
-                sectionId: createdSection.id,
-                title: module.title.trim() || `Module ${moduleIndex + 1}`,
-                description: module.description,
-                order: moduleIndex + 1,
-                estimatedMinutes: module.estimatedMinutes,
-                videoUrl: module.videoUrl || undefined,
-                audioUrl: module.audioUrl || undefined,
-                audioFileName: module.audioFileName,
-                audioStoragePath: module.audioStoragePath,
-                bookUrl: module.bookUrl || undefined,
-                bookFileName: module.bookFileName,
-                bookStoragePath: module.bookStoragePath,
-                contentType: module.contentType,
-                textContent: module.textContent || undefined,
-              }),
-            })
-          }
-
-          await requestJson<ApiExamResponse>('/api/digital-school/exams', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              courseId,
-              sectionId: createdSection.id,
-              title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
-              description: section.exam.description,
-              timeLimitMinutes: section.exam.timeLimitMinutes,
-              status: section.exam.status,
-              questionCount: section.exam.questionCount,
-              uploadMetadata: section.exam.uploadPlaceholder
-                ? {
-                    source: 'admin-upload',
-                    originalFileName: section.exam.uploadPlaceholder,
-                    fileUrl: section.exam.uploadUrl,
-                    storagePath: section.exam.uploadStoragePath,
-                  }
-                : undefined,
-            }),
-          })
-        }
-
-        await loadCourses()
-
-        setAdminActions((prev) => [
-          {
-            title: `${coursePayload.title} · Module Builder`,
-            status:
-              desiredIntent === 'published'
-                ? `Published (${courseDraft.sections.length} sections · ${moduleCount} modules)`
-                : `Draft saved (${courseDraft.sections.length} sections · ${moduleCount} modules)`,
-            updatedBy: 'You',
-            timestamp: 'Just now',
-          },
-          ...prev,
-        ])
-
-        setCourseDraft(createCourseDraft())
-        setResumeMetadata(null)
-        fileInputsRef.current = {}
-        setDraftMessage(
-          desiredIntent === 'published'
-            ? `Published "${coursePayload.title}" — now visible in the catalog.`
-            : `Saved "${coursePayload.title}" draft – ready for scheduled reminders and exams.`,
-        )
-      }
-
-      setToast({
-        message:
-          desiredIntent === 'published'
-            ? `Published "${coursePayload.title}".`
-            : `Saved "${coursePayload.title}" as draft.`,
-        tone: 'success',
-      })
-
-      if (desiredIntent === 'published') {
-        closeAndResetBuilder()
-      }
-    } catch (error) {
-      console.error('DigitalSchool.handleSaveDraft', error)
-      setDraftMessage(
-        error instanceof Error ? `Unable to save draft: ${error.message}` : 'Unable to save draft right now.',
-      )
-    } finally {
-      setIsSavingCourse(false)
-      setSubmitIntent('draft')
-    }
-  }
 
   const openCertificate = useCallback((url: string) => {
     const anchor = document.createElement('a')
@@ -3424,9 +3420,11 @@ export default function DigitalSchool() {
           <li>Badge sync with Leaderboard once course completion achieved.</li>
         </ul>
         <p className="text-sm text-gray-500 mt-4">
-          Want to reprioritize items? Ping the team and we'll adjust the backlog before coding the next milestone.
+          Want to reprioritize items? Ping the team and we&rsquo;ll adjust the backlog before coding the next milestone.
         </p>
       </section>
     </div>
-  </>;
+  </>
+)
 }
+

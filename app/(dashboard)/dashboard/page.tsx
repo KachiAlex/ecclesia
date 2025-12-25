@@ -26,10 +26,39 @@ interface RecentActivity {
   createdAt: string
 }
 
+interface DailyVerse {
+  reference: string
+  text: string
+  theme: string
+  action: string
+}
+
+const verseLibrary: DailyVerse[] = [
+  {
+    reference: 'Psalm 46:1 (NIV)',
+    text: 'God is our refuge and strength, an ever-present help in trouble.',
+    theme: 'Strength & Refuge',
+    action: 'Invite members to start meetings with a short moment of gratitude for God’s covering.',
+  },
+  {
+    reference: 'Isaiah 43:19 (NIV)',
+    text: 'See, I am doing a new thing! Now it springs up; do you not perceive it?',
+    theme: 'Fresh Fire',
+    action: 'Use this verse to encourage teams launching new outreaches this week.',
+  },
+  {
+    reference: 'Romans 12:12 (NIV)',
+    text: 'Be joyful in hope, patient in affliction, faithful in prayer.',
+    theme: 'Hope & Patience',
+    action: 'Share this in the community feed as today’s focus verse for small groups.',
+  },
+]
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [quickActions, setQuickActions] = useState<QuickActions | null>(null)
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -59,6 +88,11 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const randomVerse = verseLibrary[Math.floor(Math.random() * verseLibrary.length)]
+    setDailyVerse(randomVerse)
+  }, [])
 
   const formatActivityTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -188,6 +222,13 @@ export default function DashboardPage() {
     )
   }
 
+  const derivedStats = {
+    sermons: stats?.sermonsWatched.value ?? 0,
+    events: stats?.eventsAttended.value ?? 0,
+    prayers: stats?.prayerRequests.value ?? 0,
+    giving: stats?.giving.value ?? '$0',
+  }
+
   const statsList = stats
     ? [
         {
@@ -221,6 +262,27 @@ export default function DashboardPage() {
       ]
     : []
 
+  const reportHighlights = [
+    {
+      label: 'Engagement Pulse',
+      value: `${derivedStats.sermons + derivedStats.events}`,
+      helper: 'Sermons watched + events attended in the last 30 days',
+      tone: 'positive' as const,
+    },
+    {
+      label: 'Prayer Momentum',
+      value: derivedStats.prayers.toString(),
+      helper: 'Active requests currently on the wall',
+      tone: 'default' as const,
+    },
+    {
+      label: 'Giving to Date',
+      value: derivedStats.giving,
+      helper: 'Month-to-date generosity snapshot',
+      tone: 'default' as const,
+    },
+  ]
+
   return (
     <div className="space-y-8 max-w-[1600px]">
       {/* Stats Grid */}
@@ -253,6 +315,71 @@ export default function DashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Daily Verse + Reports Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
+          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-b from-amber-200/40 to-transparent blur-3xl pointer-events-none"></div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">Daily verse</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-2">{dailyVerse?.theme ?? 'Meditation'}</h3>
+          <p className="text-sm text-gray-500 mt-1">{dailyVerse?.reference}</p>
+          <p className="mt-4 text-lg text-gray-800 leading-relaxed">
+            “{dailyVerse?.text || 'Let everything that has breath praise the Lord.'}”
+          </p>
+          <div className="mt-5 rounded-xl bg-amber-50 border border-amber-100 p-4">
+            <p className="text-xs font-semibold uppercase text-amber-700 tracking-wider">Action prompt</p>
+            <p className="text-sm text-amber-900 mt-1">
+              {dailyVerse?.action || 'Share this verse with your team chat to anchor the day.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase text-gray-500 tracking-[0.3em]">Reports preview</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">Operational snapshot</h3>
+              <p className="text-sm text-gray-600">High-level indicators before diving into the full reports hub.</p>
+            </div>
+            <Link
+              href="/(dashboard)/reports"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold shadow-sm hover:bg-gray-800"
+            >
+              Open reports
+              <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {reportHighlights.map((report) => (
+              <div key={report.label} className="rounded-xl border border-gray-100 p-4 bg-gray-50">
+                <p className="text-xs font-semibold uppercase text-gray-500 tracking-wide">{report.label}</p>
+                <p
+                  className={`text-2xl font-bold mt-2 ${
+                    report.tone === 'positive' ? 'text-emerald-600' : 'text-gray-900'
+                  }`}
+                >
+                  {report.value}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{report.helper}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-xl border border-gray-100 p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between bg-gray-50">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Need richer analytics?</p>
+              <p className="text-xs text-gray-600">Switch branches, filter by date, and export detailed attendance & finance metrics.</p>
+            </div>
+            <Link
+              href="/(dashboard)/reports"
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-white"
+            >
+              Go to reports hub
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}
