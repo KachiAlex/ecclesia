@@ -562,75 +562,13 @@ const TODO_ITEMS = [
   },
 ]
 
-const DEFAULT_ENROLLMENTS: EnrollmentQueueItem[] = [
-  {
-    enrollmentId: 'local-foundation',
-    courseId: 'foundation',
-    moduleTitle: 'Module 3 · Spiritual Disciplines',
-    due: 'Due in 2 days',
-    action: 'Continue module',
-    isCompleted: false,
-  },
-  {
-    enrollmentId: 'local-ministry',
-    courseId: 'ministry',
-    moduleTitle: 'Awaiting cohort approval',
-    due: 'Pending admin review',
-    action: 'Track request',
-    isCompleted: false,
-  },
-]
-
-const DEFAULT_ADMIN_ACTIONS: AdminAction[] = [
-  {
-    title: 'Foundation Class · Module Builder',
-    status: 'Draft saved',
-    updatedBy: 'Pastor Ada',
-    timestamp: '10 mins ago',
-  },
-  {
-    title: 'CBT Parser · Batch 002',
-    status: 'Awaiting validation',
-    updatedBy: 'QA Bot',
-    timestamp: 'Today, 8:12am',
-  },
-]
-
-const DEFAULT_ACCESS_REQUESTS: AccessRequest[] = [
-  {
-    id: 'local-ifeoma',
-    userLabel: 'Ifeoma N.',
-    courseTitle: 'School of Ministry',
-    reason: 'Campus pastor track',
-    status: 'Awaiting review',
-  },
-  {
-    id: 'local-chuka-amaka',
-    userLabel: 'Chuka & Amaka',
-    courseTitle: 'Marriage Preparation Labs',
-    reason: 'Wedding in Feb',
-    status: 'Invite sent',
-  },
-]
-
-const DEFAULT_PROGRESS_ROWS: ProgressRow[] = [
-  { member: 'Joy Okafor', course: 'Foundation Class', completion: 78, examScore: 'Pending' },
-  { member: 'Tolu Adebayo', course: 'Marriage Preparation Labs', completion: 100, examScore: '92%' },
-  { member: 'David Onuoha', course: 'School of Ministry', completion: 33, examScore: '-' },
-]
-
-const DEFAULT_EXAM_UPLOADS: ExamUpload[] = [
-  { title: 'Doctrine Quiz v1', questions: 25, status: 'Validated', owner: 'Coach Ben' },
-  { title: 'Capstone CBT March', questions: 60, status: 'Needs review', owner: 'Rev. Daniel' },
-]
-
 export default function DigitalSchool() {
   const [courses, setCourses] = useState<Course[]>([])
   const [draftCourses, setDraftCourses] = useState<ApiCourseResponse[]>([])
   const [enrollments, setEnrollments] = useState<EnrollmentQueueItem[]>([])
-  const [adminActions, setAdminActions] = useState<AdminAction[]>(DEFAULT_ADMIN_ACTIONS)
-  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>(DEFAULT_ACCESS_REQUESTS)
-  const [examUploads, setExamUploads] = useState<ExamUpload[]>(DEFAULT_EXAM_UPLOADS)
+  const [adminActions, setAdminActions] = useState<AdminAction[]>([])
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([])
+  const [examUploads, setExamUploads] = useState<ExamUpload[]>([])
   const [progressRows, setProgressRows] = useState<ProgressRow[]>([])
   const [selectedProgress, setSelectedProgress] = useState<ProgressRow | null>(null)
   const [courseDraft, setCourseDraft] = useState<CourseDraft>(createCourseDraft())
@@ -645,12 +583,12 @@ export default function DigitalSchool() {
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false)
   const [isSavingCourse, setIsSavingCourse] = useState(false)
   const [submitIntent, setSubmitIntent] = useState<'draft' | 'published'>('draft')
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false)
   const [resumingCourseId, setResumingCourseId] = useState<string | null>(null)
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
   const [isCourseManager, setIsCourseManager] = useState(false)
   const examUploadInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
-  const builderRef = useRef<HTMLDivElement | null>(null)
   const [uploadingTargets, setUploadingTargets] = useState<Record<string, boolean>>({})
   const [enrollmentRecords, setEnrollmentRecords] = useState<ApiEnrollmentResponse[]>([])
   const [gatingSummaries, setGatingSummaries] = useState<SectionGatingSummary[]>([])
@@ -777,21 +715,62 @@ export default function DigitalSchool() {
     setGatingSummaries(buildGatingSummaries(enrollmentRecords, courses))
   }, [enrollmentRecords, courses])
 
-  const handleResetBuilder = useCallback(() => {
+  useEffect(() => {
+    if (!isBuilderOpen) return
+    if (typeof document === 'undefined') return
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isBuilderOpen])
+
+  useEffect(() => {
+    if (!isBuilderOpen) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeBuilder()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeBuilder, isBuilderOpen])
+
+  const resetBuilderState = useCallback((options?: { message?: string | null }) => {
     setCourseDraft(createCourseDraft())
     setResumeMetadata(null)
-    setDraftMessage('Started a fresh draft builder.')
+    setDraftMessage(options?.message ?? null)
     fileInputsRef.current = {}
   }, [])
 
-  const scrollToBuilder = useCallback(() => {
-    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const closeBuilder = useCallback(() => {
+    setIsBuilderOpen(false)
   }, [])
+
+  const closeAndResetBuilder = useCallback(
+    (options?: { message?: string | null }) => {
+      resetBuilderState({ message: options?.message ?? null })
+      setIsBuilderOpen(false)
+    },
+    [resetBuilderState],
+  )
+
+  const handleResetBuilder = useCallback(() => {
+    resetBuilderState({ message: 'Started a fresh draft builder.' })
+  }, [resetBuilderState])
+
+  const handleOpenNewCourse = useCallback(() => {
+    resetBuilderState({ message: null })
+    setIsBuilderOpen(true)
+  }, [resetBuilderState])
 
   const handleResumeDraft = useCallback(
     async (courseId: string) => {
       setResumingCourseId(courseId)
       setDraftMessage(null)
+      setIsBuilderOpen(true)
       try {
         const courseDetails = await requestJson<ApiCourseResponse>(`/api/digital-school/courses/${courseId}`)
         const sections = await requestJson<ApiSectionResponse[]>(`/api/digital-school/sections?courseId=${courseId}`)
@@ -910,10 +889,9 @@ export default function DigitalSchool() {
 
   const handleEditCourse = useCallback(
     (courseId: string) => {
-      scrollToBuilder()
       void handleResumeDraft(courseId)
     },
-    [handleResumeDraft, scrollToBuilder],
+    [handleResumeDraft],
   )
 
   const handleDeleteCourse = useCallback(
@@ -928,7 +906,7 @@ export default function DigitalSchool() {
       try {
         await requestJson(`/api/digital-school/courses/${courseId}`, { method: 'DELETE' })
         if (resumeMetadata?.courseId === courseId) {
-          handleResetBuilder()
+          closeAndResetBuilder({ message: 'Deleted draft builder.' })
         }
         await loadCourses()
         setToast({
@@ -945,7 +923,7 @@ export default function DigitalSchool() {
         setDeletingCourseId(null)
       }
     },
-    [courses, deletingCourseId, handleResetBuilder, loadCourses, resumeMetadata?.courseId],
+    [closeAndResetBuilder, courses, deletingCourseId, loadCourses, resumeMetadata?.courseId],
   )
 
   const actionLabel = (access: AccessType, status: ProgressState) => {
@@ -1226,6 +1204,642 @@ export default function DigitalSchool() {
       [courseId]: `Reminder scheduled — we’ll nudge you to resume ${courseTitle}.`,
     }))
   }
+
+  const builderModal =
+    isCourseManager && isBuilderOpen ? (
+      <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="course-builder-title">
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onClick={closeBuilder} />
+        <div className="relative z-10 flex h-full w-full items-center justify-center p-4 md:p-8">
+          <div className="relative flex w-full max-w-5xl max-h-full flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 bg-white/95 px-6 py-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Admin cockpit</p>
+                <h2 id="course-builder-title" className="text-xl font-semibold text-gray-900">
+                  Course creation workflow
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  {resumeMetadata ? `Resuming "${resumeMetadata.courseTitle}"` : 'Starting a new draft'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeBuilder}
+                className="ml-auto inline-flex items-center rounded-full border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Close
+                <span className="ml-1 text-base leading-none">&times;</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-dashed border-gray-200 p-4 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Resume draft</p>
+                      <p className="text-sm text-gray-600">
+                        Pull an existing Digital School draft into this builder without losing your latest edits.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetBuilder}
+                      className="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+                      disabled={!resumeMetadata}
+                    >
+                      Start fresh
+                    </button>
+                  </div>
+
+                  {draftCourses.length === 0 ? (
+                    <p className="text-xs text-gray-500">
+                      No saved drafts yet—click <span className="font-semibold text-gray-700">Save draft</span> after filling the form to
+                      store your progress.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {draftCourses.map((draft) => {
+                        const isActive = resumeMetadata?.courseId === draft.id
+                        const isLoading = resumingCourseId === draft.id
+                        return (
+                          <div
+                            key={draft.id}
+                            className={`rounded-2xl border p-3 flex flex-col gap-1 ${
+                              isActive ? 'border-primary-300 bg-primary-50/40' : 'border-gray-200 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{draft.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {draft.estimatedHours ?? '—'} hrs · {(draft.tags?.length ?? 0) + (draft.moduleCount ?? 0)} items
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void handleResumeDraft(draft.id)}
+                                disabled={isLoading}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60"
+                              >
+                                {isLoading ? 'Loading…' : isActive ? 'Draft loaded' : 'Resume draft'}
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-600 line-clamp-2">{draft.summary || 'Draft summary pending.'}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <form className="space-y-4" onSubmit={handleSaveDraft}>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                      Course title
+                      <input
+                        type="text"
+                        placeholder="Foundation Class"
+                        value={courseDraft.title}
+                        onChange={(event) => handleDraftChange('title', event.target.value)}
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                      />
+                    </label>
+                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                      Access mode
+                      <select
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                        value={courseDraft.access}
+                        onChange={(event) => handleDraftChange('access', event.target.value as AccessType)}
+                      >
+                        <option value="open">Open</option>
+                        <option value="request">Request</option>
+                        <option value="invite">Invitation</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                      Estimated hours
+                      <input
+                        type="number"
+                        min={1}
+                        value={courseDraft.estimatedHours}
+                        onChange={(event) => handleDraftChange('estimatedHours', Number(event.target.value))}
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                      />
+                    </label>
+                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                      Format tags (comma separated)
+                      <input
+                        type="text"
+                        value={courseDraft.format}
+                        onChange={(event) => handleDraftChange('format', event.target.value)}
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                      />
+                    </label>
+                  </div>
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Mentor roster
+                    <input
+                      type="text"
+                      placeholder="Ada, Ben, Daniel"
+                      value={courseDraft.mentors}
+                      onChange={(event) => handleDraftChange('mentors', event.target.value)}
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-600 flex flex-col gap-1">
+                    Course summary
+                    <textarea
+                      placeholder="Outline what learners should expect from this discipleship journey..."
+                      value={courseDraft.summary}
+                      onChange={(event) => handleDraftChange('summary', event.target.value)}
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                      rows={3}
+                    />
+                  </label>
+                  <div className="space-y-6">
+                    <div className="border rounded-2xl p-4 space-y-4 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Certificate branding</p>
+                          <h3 className="text-sm font-semibold text-gray-900">Customize completion certificates</h3>
+                        </div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Certificate template
+                          <select
+                            value={courseDraft.certificateTheme.template}
+                            onChange={(event) =>
+                              handleCertificateThemeChange('template', event.target.value as CertificateTemplate)
+                            }
+                            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          >
+                            {CERTIFICATE_TEMPLATES.map((template) => (
+                              <option key={template.value} value={template.value}>
+                                {template.label}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-xs text-gray-500">
+                            {CERTIFICATE_TEMPLATES.find((item) => item.value === courseDraft.certificateTheme.template)?.description}
+                          </span>
+                        </label>
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Issued by
+                          <input
+                            type="text"
+                            value={courseDraft.certificateTheme.issuedBy}
+                            onChange={(event) => handleCertificateThemeChange('issuedBy', event.target.value)}
+                            placeholder="Ecclesia Digital School"
+                            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Accent color
+                          <input
+                            type="color"
+                            value={courseDraft.certificateTheme.accentColor}
+                            onChange={(event) => handleCertificateThemeChange('accentColor', event.target.value)}
+                            className="h-10 rounded-xl border border-gray-200 px-2 py-1"
+                          />
+                        </label>
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Secondary color
+                          <input
+                            type="color"
+                            value={courseDraft.certificateTheme.secondaryColor}
+                            onChange={(event) => handleCertificateThemeChange('secondaryColor', event.target.value)}
+                            className="h-10 rounded-xl border border-gray-200 px-2 py-1"
+                          />
+                        </label>
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Seal text
+                          <input
+                            type="text"
+                            value={courseDraft.certificateTheme.sealText}
+                            onChange={(event) => handleCertificateThemeChange('sealText', event.target.value)}
+                            placeholder="Ecclesia Training Institute"
+                            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Signature text
+                          <input
+                            type="text"
+                            value={courseDraft.certificateTheme.signatureText}
+                            onChange={(event) => handleCertificateThemeChange('signatureText', event.target.value)}
+                            placeholder="Lead Pastor"
+                            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          />
+                        </label>
+                        <label className="text-sm text-gray-600 flex flex-col gap-1">
+                          Background image URL
+                          <input
+                            type="url"
+                            value={courseDraft.certificateTheme.backgroundImageUrl}
+                            onChange={(event) => handleCertificateThemeChange('backgroundImageUrl', event.target.value)}
+                            placeholder="https://..."
+                            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          />
+                        </label>
+                      </div>
+                      <label className="text-sm text-gray-600 flex flex-col gap-1">
+                        Logo URL
+                        <input
+                          type="url"
+                          value={courseDraft.certificateTheme.logoUrl}
+                          onChange={(event) => handleCertificateThemeChange('logoUrl', event.target.value)}
+                          placeholder="https://..."
+                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Sections, modules & exams</p>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-primary-600"
+                        onClick={handleAddSection}
+                      >
+                        + Add section
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {courseDraft.sections.map((section, sectionIndex) => (
+                        <div key={section.id} className="border rounded-2xl p-4 space-y-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-gray-400">Section {sectionIndex + 1}</p>
+                              <p className="text-sm text-gray-500">
+                                Every section ends with an exam that must be passed to unlock the next stage.
+                              </p>
+                            </div>
+                            {courseDraft.sections.length > 1 && (
+                              <button
+                                type="button"
+                                className="text-sm text-gray-500 hover:text-gray-800"
+                                onClick={() => handleRemoveSection(section.id)}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <label className="text-sm text-gray-600 flex flex-col gap-1">
+                              Section title
+                              <input
+                                type="text"
+                                value={section.title}
+                                onChange={(event) => handleSectionChange(section.id, 'title', event.target.value)}
+                                className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                placeholder="Orientation & Ecclesia story"
+                              />
+                            </label>
+                            <label className="text-sm text-gray-600 flex flex-col gap-1">
+                              Section description
+                              <input
+                                type="text"
+                                value={section.description}
+                                onChange={(event) => handleSectionChange(section.id, 'description', event.target.value)}
+                                className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                placeholder="Video walkthrough + discussion prompts"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs uppercase tracking-wide text-gray-400">Modules in this section</p>
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-primary-600"
+                                onClick={() => handleAddModule(section.id)}
+                              >
+                                + Add module
+                              </button>
+                            </div>
+
+                            <div className="space-y-3">
+                              {section.modules.map((module, moduleIndex) => (
+                                <div key={module.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-gray-800">Module {moduleIndex + 1}</p>
+                                    {section.modules.length > 1 && (
+                                      <button
+                                        type="button"
+                                        className="text-xs text-gray-500 hover:text-gray-800"
+                                        onClick={() => handleRemoveModule(section.id, module.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <div className="grid gap-3 md:grid-cols-2">
+                                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                      Module title
+                                      <input
+                                        type="text"
+                                        value={module.title}
+                                        onChange={(event) => handleModuleChange(section.id, module.id, 'title', event.target.value)}
+                                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                        placeholder="Welcome to Ecclesia"
+                                      />
+                                    </label>
+                                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                      Module description
+                                      <input
+                                        type="text"
+                                        value={module.description}
+                                        onChange={(event) => handleModuleChange(section.id, module.id, 'description', event.target.value)}
+                                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                        placeholder="Context for this lesson"
+                                      />
+                                    </label>
+                                  </div>
+
+                                  <div className="grid gap-3 md:grid-cols-2">
+                                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                      Content format
+                                      <select
+                                        value={module.contentType}
+                                        onChange={(event) => handleModuleChange(section.id, module.id, 'contentType', event.target.value)}
+                                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                      >
+                                        {MODULE_CONTENT_TYPES.map((type) => (
+                                          <option key={type.value} value={type.value}>
+                                            {type.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <div className="text-xs text-gray-500 bg-white rounded-xl border border-dashed border-gray-200 px-3 py-3">
+                                      {MODULE_CONTENT_TYPES.find((type) => type.value === module.contentType)?.description ??
+                                        'Select the media format for this module.'}
+                                    </div>
+                                  </div>
+
+                                  {module.contentType === 'video' && (
+                                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                      Video URL
+                                      <input
+                                        type="url"
+                                        value={module.videoUrl}
+                                        onChange={(event) => handleModuleChange(section.id, module.id, 'videoUrl', event.target.value)}
+                                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                        placeholder="https://..."
+                                      />
+                                    </label>
+                                  )}
+
+                                  {module.contentType === 'audio' && (
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                      <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                        Audio URL
+                                        <input
+                                          type="url"
+                                          value={module.audioUrl}
+                                          onChange={(event) => handleModuleChange(section.id, module.id, 'audioUrl', event.target.value)}
+                                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                          placeholder="https://..."
+                                        />
+                                      </label>
+                                      <div className="flex flex-col gap-2">
+                                        <p className="text-sm text-gray-600">Attach audio</p>
+                                        <div className="flex flex-wrap gap-2">
+                                          <input
+                                            type="file"
+                                            accept="audio/*"
+                                            ref={registerFileInput(`${module.id}-audio`)}
+                                            className="hidden"
+                                            onChange={handleModuleFileInput(section.id, module.id, 'audio')}
+                                          />
+                                          <button
+                                            type="button"
+                                            className="px-3 py-2 rounded-lg border text-xs text-gray-700 hover:bg-gray-100"
+                                            onClick={() => triggerFilePicker(`${module.id}-audio`)}
+                                          >
+                                            Upload audio
+                                          </button>
+                                          {module.audioFileName && (
+                                            <span className="text-xs text-gray-500">{module.audioFileName}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {module.contentType === 'text' && (
+                                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                      Lesson text
+                                      <textarea
+                                        value={module.textContent}
+                                        onChange={(event) =>
+                                          handleModuleChange(section.id, module.id, 'textContent', event.target.value)
+                                        }
+                                        placeholder="Paste your devotional, transcript, or study outline…"
+                                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                        rows={4}
+                                      />
+                                    </label>
+                                  )}
+
+                                  <div className="grid gap-3 md:grid-cols-3">
+                                    <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                      Estimated minutes
+                                      <input
+                                        type="number"
+                                        min={5}
+                                        value={module.estimatedMinutes}
+                                        onChange={(event) =>
+                                          handleModuleChange(section.id, module.id, 'estimatedMinutes', event.target.value)
+                                        }
+                                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                      />
+                                    </label>
+                                    <div className="flex flex-col gap-2">
+                                      <p className="text-sm text-gray-600">Attach workbook / notes</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        <input
+                                          type="file"
+                                          accept=".pdf,.doc,.docx"
+                                          ref={registerFileInput(`${module.id}-book`)}
+                                          className="hidden"
+                                          onChange={handleModuleFileInput(section.id, module.id, 'book')}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="px-3 py-2 rounded-lg border text-xs text-gray-700 hover:bg-gray-100"
+                                          onClick={() => triggerFilePicker(`${module.id}-book`)}
+                                        >
+                                          Upload file
+                                        </button>
+                                        {module.bookFileName && (
+                                          <span className="text-xs text-gray-500">{module.bookFileName}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-dashed border-gray-200 p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">Section exam</p>
+                                <p className="text-xs text-gray-500">
+                                  Learners must pass this exam to unlock Section {sectionIndex + 2}.
+                                </p>
+                              </div>
+                              <select
+                                className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                value={section.exam.status}
+                                onChange={(event) =>
+                                  handleExamChange(section.id, 'status', event.target.value as SectionExamDraft['status'])
+                                }
+                              >
+                                <option value="draft">Draft</option>
+                                <option value="ready">Ready</option>
+                                <option value="published">Published</option>
+                              </select>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Exam title
+                                <input
+                                  type="text"
+                                  value={section.exam.title}
+                                  onChange={(event) => handleExamChange(section.id, 'title', event.target.value)}
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                  placeholder="Orientation checkpoint"
+                                />
+                              </label>
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Exam description
+                                <input
+                                  type="text"
+                                  value={section.exam.description}
+                                  onChange={(event) => handleExamChange(section.id, 'description', event.target.value)}
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                  placeholder="CBT with 20 questions"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Time limit (minutes)
+                                <input
+                                  type="number"
+                                  min={5}
+                                  value={section.exam.timeLimitMinutes}
+                                  onChange={(event) =>
+                                    handleExamChange(section.id, 'timeLimitMinutes', Number(event.target.value))
+                                  }
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                />
+                              </label>
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Question count
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={section.exam.questionCount}
+                                  onChange={(event) =>
+                                    handleExamChange(section.id, 'questionCount', Number(event.target.value))
+                                  }
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                              <p className="text-sm text-gray-600">Upload CBT file</p>
+                              <div className="flex flex-wrap gap-2">
+                                <input
+                                  type="file"
+                                  accept=".csv,.xlsx,.xls,.json"
+                                  ref={registerFileInput(`exam-${section.id}`)}
+                                  className="hidden"
+                                  onChange={handleExamFileInput(section.id)}
+                                />
+                                <button
+                                  type="button"
+                                  className="px-3 py-2 rounded-lg border text-xs text-gray-700 hover:bg-gray-100"
+                                  onClick={() => triggerFilePicker(`exam-${section.id}`)}
+                                >
+                                  Upload exam file
+                                </button>
+                                {section.exam.uploadPlaceholder && (
+                                  <span className="text-xs text-gray-500">{section.exam.uploadPlaceholder}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="submit"
+                      data-intent="draft"
+                      className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+                      disabled={isSavingCourse}
+                    >
+                      {isSavingCourse && submitIntent === 'draft' ? 'Saving…' : 'Save as draft'}
+                    </button>
+                    <button
+                      type="submit"
+                      data-intent="published"
+                      className="px-4 py-2 rounded-lg bg-primary-600 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 disabled:opacity-60"
+                      disabled={isSavingCourse}
+                    >
+                      {isSavingCourse && submitIntent === 'published' ? 'Publishing…' : 'Publish course'}
+                    </button>
+                    <button type="button" className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">
+                      Upload cover
+                    </button>
+                  </div>
+                  {draftMessage && (
+                    <p className={`text-sm ${draftMessage.startsWith('Unable') ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {draftMessage}
+                    </p>
+                  )}
+                </form>
+
+                <div className="space-y-3">
+                  {adminActions.map((action) => (
+                    <div key={action.title} className="border rounded-2xl p-4 flex flex-col gap-1 bg-gray-50">
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>{action.title}</span>
+                        <span>{action.timestamp}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">{action.status}</span>
+                        <span className="text-gray-500">by {action.updatedBy}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null
 
   const handleSaveDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -1566,6 +2180,10 @@ export default function DigitalSchool() {
             : `Saved "${coursePayload.title}" as draft.`,
         tone: 'success',
       })
+
+      if (desiredIntent === 'published') {
+        closeAndResetBuilder()
+      }
     } catch (error) {
       console.error('DigitalSchool.handleSaveDraft', error)
       setDraftMessage(
@@ -1740,6 +2358,8 @@ export default function DigitalSchool() {
     )
   }
 
+  const latestDraftId = draftCourses[0]?.id ?? null
+
   const markExamScore = (member: string, score: string) => {
     setProgressRows((prev) =>
       prev.map((row) => (row.member === member ? { ...row, examScore: score } : row)),
@@ -1748,286 +2368,225 @@ export default function DigitalSchool() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <section className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-8 shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/70">Digital School</p>
-            <h1 className="text-3xl font-semibold mt-2">Scaffolded Learning Management Hub</h1>
-            <p className="text-white/85 mt-3 max-w-2xl">
-              We&apos;re building a full discipleship academy with courses, embedded media, modular exams, and badges.
-              This tab currently outlines the roadmap so we can deliver features incrementally.
-            </p>
+    <>
+      {builderModal}
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <section className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-8 shadow-lg">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/70">Digital School</p>
+              <h1 className="text-3xl font-semibold mt-2">Scaffolded Learning Management Hub</h1>
+              <p className="text-white/85 mt-3 max-w-2xl">
+                We&apos;re building a full discipleship academy with courses, embedded media, modular exams, and badges.
+                This tab currently outlines the roadmap so we can deliver features incrementally.
+              </p>
+            </div>
+            <div className="bg-white/10 rounded-2xl px-6 py-4 text-center">
+              <p className="text-sm uppercase tracking-wide text-white/80">Next build</p>
+              <p className="text-3xl font-semibold">Course Catalog</p>
+              <p className="text-xs text-white/70 mt-1">DS-01</p>
+            </div>
           </div>
-          <div className="bg-white/10 rounded-2xl px-6 py-4 text-center">
-            <p className="text-sm uppercase tracking-wide text-white/80">Next build</p>
-            <p className="text-3xl font-semibold">Course Catalog</p>
-            <p className="text-xs text-white/70 mt-1">DS-01</p>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {courseStats.map((stat) => (
-          <div key={stat.label} className="bg-white rounded-2xl shadow p-5 border border-gray-100">
-            <p className="text-xs uppercase tracking-[0.3em] text-gray-400">{stat.label}</p>
-            <p className="text-3xl font-semibold mt-2 text-gray-900">{stat.value}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">Course Catalog</h2>
-            <p className="text-sm text-gray-500">Browse tracks curated by the training team.</p>
-          </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 rounded-full border text-sm text-gray-600 hover:bg-gray-50">View syllabus</button>
-            <button
-              className="px-4 py-2 rounded-full border border-primary-200 text-sm text-primary-700 hover:bg-primary-50 disabled:opacity-60"
-              type="button"
-              disabled={isLoadingCourses}
-              onClick={loadCourses}
-            >
-              {isLoadingCourses ? 'Refreshing…' : 'Refresh catalog'}
-            </button>
-          </div>
-        </div>
-
-        {isLoadingCourses ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm animate-pulse bg-gray-50"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="h-6 w-20 rounded-full bg-gray-200" />
-                  <span className="h-4 w-16 rounded bg-gray-200" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-5 w-3/4 rounded bg-gray-200" />
-                  <div className="h-4 w-full rounded bg-gray-200" />
-                  <div className="h-4 w-5/6 rounded bg-gray-200" />
-                </div>
-                <div className="flex gap-2">
-                  <span className="h-6 w-16 rounded-full bg-gray-200" />
-                  <span className="h-6 w-20 rounded-full bg-gray-200" />
-                </div>
-                <div className="h-2 w-full rounded bg-gray-200" />
-                <div className="flex gap-2">
-                  <span className="h-9 flex-1 rounded-lg bg-gray-200" />
-                  <span className="h-9 w-20 rounded-lg bg-gray-200" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course) => (
-              <div
-                key={course.id}
-                className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition relative"
-              >
-                {isCourseManager && (
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    <button
-                      type="button"
-                      className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-                      onClick={() => handleEditCourse(course.id)}
-                      disabled={resumingCourseId === course.id}
-                    >
-                      {resumingCourseId === course.id ? 'Loading…' : 'Edit'}
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full border px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
-                      onClick={() => handleDeleteCourse(course.id)}
-                      disabled={deletingCourseId === course.id}
-                    >
-                      {deletingCourseId === course.id ? 'Deleting…' : 'Delete'}
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
-                    {course.access === 'open'
-                      ? 'Open'
-                      : course.access === 'request'
-                        ? 'Request access'
-                        : 'Invitation only'}
-                  </span>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{course.description}</p>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                  {course.format.map((item) => (
-                    <span key={item} className="bg-gray-100 px-2 py-1 rounded-full">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-400">Mentors</p>
-                    <p className="text-sm text-gray-800">{course.mentors.join(', ')}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-gray-400">Hours</p>
-                    <p className="text-sm text-gray-800">{course.hours} hrs</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-400">Format</p>
-                    <p className="text-sm text-gray-800">{course.format.join(', ')}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-gray-400">Pricing</p>
-                    <p className="text-sm font-semibold text-gray-900">{formatPricingLabel(course.pricing)}</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`${course.badgeColor} h-2 rounded-full`}
-                      style={{ width: `${course.progress}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{course.status === 'completed' ? 'Completed' : `${course.progress}% progress`}</span>
-                    {course.status === 'completed' && <span className="text-emerald-600 font-semibold">Badge issued</span>}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
-                    onClick={() => handleEnrollAction(course.id)}
-                  >
-                    {actionLabel(course.access, course.status)}
-                  </button>
-                  <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">Implementation To-Do</h2>
-            <p className="text-sm text-gray-500">Member-facing catalog is live; next sprint unlocks admin + exams.</p>
-          </div>
-          <Link href="/dashboard/superadmin" className="text-sm text-primary-600 underline">
-            Manage permissions
-          </Link>
-        </div>
-
-        <ol className="space-y-3">
-          {pendingItems.map((item) => (
-            <li key={item.label} className="border rounded-2xl p-4 flex flex-col gap-1 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{item.label}</span>
-                <span
-                  className={`text-xs font-semibold ${
-                    item.status === 'Complete' ? 'text-emerald-600' : 'text-amber-600'
-                  }`}
-                >
-                  {item.status}
-                </span>
-              </div>
-              <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
-              <p className="text-sm text-gray-600">{item.description}</p>
-            </li>
+        <section className="grid gap-4 md:grid-cols-3">
+          {courseStats.map((stat) => (
+            <div key={stat.label} className="bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">{stat.label}</p>
+              <p className="text-3xl font-semibold mt-2 text-gray-900">{stat.value}</p>
+            </div>
           ))}
-        </ol>
-      </section>
+        </section>
 
-      <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">My learning queue</h2>
-            <p className="text-sm text-gray-500">Next up in your discipleship journey.</p>
+        <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Course Catalog</h2>
+              <p className="text-sm text-gray-500">Browse tracks curated by the training team.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button className="px-4 py-2 rounded-full border text-sm text-gray-600 hover:bg-gray-50">View syllabus</button>
+              <button
+                className="px-4 py-2 rounded-full border border-primary-200 text-sm text-primary-700 hover:bg-primary-50 disabled:opacity-60"
+                type="button"
+                disabled={isLoadingCourses}
+                onClick={loadCourses}
+              >
+                {isLoadingCourses ? 'Refreshing…' : 'Refresh catalog'}
+              </button>
+              {isCourseManager && (
+                <>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-full bg-primary-600 text-white text-sm hover:bg-primary-700"
+                    onClick={handleOpenNewCourse}
+                  >
+                    + Create course
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-full border text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                    onClick={() => latestDraftId && void handleResumeDraft(latestDraftId)}
+                    disabled={!latestDraftId || resumingCourseId === latestDraftId}
+                  >
+                    {resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <Link href="/dashboard/profile" className="text-sm text-primary-600 underline">
-            View badges
-          </Link>
-        </div>
-        <div className="space-y-3">
-          {isLoadingEnrollments && (
-            <div className="border rounded-2xl p-4 bg-gray-50 animate-pulse">
-              <div className="h-4 w-1/3 rounded bg-gray-200 mb-2" />
-              <div className="h-4 w-2/3 rounded bg-gray-200 mb-4" />
-              <div className="h-2 w-full rounded bg-gray-200 mb-2" />
-              <div className="h-2 w-5/6 rounded bg-gray-200" />
+
+          {isLoadingCourses ? (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm animate-pulse bg-gray-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="h-6 w-20 rounded-full bg-gray-200" />
+                    <span className="h-4 w-16 rounded bg-gray-200" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-5 w-3/4 rounded bg-gray-200" />
+                    <div className="h-4 w-full rounded bg-gray-200" />
+                    <div className="h-4 w-5/6 rounded bg-gray-200" />
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="h-6 w-16 rounded-full bg-gray-200" />
+                    <span className="h-6 w-20 rounded-full bg-gray-200" />
+                  </div>
+                  <div className="h-2 w-full rounded bg-gray-200" />
+                  <div className="flex gap-2">
+                    <span className="h-9 flex-1 rounded-lg bg-gray-200" />
+                    <span className="h-9 w-20 rounded-lg bg-gray-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : courses.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-gray-200 p-6 text-center">
+              <p className="text-sm text-gray-600">
+                No courses published yet. Start a builder draft to seed the catalog for your campus.
+              </p>
+              {isCourseManager && (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+                    onClick={handleOpenNewCourse}
+                  >
+                    + Create course
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                    onClick={() => latestDraftId && void handleResumeDraft(latestDraftId)}
+                    disabled={!latestDraftId || resumingCourseId === latestDraftId}
+                  >
+                    {latestDraftId ? (resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft') : 'No drafts yet'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {courses.map((course) => (
+                <div
+                  key={course.id}
+                  className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition relative"
+                >
+                  {isCourseManager && (
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                        onClick={() => handleEditCourse(course.id)}
+                        disabled={resumingCourseId === course.id}
+                      >
+                        {resumingCourseId === course.id ? 'Loading…' : 'Edit'}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full border px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        onClick={() => handleDeleteCourse(course.id)}
+                        disabled={deletingCourseId === course.id}
+                      >
+                        {deletingCourseId === course.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
+                      {course.access === 'open'
+                        ? 'Open'
+                        : course.access === 'request'
+                          ? 'Request access'
+                          : 'Invitation only'}
+                    </span>
+                    <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{course.description}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                    {course.format.map((item) => (
+                      <span key={item} className="bg-gray-100 px-2 py-1 rounded-full">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Mentors</p>
+                      <p className="text-sm text-gray-800">{course.mentors.join(', ')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Hours</p>
+                      <p className="text-sm text-gray-800">{course.hours} hrs</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Format</p>
+                      <p className="text-sm text-gray-800">{course.format.join(', ')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Pricing</p>
+                      <p className="text-sm font-semibold text-gray-900">{formatPricingLabel(course.pricing)}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`${course.badgeColor} h-2 rounded-full`}
+                        style={{ width: `${course.progress}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{course.status === 'completed' ? 'Completed' : `${course.progress}% progress`}</span>
+                      {course.status === 'completed' && <span className="text-emerald-600 font-semibold">Badge issued</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+                      onClick={() => handleEnrollAction(course.id)}
+                    >
+                      {actionLabel(course.access, course.status)}
+                    </button>
+                    <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-          {!isLoadingEnrollments && enrollments.length === 0 && (
-            <p className="text-sm text-gray-500">Enroll in a course to see your personalized learning queue.</p>
-          )}
-          {enrollments.map((item) => {
-            const course = courses.find((course) => course.id === item.courseId)
-            const progressValue =
-              typeof item.progressPercent === 'number'
-                ? clampProgress(item.progressPercent)
-                : course?.progress ?? 0
-            return (
-              <div
-                key={item.courseId}
-                className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-2xl p-4"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{course?.title ?? 'Digital Course'}</p>
-                  <p className="text-sm text-gray-600">{item.moduleTitle}</p>
-                  <div className="mt-2 space-y-1">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="h-2 rounded-full bg-primary-500" style={{ width: `${progressValue}%` }}></div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {progressValue}% complete · pass section exams to unlock the next modules.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center gap-2 text-sm">
-                  <span className="text-amber-600 font-medium">{item.due}</span>
-                  <button
-                    className="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50"
-                    onClick={() =>
-                      handleEnrollAction(item.courseId, {
-                        enrollmentId: item.enrollmentId,
-                        isCompleted: item.isCompleted,
-                        certificateUrl: item.certificateUrl,
-                      })
-                    }
-                  >
-                    {item.action}
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-lg border text-primary-700 hover:bg-primary-50"
-                    type="button"
-                    onClick={() => handleSendReminder(item.courseId)}
-                  >
-                    Send reminder
-                  </button>
-                </div>
-                {reminderMessages[item.courseId] && (
-                  <p className="text-xs text-emerald-600">{reminderMessages[item.courseId]}</p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </section>
+        </section>
 
-      {certificateMessage && <p className="text-sm text-emerald-600">{certificateMessage}</p>}
+        {certificateMessage && <p className="text-sm text-emerald-600">{certificateMessage}</p>}
 
-      {gatingSummaries.length > 0 && (
+        {gatingSummaries.length > 0 && (
         <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -2123,7 +2682,7 @@ export default function DigitalSchool() {
         </section>
       )}
 
-      {toast && (
+        {toast && (
         <div
           className={`rounded-2xl border px-4 py-3 text-sm ${
             toast.tone === 'success'
@@ -2133,92 +2692,26 @@ export default function DigitalSchool() {
         >
           {toast.message}
         </div>
-      )}
+        )}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div
-          className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-5"
-          ref={builderRef}
-        >
+        <section className="grid gap-6 lg:grid-cols-2">
+        <div className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Admin cockpit</p>
               <h2 className="text-xl font-semibold">Course creation workflow</h2>
-              <p className="text-xs text-gray-500 mt-1">
-                {resumeMetadata ? `Resuming "${resumeMetadata.courseTitle}"` : 'Starting a new draft'}
-              </p>
+              <p className="text-xs text-gray-500 mt-1">Manage templates, exams, and progress for each course.</p>
             </div>
             {isCourseManager && (
               <button
-                className="px-4 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-sm"
+                className="px-4 py-2 rounded-lg bg-primary-50 text-primary-700 text-sm"
                 type="button"
-                onClick={scrollToBuilder}
+                onClick={handleOpenNewCourse}
               >
-                Open builder
+                + Create course
               </button>
             )}
           </div>
-
-          {isCourseManager && (
-            <div className="rounded-2xl border border-dashed border-gray-200 p-4 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Resume draft</p>
-                <p className="text-sm text-gray-600">
-                  Pull an existing Digital School draft into this builder without losing your latest edits.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleResetBuilder}
-                className="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-60"
-                disabled={!resumeMetadata}
-              >
-                Start fresh
-              </button>
-            </div>
-
-            {draftCourses.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                No saved drafts yet—click <span className="font-semibold text-gray-700">Save draft</span> after filling the form
-                to store your progress.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {draftCourses.map((draft) => {
-                  const isActive = resumeMetadata?.courseId === draft.id
-                  const isLoading = resumingCourseId === draft.id
-                  return (
-                    <div
-                      key={draft.id}
-                      className={`rounded-2xl border p-3 flex flex-col gap-1 ${
-                        isActive ? 'border-primary-300 bg-primary-50/40' : 'border-gray-200 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{draft.title}</p>
-                          <p className="text-xs text-gray-500">
-                            {draft.estimatedHours ?? '—'} hrs · {(draft.tags?.length ?? 0) + (draft.moduleCount ?? 0)} items
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleResumeDraft(draft.id)}
-                          disabled={isLoading}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60"
-                        >
-                          {isLoading ? 'Loading…' : isActive ? 'Draft loaded' : 'Resume draft'}
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-600 line-clamp-2">{draft.summary || 'Draft summary pending.'}</p>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          )}
 
           <form className="space-y-4" onSubmit={handleSaveDraft}>
             <div className="grid gap-3 md:grid-cols-2">
@@ -2922,18 +3415,17 @@ export default function DigitalSchool() {
         )}
       </section>
 
-      <section className="bg-white rounded-2xl shadow p-6 border border-dashed border-gray-200">
-        <h2 className="text-xl font-semibold mb-2">Upcoming artifacts</h2>
-        <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
-          <li>Course & module Firestore collections + access control fields.</li>
-          <li>Exam/question parser spec (CSV / JSON) with validation.</li>
-          <li>Result export endpoints and user-facing feedback pages.</li>
-          <li>Badge sync with Leaderboard once course completion achieved.</li>
-        </ul>
-        <p className="text-sm text-gray-500 mt-4">
-          Want to reprioritize items? Ping the team and we&apos;ll adjust the backlog before coding the next milestone.
-        </p>
-      </section>
-    </div>
-  )
-}
+        <section className="bg-white rounded-2xl shadow p-6 border border-dashed border-gray-200">
+          <h2 className="text-xl font-semibold mb-2">Upcoming artifacts</h2>
+          <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
+            <li>Course & module Firestore collections + access control fields.</li>
+            <li>Exam/question parser spec (CSV / JSON) with validation.</li>
+            <li>Result export endpoints and user-facing feedback pages.</li>
+            <li>Badge sync with Leaderboard once course completion achieved.</li>
+          </ul>
+          <p className="text-sm text-gray-500 mt-4">
+            Want to reprioritize items? Ping the team and we&apos;ll adjust the backlog before coding the next milestone.
+          </p>
+        </section>
+      </div>
+    </>

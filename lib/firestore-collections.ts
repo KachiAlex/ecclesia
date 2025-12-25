@@ -22,6 +22,7 @@ export const COLLECTIONS = {
   events: 'events',
   eventRegistrations: 'event_registrations',
   eventAttendances: 'event_attendances', // Alias for event_registrations
+  eventReminders: 'event_reminders',
   
   // Giving collections
   givingProjects: 'giving_projects',

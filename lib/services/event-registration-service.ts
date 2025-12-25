@@ -109,6 +109,23 @@ export class EventRegistrationService {
 
     return snapshot.data().count || 0
   }
+
+  static async listByEvent(eventId: string): Promise<EventRegistration[]> {
+    const snapshot = await db
+      .collection(COLLECTIONS.eventRegistrations)
+      .where('eventId', '==', eventId)
+      .get()
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+      } as EventRegistration
+    })
+  }
 }
 
 export class EventAttendanceService {
