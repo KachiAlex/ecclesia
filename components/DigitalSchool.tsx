@@ -3415,17 +3415,18 @@ export default function DigitalSchool() {
         )}
       </section>
 
-        <section className="bg-white rounded-2xl shadow p-6 border border-dashed border-gray-200">
-          <h2 className="text-xl font-semibold mb-2">Upcoming artifacts</h2>
-          <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
-            <li>Course & module Firestore collections + access control fields.</li>
-            <li>Exam/question parser spec (CSV / JSON) with validation.</li>
-            <li>Result export endpoints and user-facing feedback pages.</li>
-            <li>Badge sync with Leaderboard once course completion achieved.</li>
-          </ul>
-          <p className="text-sm text-gray-500 mt-4">
-            Want to reprioritize items? Ping the team and we&apos;ll adjust the backlog before coding the next milestone.
-          </p>
-        </section>
-      </div>
-    </>
+      <section className="bg-white rounded-2xl shadow p-6 border border-dashed border-gray-200">
+        <h2 className="text-xl font-semibold mb-2">Upcoming artifacts</h2>
+        <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
+          <li>Course & module Firestore collections + access control fields.</li>
+          <li>Exam/question parser spec (CSV / JSON) with validation.</li>
+          <li>Result export endpoints and user-facing feedback pages.</li>
+          <li>Badge sync with Leaderboard once course completion achieved.</li>
+        </ul>
+        <p className="text-sm text-gray-500 mt-4">
+          Want to reprioritize items? Ping the team and we'll adjust the backlog before coding the next milestone.
+        </p>
+      </section>
+    </div>
+  </>;
+}

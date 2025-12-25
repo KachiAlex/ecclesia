@@ -3,6 +3,12 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 import { Query } from 'firebase-admin/firestore'
 import { FieldValue } from 'firebase-admin/firestore'
 
+export interface EventReminderConfig {
+  durationHours: number
+  frequencyMinutes: number
+  message?: string
+}
+
 export interface Event {
   id: string
   churchId: string
@@ -17,6 +23,7 @@ export interface Event {
   isTicketed: boolean
   ticketPrice?: number
   imageUrl?: string
+  reminderConfig?: EventReminderConfig
   createdAt: Date
   updatedAt: Date
 }
@@ -55,6 +62,7 @@ export class EventService {
     if (data.maxAttendees) cleanedData.maxAttendees = data.maxAttendees
     if (data.ticketPrice) cleanedData.ticketPrice = data.ticketPrice
     if (data.imageUrl) cleanedData.imageUrl = data.imageUrl
+    if (data.reminderConfig) cleanedData.reminderConfig = data.reminderConfig
 
     const eventData = {
       ...cleanedData,
@@ -138,6 +146,9 @@ export class EventService {
     }
     if (data.endDate) {
       updateData.endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate)
+    }
+    if (data.reminderConfig !== undefined) {
+      updateData.reminderConfig = data.reminderConfig || FieldValue.delete()
     }
 
     delete updateData.id

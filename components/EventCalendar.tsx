@@ -12,30 +12,147 @@ interface Event {
   endTime: string
   location?: string
   type?: string
+  reminderConfig?: {
+    durationHours: number
+    frequencyMinutes: number
+    message?: string
+  }
 }
 
-interface EventsCalendarProps { isAdmin?: boolean } export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps) {
+interface EventFormState {
+  title: string
+  description: string
+  startTime: string
+  endTime: string
+  location: string
+  type: string
+  isRecurring: boolean
+  recurrencePattern: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+  recurrenceEndDate: string
+  reminderEnabled: boolean
+  reminderDurationHours: number
+  reminderFrequencyMinutes: number
+  reminderMessage: string
+}
+
+const createDefaultEventState = (): EventFormState => ({
+  title: '',
+  description: '',
+  startTime: '09:00',
+  endTime: '10:00',
+  location: '',
+  type: 'SERVICE',
+  isRecurring: false,
+  recurrencePattern: 'WEEKLY',
+  recurrenceEndDate: '',
+  reminderEnabled: false,
+  reminderDurationHours: 1,
+  reminderFrequencyMinutes: 15,
+  reminderMessage: '',
+})
+
+const HOURS_IN_DAY = Array.from({ length: 24 }, (_, hour) => hour)
+
+const padTimeUnit = (value: number) => value.toString().padStart(2, '0')
+
+const getSlotRange = (hour: number) => {
+  const startHour = Math.max(0, Math.min(23, hour))
+  const startTime = `${padTimeUnit(startHour)}:00`
+  let endHour = startHour + 1
+  let endMinutes = '00'
+
+  if (endHour >= 24) {
+    endHour = 23
+    endMinutes = '59'
+  }
+
+  const endTime = `${padTimeUnit(endHour)}:${endMinutes}`
+
+  return { startTime, endTime }
+}
+
+const formatHourLabel = (hour: number) => {
+  const date = new Date()
+  date.setHours(hour, 0, 0, 0)
+  return date.toLocaleTimeString([], { hour: 'numeric' })
+}
+
+const timeToMinutes = (time?: string) => {
+  if (!time) return 0
+  const [hours, minutes] = time.split(':').map((value) => parseInt(value, 10))
+  return hours * 60 + (minutes || 0)
+}
+
+const doesEventOverlapHour = (event: Event, hour: number) => {
+  const eventStart = timeToMinutes(event.startTime)
+  let eventEnd = timeToMinutes(event.endTime)
+
+  if (eventEnd <= eventStart) {
+    eventEnd = eventStart + 60
+  }
+
+  const hourStart = hour * 60
+  const hourEnd = hour === 23 ? 24 * 60 : (hour + 1) * 60
+
+  return eventStart < hourEnd && eventEnd > hourStart
+}
+
+interface EventsCalendarProps {
+  isAdmin?: boolean
+}
+
+export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState<Event[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showCreateEvent, setShowCreateEvent] = useState(false)
-  const [showEventList, setShowEventList] = useState(false)
+  const [showDayPlanner, setShowDayPlanner] = useState(false)
   const [selectedDayEvents, setSelectedDayEvents] = useState<Event[]>([])
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
-  
+  const [shouldReturnToDayPlanner, setShouldReturnToDayPlanner] = useState(false)
+
   // New event form
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    description: '',
-    startTime: '09:00',
-    endTime: '10:00',
-    location: '',
-    type: 'SERVICE',
-    isRecurring: false,
-    recurrencePattern: 'WEEKLY' as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY',
-    recurrenceEndDate: '',
-  })
+  const [newEvent, setNewEvent] = useState<EventFormState>(createDefaultEventState())
+
+  const closeEventForm = () => {
+    setShowCreateEvent(false)
+    if (shouldReturnToDayPlanner) {
+      setShowDayPlanner(true)
+    }
+    setShouldReturnToDayPlanner(false)
+    setEditingEvent(null)
+    setSelectedTimeSlot(null)
+  }
+
+  const resetEventForm = () => {
+    setNewEvent(createDefaultEventState())
+  }
+
+  const closeDayPlanner = () => {
+    setShowDayPlanner(false)
+    setSelectedTimeSlot(null)
+    setShouldReturnToDayPlanner(false)
+  }
+
+  const startNewEventFromPlanner = () => {
+    if (!selectedDate) return
+    const currentHour = new Date().getHours()
+    const slotHour = selectedTimeSlot ? parseInt(selectedTimeSlot.split(':')[0], 10) : currentHour
+    const { startTime, endTime } = getSlotRange(slotHour)
+    resetEventForm()
+    setNewEvent((previous) => ({
+      ...previous,
+      startTime,
+      endTime,
+    }))
+    setSelectedTimeSlot(null)
+    setShowDayPlanner(false)
+    setShowCreateEvent(true)
+    setEditingEvent(null)
+    setShouldReturnToDayPlanner(true)
+  }
 
   const loadEvents = useCallback(async () => {
     try {
@@ -96,20 +213,39 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
     })
   }
 
-  const handleDayClick = (date: Date) => {
-    if (!isAdmin) return;
-    
-    const dayEvents = getEventsForDate(date)
-    setSelectedDate(date)
-    
-    if (dayEvents.length > 0) {
-      // Show existing events for editing
-      setSelectedDayEvents(dayEvents)
-      setShowEventList(true)
-    } else {
-      // Show create form for empty days
-      setShowCreateEvent(true)
+  useEffect(() => {
+    if (selectedDate) {
+      setSelectedDayEvents(getEventsForDate(selectedDate))
     }
+  }, [events, selectedDate])
+
+  const openDayPlanner = (date: Date) => {
+    const dayEvents = getEventsForDate(date)
+    setSelectedDayEvents(dayEvents)
+    setShowDayPlanner(true)
+    setShowCreateEvent(false)
+    setEditingEvent(null)
+  }
+
+  const handleDayClick = (date: Date) => {
+    if (!isAdmin) return
+    setSelectedDate(date)
+    openDayPlanner(date)
+  }
+
+  const handleTimeSlotSelect = (hour: number) => {
+    if (!selectedDate) return
+    const { startTime, endTime } = getSlotRange(hour)
+    setNewEvent((previous) => ({
+      ...previous,
+      startTime,
+      endTime,
+    }))
+    setSelectedTimeSlot(startTime)
+    setShowDayPlanner(false)
+    setShowCreateEvent(true)
+    setEditingEvent(null)
+    setShouldReturnToDayPlanner(true)
   }
 
   const handlePreviousMonth = () => {
@@ -152,6 +288,14 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
         requestBody.recurrenceEndDate = new Date(newEvent.recurrenceEndDate).toISOString()
       }
 
+      if (newEvent.reminderEnabled) {
+        requestBody.reminderConfig = {
+          durationHours: Number(newEvent.reminderDurationHours) || 0,
+          frequencyMinutes: Number(newEvent.reminderFrequencyMinutes) || 0,
+          message: newEvent.reminderMessage || undefined,
+        }
+      }
+
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,19 +303,8 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
       })
 
       if (response.ok) {
-        setShowCreateEvent(false)
-        setEditingEvent(null)
-        setNewEvent({
-          title: '',
-          description: '',
-          startTime: '09:00',
-          endTime: '10:00',
-          location: '',
-          type: 'SERVICE',
-          isRecurring: false,
-          recurrencePattern: 'WEEKLY',
-          recurrenceEndDate: '',
-        })
+        closeEventForm()
+        resetEventForm()
         loadEvents()
         alert(newEvent.isRecurring ? 'Recurring events created successfully!' : 'Event created successfully!')
       } else {
@@ -186,19 +319,19 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
 
   const handleEditEvent = (event: Event) => {
     setEditingEvent(event)
+    const baseState = createDefaultEventState()
     setNewEvent({
+      ...baseState,
       title: event.title,
       description: event.description || '',
       startTime: event.startTime,
       endTime: event.endTime,
       location: event.location || '',
       type: event.type || 'SERVICE',
-      isRecurring: false,
-      recurrencePattern: 'WEEKLY',
-      recurrenceEndDate: '',
     })
-    setShowEventList(false)
+    setShowDayPlanner(false)
     setShowCreateEvent(true)
+    setShouldReturnToDayPlanner(true)
   }
 
   const handleUpdateEvent = async () => {
@@ -230,19 +363,8 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
       })
 
       if (response.ok) {
-        setShowCreateEvent(false)
-        setEditingEvent(null)
-        setNewEvent({
-          title: '',
-          description: '',
-          startTime: '09:00',
-          endTime: '10:00',
-          location: '',
-          type: 'SERVICE',
-          isRecurring: false,
-          recurrencePattern: 'WEEKLY',
-          recurrenceEndDate: '',
-        })
+        closeEventForm()
+        resetEventForm()
         loadEvents()
         alert('Event updated successfully!')
       } else {
@@ -265,7 +387,6 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
 
       if (response.ok) {
         loadEvents()
-        setShowEventList(false)
         alert('Event deleted successfully!')
       } else {
         alert('Failed to delete event')
@@ -401,6 +522,145 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
         </div>
       </div>
 
+      {/* Day Planner Modal */}
+      {showDayPlanner && selectedDate && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 space-y-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Plan your day</p>
+                  <h2 className="text-2xl font-semibold text-gray-900">
+                    {selectedDate.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Tap any hour block to draft an event or select an existing event to edit.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDayPlanner}
+                  className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Close
+                  <span className="ml-1 text-base leading-none">&times;</span>
+                </button>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="space-y-3">
+                  {HOURS_IN_DAY.map((hour) => {
+                    const slotRange = getSlotRange(hour)
+                    const overlappingEvents = selectedDayEvents.filter((event) => doesEventOverlapHour(event, hour))
+                    const isSelected = selectedTimeSlot === slotRange.startTime
+                    return (
+                      <button
+                        key={hour}
+                        type="button"
+                        onClick={() => handleTimeSlotSelect(hour)}
+                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                          isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-primary-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <span className="font-medium text-gray-900">{formatHourLabel(hour)}</span>
+                          <span>
+                            {slotRange.startTime} – {slotRange.endTime}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {overlappingEvents.length === 0 ? (
+                            <span className="text-xs text-gray-400">No events scheduled</span>
+                          ) : (
+                            overlappingEvents.map((event) => (
+                              <span
+                                key={`${event.id}-${hour}`}
+                                className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-800"
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-primary-600" />
+                                {event.title}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="space-y-4 rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Selected slot</p>
+                    <p className="text-sm text-gray-600">
+                      {selectedTimeSlot
+                        ? `${selectedTimeSlot} – ${getSlotRange(Number(selectedTimeSlot.split(':')[0])).endTime}`
+                        : 'Tap an hour block to prefill start/end times'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startNewEventFromPlanner}
+                    className="w-full rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 disabled:opacity-60"
+                    disabled={!selectedDate}
+                  >
+                    {selectedTimeSlot ? 'Create event for this time' : 'Start a new event'}
+                  </button>
+
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Events today</p>
+                    {selectedDayEvents.length === 0 ? (
+                      <p className="text-sm text-gray-500">No events yet—select a slot to add one.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedDayEvents.map((event) => (
+                          <div key={event.id} className="rounded-2xl border border-white bg-white p-3 shadow-sm">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{event.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {event.startTime} – {event.endTime}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                                {event.type}
+                              </span>
+                            </div>
+                            {event.description && (
+                              <p className="mt-2 text-xs text-gray-600 line-clamp-2">{event.description}</p>
+                            )}
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                type="button"
+                                className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                                onClick={() => handleEditEvent(event)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="flex-1 rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteEvent(event.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Event Modal */}
       {showCreateEvent && selectedDate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -418,13 +678,7 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                     })}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowCreateEvent(false)
-                    setEditingEvent(null)
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
+                <button onClick={closeEventForm} className="text-gray-400 hover:text-gray-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -597,98 +851,6 @@ interface EventsCalendarProps { isAdmin?: boolean } export default function Even
                   {editingEvent ? 'Update Event' : 'Create Event'}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Event List Modal - When clicking on a day with events */}
-      {showEventList && selectedDate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold">Events on this Day</h2>
-                  <p className="text-gray-600">
-                    {selectedDate.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowEventList(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Events List */}
-              <div className="space-y-3">
-                {selectedDayEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-primary-500 transition-colors"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{event.title}</h3>
-                        {event.description && (
-                          <p className="text-sm text-gray-600 mt-1">{event.description}</p>
-                        )}
-                      </div>
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        {event.type}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-sm text-gray-600 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span>⏰</span>
-                        <span>{event.startTime} - {event.endTime}</span>
-                      </div>
-                      {event.location && (
-                        <div className="flex items-center gap-2">
-                          <span>📍</span>
-                          <span>{event.location}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditEvent(event)}
-                        className="flex-1 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add New Event Button */}
-              <button
-                onClick={() => {
-                  setShowEventList(false)
-                  setShowCreateEvent(true)
-                }}
-                className="w-full mt-4 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors text-gray-600 hover:text-primary-700 font-medium"
-              >
-                + Add Another Event on This Day
-              </button>
             </div>
           </div>
         </div>

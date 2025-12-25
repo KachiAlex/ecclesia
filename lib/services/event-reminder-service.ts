@@ -141,6 +141,20 @@ export class EventReminderService {
     })
   }
 
+  static async clearScheduledForEvent(eventId: string): Promise<void> {
+    const snapshot = await db
+      .collection(COLLECTIONS.eventReminders)
+      .where('eventId', '==', eventId)
+      .where('status', '==', 'scheduled')
+      .get()
+
+    if (snapshot.empty) return
+
+    const batch = db.batch()
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref))
+    await batch.commit()
+  }
+
   static async sendDueReminders(limit: number = 25) {
     const now = new Date()
     const reminders = await this.listDue(limit)
