@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useTenantBrand } from '@/lib/branding/useTenantBrand'
 
 type Branch = { id: string; name: string; level?: string; levelLabel?: string | null; parentBranchId?: string | null }
 
@@ -30,6 +31,7 @@ export default function InviteSignupPage({ params }: { params: { token: string }
   const [showPassword, setShowPassword] = useState(false)
   const [levelSelections, setLevelSelections] = useState<LevelSelections>({})
   const [branchValidationError, setBranchValidationError] = useState('')
+  const { brand } = useTenantBrand({ churchId: ctx?.church?.id })
 
   const [form, setForm] = useState({
     firstName: '',
@@ -221,12 +223,12 @@ export default function InviteSignupPage({ params }: { params: { token: string }
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
+              <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
             </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Ecclesia</span>
+            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{brand.name}</span>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Join {ctx?.church?.name || 'this church'}</h1>
-          <p className="text-gray-600 mt-2">Complete your details to create your account.</p>
+          <h1 className="text-3xl font-bold text-gray-900">Join {ctx?.church?.name || brand.name}</h1>
+          <p className="text-gray-600 mt-2">{brand.tagline || 'Complete your details to create your account.'}</p>
         </div>
 
         {error && (

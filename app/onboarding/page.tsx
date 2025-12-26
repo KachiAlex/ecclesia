@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { useTenantBrand } from '@/lib/branding/useTenantBrand'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function OnboardingPage() {
   const [mounted, setMounted] = useState(false)
   const [church, setChurch] = useState<any>(null)
   const [loadingChurch, setLoadingChurch] = useState(true)
+  const { brand } = useTenantBrand({ churchId: church?.id })
 
   useEffect(() => {
     setMounted(true)
@@ -106,7 +108,7 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
+            <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
           </div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -126,14 +128,14 @@ export default function OnboardingPage() {
           <div className="text-center mb-8">
             <a href="/" className="inline-flex items-center space-x-2 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
+                <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
               </div>
               <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Ecclesia
+                {brand.name}
               </span>
             </a>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to Ecclesia!</h1>
-            <p className="text-lg text-gray-600">Let&apos;s set up your church profile</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to {brand.name}!</h1>
+            <p className="text-lg text-gray-600">{brand.tagline || "Let's set up your church profile"}</p>
           </div>
 
           {/* Progress indicator */}

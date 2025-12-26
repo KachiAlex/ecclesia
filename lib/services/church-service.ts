@@ -11,6 +11,7 @@ export interface Church {
   name: string
   slug?: string
   description?: string
+  tagline?: string
   address?: string
   city?: string
   state?: string
@@ -18,14 +19,29 @@ export interface Church {
   country?: string
   phone?: string
   email?: string
+  organizationEmail?: string
   website?: string
+  givingLink?: string
+  defaultLocale?: string
+  timezone?: string
   logo?: string
+  secondaryLogo?: string
   ownerId?: string
   subscriptionId?: string
   preferredPlanId?: string
   estimatedMembers?: number
   hierarchyLevelLabels?: HierarchyLevelLabels
   hierarchyLevels?: HierarchyLevelDefinition[]
+  primaryColor?: string
+  secondaryColor?: string
+  accentColor?: string
+  brandFont?: string
+  buttonShape?: 'rounded' | 'pill' | 'square'
+  customDomain?: string
+  domainVerified?: boolean
+  loginHeroImage?: string
+  emailHeaderImage?: string
+  socialPreviewText?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -112,6 +128,27 @@ export class ChurchService {
     
     if (snapshot.empty) return null
     
+    const doc = snapshot.docs[0]
+    const data = doc.data()
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as Church
+  }
+
+  /**
+   * Find church by custom domain
+   */
+  static async findByCustomDomain(domain: string): Promise<Church | null> {
+    const snapshot = await db.collection(COLLECTIONS.churches)
+      .where('customDomain', '==', domain)
+      .limit(1)
+      .get()
+
+    if (snapshot.empty) return null
+
     const doc = snapshot.docs[0]
     const data = doc.data()
     return {

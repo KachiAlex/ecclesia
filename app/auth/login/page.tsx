@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTenantBrand } from '@/lib/branding/useTenantBrand'
 
 function LoginForm() {
   const router = useRouter()
@@ -14,6 +15,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const { brand } = useTenantBrand()
 
   useEffect(() => {
     setMounted(true)
@@ -65,14 +67,14 @@ function LoginForm() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
+              <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
             </div>
             <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Ecclesia
+              {brand.name}
             </span>
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to continue to your account</p>
+          <p className="text-gray-600">{brand.tagline || 'Sign in to continue to your account'}</p>
         </div>
 
         {/* Success message */}

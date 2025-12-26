@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { LICENSING_PLANS, recommendPlan } from '@/lib/licensing/plans'
+import { useTenantBrand } from '@/lib/branding/useTenantBrand'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const { brand } = useTenantBrand()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -114,14 +116,14 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
+              <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
             </div>
             <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Ecclesia
+              {brand.name}
             </span>
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Create Your Church</h1>
-          <p className="text-gray-600">Start your 30-day free trial today</p>
+          <p className="text-gray-600">{brand.tagline || 'Start your 30-day free trial today'}</p>
         </div>
 
         {/* Error message */}

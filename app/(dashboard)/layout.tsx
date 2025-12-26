@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { UserService } from '@/lib/services/user-service'
-import { getCurrentChurchId } from '@/lib/church-context'
+import { getCurrentChurch, getCurrentChurchId } from '@/lib/church-context'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
 import ChurchSwitcher from '@/components/ChurchSwitcher'
@@ -39,6 +39,7 @@ export default async function DashboardLayout({
   }
 
   // For SUPER_ADMIN, skip church verification
+  let activeChurch: Awaited<ReturnType<typeof getCurrentChurch>> | null = null
   if (user?.role !== 'SUPER_ADMIN') {
     // Verify church exists
     const churchId = await getCurrentChurchId(userId)
@@ -46,9 +47,15 @@ export default async function DashboardLayout({
       console.log('Dashboard layout: No church found, redirecting to register', { userId, role: user?.role })
       redirect('/auth/register')
     }
+    activeChurch = await getCurrentChurch(userId)
   }
 
   console.log('Dashboard layout: Rendering dashboard', { userId, role: user?.role, churchId: user?.churchId })
+
+  const brandName = activeChurch?.name ?? 'Ecclesia'
+  const brandTagline = activeChurch?.tagline ?? 'Church Management'
+  const brandLogo = activeChurch?.logo ?? '/ecclesia%20logo.svg'
+  const brandInitial = brandName?.[0]?.toUpperCase() ?? 'E'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
@@ -59,14 +66,18 @@ export default async function DashboardLayout({
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl blur opacity-50"></div>
             <div className="relative w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-10 h-10 object-contain" />
+              {activeChurch?.logo ? (
+                <img src={brandLogo} alt={`${brandName} logo`} className="w-10 h-10 object-contain" />
+              ) : (
+                <span className="text-white text-xl font-semibold">{brandInitial}</span>
+              )}
             </div>
           </div>
           <div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Ecclesia
+              {brandName}
             </span>
-            <p className="text-xs text-gray-500 font-medium">Church Management</p>
+            <p className="text-xs text-gray-500 font-medium truncate">{brandTagline}</p>
           </div>
         </Link>
 
