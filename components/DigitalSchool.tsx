@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type AccessType = 'open' | 'request' | 'invite'
 type ProgressState = 'not-started' | 'in-progress' | 'completed'
@@ -273,28 +274,53 @@ const clampProgress = (value?: number) => {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
+const deriveEnrollmentSnapshot = (enrollment: ApiEnrollmentResponse | undefined, course?: Course) => {
+  if (!enrollment) {
+    return {
+      progressPercent: 0,
+      status: 'not-started' as ProgressState,
+      isCompleted: false,
+      actionLabel: 'Begin course',
+      moduleLabel: `${course?.title ?? 'Digital Course'} · Ready to start`,
+      dueLabel: 'Ready to begin',
+    }
+  }
+
+  const progressPercent = clampProgress(enrollment.progressPercent)
+  const isCompleted = enrollment.status === 'completed'
+  const status: ProgressState = isCompleted ? 'completed' : progressPercent > 0 ? 'in-progress' : 'not-started'
+
+  const moduleLabel = isCompleted
+    ? `${course?.title ?? 'Digital Course'} · Completed`
+    : `${course?.title ?? 'Digital Course'} · ${progressPercent}% done`
+  const dueLabel = isCompleted ? 'Certificate ready' : progressPercent > 0 ? `${progressPercent}% complete` : 'Can start now'
+  const actionLabel = isCompleted ? 'View certificate' : progressPercent > 0 ? 'Continue course' : 'Begin course'
+
+  return {
+    progressPercent,
+    status,
+    isCompleted,
+    moduleLabel,
+    dueLabel,
+    actionLabel,
+  }
+}
+
 const buildEnrollmentQueue = (enrollments: ApiEnrollmentResponse[], courses: Course[]): EnrollmentQueueItem[] => {
   if (!enrollments.length) return []
   const courseMap = new Map(courses.map((course) => [course.id, course]))
 
   return enrollments.map((enrollment) => {
     const course = courseMap.get(enrollment.courseId)
-    const progress = clampProgress(enrollment.progressPercent)
-    const isCompleted = enrollment.status === 'completed'
-    const moduleLabel = isCompleted
-      ? `${course?.title ?? 'Digital Course'} · Completed`
-      : `${course?.title ?? 'Digital Course'} · ${progress}% done`
-    const dueLabel = isCompleted ? 'Certificate ready' : `${progress}% complete`
-    const actionLabel = isCompleted ? 'View certificate' : 'Resume course'
-
+    const snapshot = deriveEnrollmentSnapshot(enrollment, course)
     return {
       enrollmentId: enrollment.id,
       courseId: enrollment.courseId,
-      moduleTitle: moduleLabel,
-      due: dueLabel,
-      action: actionLabel,
+      moduleTitle: snapshot.moduleLabel,
+      due: snapshot.dueLabel,
+      action: snapshot.actionLabel,
       progressPercent: enrollment.progressPercent,
-      isCompleted,
+      isCompleted: snapshot.isCompleted,
       certificateUrl: enrollment.certificateUrl,
     }
   })
@@ -315,15 +341,15 @@ const buildGatingSummaries = (enrollments: ApiEnrollmentResponse[], courses: Cou
     const unlockedModules = Math.max(completedModules, 0)
     const lockedModules = Math.max(totalModules - unlockedModules, 0)
     const progress = clampProgress(enrollment.progressPercent)
-    const isCompleted = enrollment.status === 'completed'
+    const snapshot = deriveEnrollmentSnapshot(enrollment, course)
 
-    const nextAction = isCompleted
+    const nextAction = snapshot.isCompleted
       ? 'Download certificate'
       : lockedModules > 0
         ? 'Pass section exam to unlock next modules'
         : 'All modules unlocked'
 
-    const statusLabel = isCompleted
+    const statusLabel = snapshot.isCompleted
       ? 'Completed'
       : lockedModules > 0
         ? `${lockedModules} modules locked`
@@ -338,7 +364,7 @@ const buildGatingSummaries = (enrollments: ApiEnrollmentResponse[], courses: Cou
       unlockedModules,
       statusLabel,
       nextAction,
-      isCompleted,
+      isCompleted: snapshot.isCompleted,
       certificateUrl: enrollment.certificateUrl,
     }
   })
@@ -563,6 +589,7 @@ const TODO_ITEMS = [
 ]
 
 export default function DigitalSchool() {
+  const router = useRouter()
   const [courses, setCourses] = useState<Course[]>([])
   const [draftCourses, setDraftCourses] = useState<ApiCourseResponse[]>([])
   const [enrollments, setEnrollments] = useState<EnrollmentQueueItem[]>([])
@@ -926,12 +953,14 @@ export default function DigitalSchool() {
     [closeAndResetBuilder, courses, deletingCourseId, loadCourses, resumeMetadata?.courseId, supportsCourseArchive],
   )
 
-  const actionLabel = (access: AccessType, status: ProgressState) => {
-    if (status === 'completed') return 'View certificate'
-    if (status === 'in-progress') return 'Continue course'
-    if (access === 'open') return 'Enroll now'
-    if (access === 'request') return 'Request access'
-    return 'Accept invite'
+  const courseActionLabel = (course: Course, enrollment?: ApiEnrollmentResponse) => {
+    const snapshot = deriveEnrollmentSnapshot(enrollment, course)
+    if (snapshot.isCompleted) return 'View certificate'
+    if (snapshot.status === 'in-progress') return 'Continue course'
+    if (snapshot.status === 'not-started' && course.access === 'open') return 'Begin course'
+    if (course.access === 'request') return 'Request access'
+    if (course.access === 'invite') return 'Accept invite'
+    return 'Begin course'
   }
 
   const accessBadge = (access: AccessType) => {
@@ -2238,7 +2267,8 @@ export default function DigitalSchool() {
       enrollmentRecords.find((record) => record.courseId === courseId)
 
     const enrollmentId = options?.enrollmentId ?? enrollment?.id
-    const isCompleted = options?.isCompleted ?? enrollment?.status === 'completed'
+    const snapshot = deriveEnrollmentSnapshot(enrollment, course)
+    const isCompleted = options?.isCompleted ?? snapshot.isCompleted
     const certificateUrl = options?.certificateUrl ?? enrollment?.certificateUrl
 
     if (course.status === 'completed' || isCompleted) {
@@ -2255,32 +2285,33 @@ export default function DigitalSchool() {
       return
     }
 
-    setEnrollments((prev) => {
-      const existing = prev.find((item) => item.courseId === courseId)
-      if (existing) {
-        return prev.map((item) =>
-          item.courseId === courseId
-            ? {
-                ...item,
-                due: course.access === 'open' ? 'Orientation unlocked' : 'Awaiting approval',
-                action: course.access === 'open' ? 'Resume today' : 'Track request',
-              }
-            : item,
-        )
-      }
+    if (!enrollmentId && enrollment?.id) {
+      router.push(`/(dashboard)/digital-school/courses/${enrollment.courseId}`)
+      return
+    }
 
-      return [
-        {
-          enrollmentId: options?.enrollmentId ?? `local-${courseId}-${Date.now()}`,
-          courseId,
-          moduleTitle: `Module 1 · ${course.title}`,
-          due: course.access === 'open' ? 'Can start now' : 'Awaiting admin',
-          action: course.access === 'open' ? 'Begin orientation' : 'Track request',
-          isCompleted: false,
-        },
-        ...prev,
-      ]
-    })
+    if (!enrollmentId) {
+      void (async () => {
+        try {
+          const created = await requestJson<ApiEnrollmentResponse>('/api/digital-school/enrollments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId }),
+          })
+          await loadEnrollments()
+          router.push(`/(dashboard)/digital-school/courses/${created.courseId}`)
+        } catch (error) {
+          console.error('DigitalSchool.handleEnrollAction', error)
+          setToast({
+            message: error instanceof Error ? `Unable to start course: ${error.message}` : 'Unable to start course.',
+            tone: 'error',
+          })
+        }
+      })()
+      return
+    }
+
+    router.push(`/(dashboard)/digital-school/courses/${courseId}`)
   }
 
   const handleExamUpload = (event: ChangeEvent<HTMLInputElement>) => {
