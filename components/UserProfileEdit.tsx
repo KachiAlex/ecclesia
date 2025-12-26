@@ -325,6 +325,7 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
                   <option value="VISITOR">Visitor</option>
                   <option value="MEMBER">Member</option>
                   <option value="LEADER">Leader</option>
+                  <option value="STAFF">Staff</option>
                   <option value="PASTOR">Pastor</option>
                   <option value="ADMIN">Admin</option>
                 </select>

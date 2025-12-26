@@ -13,6 +13,8 @@ export interface PayrollPosition {
   updatedAt: Date
 }
 
+export type PayFrequency = 'weekly' | 'biweekly' | 'monthly' | 'annual' | 'custom'
+
 export interface WageScale {
   id: string
   positionId: string
@@ -24,6 +26,7 @@ export interface WageScale {
   commissionRate?: number
   benefits: number
   deductions: number
+  payFrequency?: PayFrequency
   effectiveFrom: Date
   effectiveTo?: Date
   notes?: string

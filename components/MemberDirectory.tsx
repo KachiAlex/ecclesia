@@ -62,6 +62,35 @@ interface Designation {
   category?: RoleCategory
 }
 
+type PayFrequencyOption = 'weekly' | 'biweekly' | 'monthly' | 'annual'
+
+interface PayrollPositionOption {
+  id: string
+  name: string
+  department?: {
+    name: string
+  }
+}
+
+interface AssignPayrollForm {
+  positionId: string
+  amount: string
+  currency: string
+  payFrequency: PayFrequencyOption
+  startDate: string
+}
+
+const PAY_FREQUENCY_OPTIONS: PayFrequencyOption[] = ['weekly', 'biweekly', 'monthly', 'annual']
+const CURRENCY_OPTIONS = ['USD', 'NGN', 'EUR', 'GBP']
+
+const getDefaultAssignPayrollForm = (): AssignPayrollForm => ({
+  positionId: '',
+  amount: '',
+  currency: 'USD',
+  payFrequency: 'monthly',
+  startDate: new Date().toISOString().slice(0, 10),
+})
+
 export default function MemberDirectory() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -113,6 +142,13 @@ export default function MemberDirectory() {
     error: '',
   })
   const [inviteBranchId, setInviteBranchId] = useState<string>('')
+  const [assignPayrollUser, setAssignPayrollUser] = useState<User | null>(null)
+  const [payrollPositions, setPayrollPositions] = useState<PayrollPositionOption[]>([])
+  const [assignForm, setAssignForm] = useState<AssignPayrollForm>(getDefaultAssignPayrollForm)
+  const [loadingPayrollData, setLoadingPayrollData] = useState(false)
+  const [savingPayroll, setSavingPayroll] = useState(false)
+  const [payrollError, setPayrollError] = useState('')
+
   const memberInviteLink = useMemo(() => {
     if (memberInvite.url) return memberInvite.url
     if (memberInvite.token && typeof window !== 'undefined') {
@@ -454,13 +490,107 @@ export default function MemberDirectory() {
     loadUsers()
   }, [loadUsers])
 
+  useEffect(() => {
+    if (!assignPayrollUser || assignForm.positionId) return
+    if (payrollPositions.length > 0) {
+      setAssignForm((prev) => ({ ...prev, positionId: payrollPositions[0].id }))
+    }
+  }, [assignForm.positionId, assignPayrollUser, payrollPositions])
+
+  const openAssignPayroll = useCallback(
+    async (user: User) => {
+      setAssignPayrollUser(user)
+      setAssignForm(getDefaultAssignPayrollForm())
+      setPayrollError('')
+      setLoadingPayrollData(true)
+      try {
+        const res = await fetch('/api/payroll/positions')
+        if (!res.ok) throw new Error('Unable to load payroll positions')
+        const data = await res.json()
+        setPayrollPositions(Array.isArray(data) ? data : [])
+      } catch (error: any) {
+        setPayrollError(error?.message || 'Failed to load payroll positions')
+        setPayrollPositions([])
+      } finally {
+        setLoadingPayrollData(false)
+      }
+    },
+    []
+  )
+
+  const closeAssignPayroll = () => {
+    setAssignPayrollUser(null)
+    setPayrollPositions([])
+    setAssignForm(getDefaultAssignPayrollForm())
+    setPayrollError('')
+    setSavingPayroll(false)
+  }
+
+  const handleAssignPayroll = async () => {
+    if (!assignPayrollUser) return
+    if (!assignForm.positionId || !assignForm.amount) {
+      setPayrollError('Position and amount are required.')
+      return
+    }
+
+    const amountValue = Number(assignForm.amount)
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      setPayrollError('Enter a valid amount greater than 0.')
+      return
+    }
+
+    setSavingPayroll(true)
+    setPayrollError('')
+    try {
+      const wageScaleRes = await fetch('/api/payroll/wage-scales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          positionId: assignForm.positionId,
+          type: 'SALARY',
+          amount: amountValue,
+          currency: assignForm.currency,
+          payFrequency: assignForm.payFrequency,
+          effectiveFrom: assignForm.startDate,
+        }),
+      })
+      const wageScaleData = await wageScaleRes.json().catch(() => ({}))
+      if (!wageScaleRes.ok) {
+        throw new Error(wageScaleData?.error || 'Failed to configure wage scale')
+      }
+
+      const salaryRes = await fetch('/api/payroll/salaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: assignPayrollUser.id,
+          positionId: assignForm.positionId,
+          wageScaleId: wageScaleData.id,
+          startDate: assignForm.startDate,
+        }),
+      })
+      const salaryData = await salaryRes.json().catch(() => ({}))
+      if (!salaryRes.ok) {
+        throw new Error(salaryData?.error || 'Failed to assign salary')
+      }
+
+      await loadUsers()
+      closeAssignPayroll()
+    } catch (error: any) {
+      setPayrollError(error?.message || 'Unable to save payroll assignment.')
+    } finally {
+      setSavingPayroll(false)
+    }
+  }
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPagination({ ...pagination, page: 1 })
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <>
+      <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Member Directory</h1>
         <button
@@ -556,6 +686,7 @@ export default function MemberDirectory() {
                     >
                       <option value="MEMBER">Member</option>
                       <option value="LEADER">Leader</option>
+                      <option value="STAFF">Staff</option>
                       <option value="PASTOR">Pastor</option>
                       <option value="ADMIN">Admin</option>
                       <option value="BRANCH_ADMIN">Branch Admin</option>
@@ -739,6 +870,7 @@ export default function MemberDirectory() {
             <option value="VISITOR">Visitor</option>
             <option value="MEMBER">Member</option>
             <option value="LEADER">Leader</option>
+            <option value="STAFF">Staff</option>
             <option value="PASTOR">Pastor</option>
             <option value="ADMIN">Admin</option>
             <option value="BRANCH_ADMIN">Branch Admin</option>
@@ -906,6 +1038,15 @@ export default function MemberDirectory() {
                         >
                           View
                         </Link>
+                        {user.role === 'STAFF' && (
+                          <button
+                            type="button"
+                            onClick={() => openAssignPayroll(user)}
+                            className="ml-3 inline-flex items-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50 disabled:opacity-50"
+                          >
+                            Assign to payroll
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -943,6 +1084,162 @@ export default function MemberDirectory() {
         </>
       )}
     </div>
+
+      {assignPayrollUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-500">
+                  Payroll assignment
+                </p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Assign {assignPayrollUser.firstName} {assignPayrollUser.lastName} to payroll
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Configure their payout structure so they appear in payroll runs.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeAssignPayroll}
+                className="rounded-full border border-gray-200 px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                <div className="font-semibold text-gray-800">Current status</div>
+                <p>
+                  Role: <span className="font-medium">{assignPayrollUser.role}</span> · Level{' '}
+                  {assignPayrollUser.level} · XP {assignPayrollUser.xp.toLocaleString()}
+                </p>
+              </div>
+
+              {payrollError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {payrollError}
+                </div>
+              )}
+
+              {loadingPayrollData ? (
+                <div className="py-10 text-center text-sm text-gray-500">Loading positions…</div>
+              ) : payrollPositions.length === 0 ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+                  No payroll positions found. Create at least one position before assigning staff.{' '}
+                  <Link href="/dashboard/payroll/positions" className="font-semibold underline">
+                    Manage positions
+                  </Link>
+                </div>
+              ) : (
+                <form
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    handleAssignPayroll()
+                  }}
+                >
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700">Position *</label>
+                    <select
+                      value={assignForm.positionId}
+                      onChange={(e) => setAssignForm((prev) => ({ ...prev, positionId: e.target.value }))}
+                      className="rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                      required
+                    >
+                      {payrollPositions.map((position) => (
+                        <option key={position.id} value={position.id}>
+                          {position.name}
+                          {position.department ? ` · ${position.department.name}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">Amount *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={assignForm.amount}
+                        onChange={(e) => setAssignForm((prev) => ({ ...prev, amount: e.target.value }))}
+                        placeholder="0.00"
+                        className="rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                        required
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">Currency *</label>
+                      <select
+                        value={assignForm.currency}
+                        onChange={(e) => setAssignForm((prev) => ({ ...prev, currency: e.target.value }))}
+                        className="rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                      >
+                        {CURRENCY_OPTIONS.map((currency) => (
+                          <option key={currency} value={currency}>
+                            {currency}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">Pay frequency *</label>
+                      <select
+                        value={assignForm.payFrequency}
+                        onChange={(e) =>
+                          setAssignForm((prev) => ({ ...prev, payFrequency: e.target.value as PayFrequencyOption }))
+                        }
+                        className="rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                      >
+                        {PAY_FREQUENCY_OPTIONS.map((frequency) => (
+                          <option key={frequency} value={frequency}>
+                            {frequency.replace(/^\w/, (c) => c.toUpperCase())}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">Effective start *</label>
+                      <input
+                        type="date"
+                        value={assignForm.startDate}
+                        onChange={(e) => setAssignForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                        className="rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={closeAssignPayroll}
+                      className="rounded-full border border-gray-300 px-5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                      disabled={savingPayroll}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingPayroll}
+                      className="rounded-full bg-primary-600 px-6 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+                    >
+                      {savingPayroll ? 'Assigning…' : 'Assign to payroll'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
-

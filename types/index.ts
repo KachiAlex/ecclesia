@@ -1,4 +1,4 @@
-export type UserRole = 
+export type UserRole =
   | 'MEMBER'
   | 'VISITOR'
   | 'VOLUNTEER'
@@ -7,6 +7,7 @@ export type UserRole =
   | 'ADMIN'
   | 'BRANCH_ADMIN'
   | 'SUPER_ADMIN'
+  | 'STAFF'
 
 export type SpiritualMaturityLevel =
   | 'NEW_BELIEVER'

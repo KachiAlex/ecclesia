@@ -2614,398 +2614,101 @@ export default function DigitalSchool() {
         {certificateMessage && <p className="text-sm text-emerald-600">{certificateMessage}</p>}
 
         {gatingSummaries.length > 0 && (
-        <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">Module gating & reminders</h2>
-              <p className="text-sm text-gray-500">Track which sections remain locked until the next exam is passed.</p>
+          <section className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Module gating & reminders</h2>
+                <p className="text-sm text-gray-500">Track which sections remain locked until the next exam is passed.</p>
+              </div>
+              <button
+                className="px-4 py-2 rounded-lg border border-primary-200 text-sm text-primary-700 hover:bg-primary-50"
+                type="button"
+                onClick={loadEnrollments}
+                disabled={isLoadingEnrollments}
+              >
+                {isLoadingEnrollments ? 'Refreshing…' : 'Refresh status'}
+              </button>
             </div>
-            <button
-              className="px-4 py-2 rounded-lg border border-primary-200 text-sm text-primary-700 hover:bg-primary-50"
-              type="button"
-              onClick={loadEnrollments}
-              disabled={isLoadingEnrollments}
-            >
-              {isLoadingEnrollments ? 'Refreshing…' : 'Refresh status'}
-            </button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {gatingSummaries.map((summary) => (
-              <div key={summary.courseId} className="border rounded-2xl p-4 space-y-3 bg-gray-50">
-                <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-4 md:grid-cols-2">
+              {gatingSummaries.map((summary) => (
+                <div key={summary.courseId} className="border rounded-2xl p-4 space-y-3 bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{summary.courseTitle}</p>
+                      <p className="text-xs text-gray-500">{summary.nextAction}</p>
+                    </div>
+                    <span
+                      className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                        summary.lockedModules > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {summary.statusLabel}
+                    </span>
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{summary.courseTitle}</p>
-                    <p className="text-xs text-gray-500">{summary.nextAction}</p>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${summary.progress}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{summary.progress}% course progress</p>
                   </div>
-                  <span
-                    className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                      summary.lockedModules > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                    }`}
-                  >
-                    {summary.statusLabel}
-                  </span>
-                </div>
-                <div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${summary.progress}%` }}></div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>
+                      <span className="font-semibold text-gray-900">{summary.unlockedModules}</span> unlocked
+                    </span>
+                    <span>
+                      <span className="font-semibold text-gray-900">{summary.lockedModules}</span> locked
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{summary.progress}% course progress</p>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>
-                    <span className="font-semibold text-gray-900">{summary.unlockedModules}</span> unlocked
-                  </span>
-                  <span>
-                    <span className="font-semibold text-gray-900">{summary.lockedModules}</span> locked
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <button
-                    className="flex-1 px-4 py-2 rounded-lg border text-gray-700 hover:bg-white"
-                    type="button"
-                    onClick={() => handleSendReminder(summary.courseId)}
-                  >
-                    Nudge via reminder
-                  </button>
-                  {summary.isCompleted ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <button
-                      className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700 disabled:opacity-60"
+                      className="flex-1 px-4 py-2 rounded-lg border text-gray-700 hover:bg-white"
                       type="button"
-                      disabled={certificateLoading[summary.enrollmentId]}
-                      onClick={() =>
-                        summary.certificateUrl
-                          ? openCertificate(summary.certificateUrl)
-                          : handleGenerateCertificate(summary.enrollmentId)
-                      }
+                      onClick={() => handleSendReminder(summary.courseId)}
                     >
-                      {certificateLoading[summary.enrollmentId]
-                        ? 'Preparing certificate…'
-                        : summary.certificateUrl
-                          ? 'Download certificate'
-                          : 'Generate certificate'}
+                      Nudge via reminder
                     </button>
-                  ) : (
-                    <button
-                      className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
-                      type="button"
-                      onClick={() =>
-                        handleEnrollAction(summary.courseId, {
-                          enrollmentId: summary.enrollmentId,
-                          isCompleted: summary.isCompleted,
-                          certificateUrl: summary.certificateUrl,
-                        })
-                      }
-                    >
-                      Open modules
-                    </button>
+                    {summary.isCompleted ? (
+                      <button
+                        className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700 disabled:opacity-60"
+                        type="button"
+                        disabled={certificateLoading[summary.enrollmentId]}
+                        onClick={() =>
+                          summary.certificateUrl
+                            ? openCertificate(summary.certificateUrl)
+                            : handleGenerateCertificate(summary.enrollmentId)
+                        }
+                      >
+                        {certificateLoading[summary.enrollmentId]
+                          ? 'Preparing certificate…'
+                          : summary.certificateUrl
+                            ? 'Download certificate'
+                            : 'Generate certificate'}
+                      </button>
+                    ) : (
+                      <button
+                        className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+                        type="button"
+                        onClick={() =>
+                          handleEnrollAction(summary.courseId, {
+                            enrollmentId: summary.enrollmentId,
+                            isCompleted: summary.isCompleted,
+                            certificateUrl: summary.certificateUrl,
+                          })
+                        }
+                      >
+                        Open modules
+                      </button>
+                    )}
+                  </div>
+                  {reminderMessages[summary.courseId] && (
+                    <p className="text-xs text-emerald-600">{reminderMessages[summary.courseId]}</p>
                   )}
                 </div>
-                {reminderMessages[summary.courseId] && (
-                  <p className="text-xs text-emerald-600">{reminderMessages[summary.courseId]}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-        {toast && (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            toast.tone === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}
-        >
-          {toast.message}
-        </div>
+          </section>
         )}
 
-        <section className="grid gap-6 lg:grid-cols-2">
-        <div className="bg-white rounded-2xl shadow p-6 border border-gray-100 space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Admin cockpit</p>
-              <h2 className="text-xl font-semibold">Course creation workflow</h2>
-              <p className="text-xs text-gray-500 mt-1">Manage templates, exams, and progress for each course.</p>
-            </div>
-            {isCourseManager && (
-              <button
-                className="px-4 py-2 rounded-lg bg-primary-50 text-primary-700 text-sm"
-                type="button"
-                onClick={handleOpenNewCourse}
-              >
-                + Create course
-              </button>
-            )}
-          </div>
-
-          <form className="space-y-4" onSubmit={handleSaveDraft}>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm text-gray-600 flex flex-col gap-1">
-                Course title
-                <input
-                  type="text"
-                  placeholder="Foundation Class"
-                  value={courseDraft.title}
-                  onChange={(event) => handleDraftChange('title', event.target.value)}
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                />
-              </label>
-              <label className="text-sm text-gray-600 flex flex-col gap-1">
-                Access mode
-                <select
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                  value={courseDraft.access}
-                  onChange={(event) => handleDraftChange('access', event.target.value as AccessType)}
-                >
-                  <option value="open">Open</option>
-                  <option value="request">Request</option>
-                  <option value="invite">Invitation</option>
-                </select>
-              </label>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm text-gray-600 flex flex-col gap-1">
-                Estimated hours
-                <input
-                  type="number"
-                  min={1}
-                  value={courseDraft.estimatedHours}
-                  onChange={(event) => handleDraftChange('estimatedHours', Number(event.target.value))}
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                />
-              </label>
-              <label className="text-sm text-gray-600 flex flex-col gap-1">
-                Format tags (comma separated)
-                <input
-                  type="text"
-                  value={courseDraft.format}
-                  onChange={(event) => handleDraftChange('format', event.target.value)}
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                />
-              </label>
-            </div>
-            <label className="text-sm text-gray-600 flex flex-col gap-1">
-              Mentor roster
-              <input
-                type="text"
-                placeholder="Ada, Ben, Daniel"
-                value={courseDraft.mentors}
-                onChange={(event) => handleDraftChange('mentors', event.target.value)}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-              />
-            </label>
-            <label className="text-sm text-gray-600 flex flex-col gap-1">
-              Course summary
-              <textarea
-                placeholder="Outline what learners should expect from this discipleship journey..."
-                value={courseDraft.summary}
-                onChange={(event) => handleDraftChange('summary', event.target.value)}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                rows={3}
-              />
-            </label>
-            <div className="space-y-6">
-              <div className="border rounded-2xl p-4 space-y-4 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Certificate branding</p>
-                    <h3 className="text-sm font-semibold text-gray-900">Customize completion certificates</h3>
-                  </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Certificate template
-                    <select
-                      value={courseDraft.certificateTheme.template}
-                      onChange={(event) =>
-                        handleCertificateThemeChange('template', event.target.value as CertificateTemplate)
-                      }
-                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                    >
-                      {CERTIFICATE_TEMPLATES.map((template) => (
-                        <option key={template.value} value={template.value}>
-                          {template.label}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-xs text-gray-500">
-                      {CERTIFICATE_TEMPLATES.find((item) => item.value === courseDraft.certificateTheme.template)?.description}
-                    </span>
-                  </label>
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Issued by
-                    <input
-                      type="text"
-                      value={courseDraft.certificateTheme.issuedBy}
-                      onChange={(event) => handleCertificateThemeChange('issuedBy', event.target.value)}
-                      placeholder="Ecclesia Digital School"
-                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                    />
-                  </label>
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Accent color
-                    <input
-                      type="color"
-                      value={courseDraft.certificateTheme.accentColor}
-                      onChange={(event) => handleCertificateThemeChange('accentColor', event.target.value)}
-                      className="h-10 rounded-xl border border-gray-200 px-2 py-1"
-                    />
-                  </label>
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Secondary color
-                    <input
-                      type="color"
-                      value={courseDraft.certificateTheme.secondaryColor}
-                      onChange={(event) => handleCertificateThemeChange('secondaryColor', event.target.value)}
-                      className="h-10 rounded-xl border border-gray-200 px-2 py-1"
-                    />
-                  </label>
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Seal text
-                    <input
-                      type="text"
-                      value={courseDraft.certificateTheme.sealText}
-                      onChange={(event) => handleCertificateThemeChange('sealText', event.target.value)}
-                      placeholder="Ecclesia Training Institute"
-                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                    />
-                  </label>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Signature text
-                    <input
-                      type="text"
-                      value={courseDraft.certificateTheme.signatureText}
-                      onChange={(event) => handleCertificateThemeChange('signatureText', event.target.value)}
-                      placeholder="Lead Pastor"
-                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                    />
-                  </label>
-                  <label className="text-sm text-gray-600 flex flex-col gap-1">
-                    Background image URL
-                    <input
-                      type="url"
-                      value={courseDraft.certificateTheme.backgroundImageUrl}
-                      onChange={(event) => handleCertificateThemeChange('backgroundImageUrl', event.target.value)}
-                      placeholder="https://..."
-                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                    />
-                  </label>
-                </div>
-                <label className="text-sm text-gray-600 flex flex-col gap-1">
-                  Logo URL
-                  <input
-                    type="url"
-                    value={courseDraft.certificateTheme.logoUrl}
-                    onChange={(event) => handleCertificateThemeChange('logoUrl', event.target.value)}
-                    placeholder="https://..."
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                  />
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wide text-gray-400">Sections, modules & exams</p>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-primary-600"
-                  onClick={handleAddSection}
-                >
-                  + Add section
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {courseDraft.sections.map((section, sectionIndex) => (
-                  <div key={section.id} className="border rounded-2xl p-4 space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-400">Section {sectionIndex + 1}</p>
-                        <p className="text-sm text-gray-500">Every section ends with an exam that must be passed to unlock the next stage.</p>
-                      </div>
-                      {courseDraft.sections.length > 1 && (
-                        <button
-                          type="button"
-                          className="text-sm text-gray-500 hover:text-gray-800"
-                          onClick={() => handleRemoveSection(section.id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <label className="text-sm text-gray-600 flex flex-col gap-1">
-                        Section title
-                        <input
-                          type="text"
-                          value={section.title}
-                          onChange={(event) => handleSectionChange(section.id, 'title', event.target.value)}
-                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                          placeholder="Orientation & Ecclesia story"
-                        />
-                      </label>
-                      <label className="text-sm text-gray-600 flex flex-col gap-1">
-                        Section description
-                        <input
-                          type="text"
-                          value={section.description}
-                          onChange={(event) => handleSectionChange(section.id, 'description', event.target.value)}
-                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                          placeholder="Video walkthrough + discussion prompts"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-wide text-gray-400">Modules in this section</p>
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-primary-600"
-                          onClick={() => handleAddModule(section.id)}
-                        >
-                          + Add module
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        {section.modules.map((module, moduleIndex) => (
-                          <div key={module.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-semibold text-gray-800">Module {moduleIndex + 1}</p>
-                              {section.modules.length > 1 && (
-                                <button
-                                  type="button"
-                                  className="text-xs text-gray-500 hover:text-gray-800"
-                                  onClick={() => handleRemoveModule(section.id, module.id)}
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <label className="text-sm text-gray-600 flex flex-col gap-1">
-                                Module title
-                                <input
-                                  type="text"
-                                  value={module.title}
-                                  onChange={(event) => handleModuleChange(section.id, module.id, 'title', event.target.value)}
-                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
-                                  placeholder="Welcome to Ecclesia"
-                                />
-                              </label>
                               <label className="text-sm text-gray-600 flex flex-col gap-1">
                                 Module description
-                                <input
-                                  type="text"
-                                  value={module.description}
                                   onChange={(event) => handleModuleChange(section.id, module.id, 'description', event.target.value)}
                                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
                                   placeholder="Context for this lesson"

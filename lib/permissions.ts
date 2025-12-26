@@ -100,6 +100,9 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'approve_testimonies',
     'manage_volunteers',
   ],
+  STAFF: [
+    'view_users',
+  ],
 }
 
 /**
@@ -160,12 +163,12 @@ export function canManageUser(
 
   // Branch admin can manage members, leaders, volunteers, and visitors
   if (actorRole === 'BRANCH_ADMIN') {
-    return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER'].includes(targetRole)
+    return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'STAFF'].includes(targetRole)
   }
 
   // Pastor can manage members, leaders, and visitors
   if (actorRole === 'PASTOR') {
-    return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'BRANCH_ADMIN'].includes(targetRole)
+    return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'BRANCH_ADMIN', 'STAFF'].includes(targetRole)
   }
 
   // Leader can manage members and visitors
