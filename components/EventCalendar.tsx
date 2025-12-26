@@ -256,6 +256,25 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
   }
 
+  const buildReminderPayload = () => {
+    if (!newEvent.reminderEnabled) {
+      return null
+    }
+
+    const durationHours = Number(newEvent.reminderDurationHours)
+    const frequencyMinutes = Number(newEvent.reminderFrequencyMinutes)
+
+    if (!durationHours || durationHours <= 0 || !frequencyMinutes || frequencyMinutes <= 0) {
+      return null
+    }
+
+    return {
+      durationHours,
+      frequencyMinutes,
+      message: newEvent.reminderMessage?.trim() || undefined,
+    }
+  }
+
   const handleCreateEvent = async () => {
     if (!selectedDate || !newEvent.title) {
       alert('Please provide a title for the event')
@@ -288,12 +307,9 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
         requestBody.recurrenceEndDate = new Date(newEvent.recurrenceEndDate).toISOString()
       }
 
-      if (newEvent.reminderEnabled) {
-        requestBody.reminderConfig = {
-          durationHours: Number(newEvent.reminderDurationHours) || 0,
-          frequencyMinutes: Number(newEvent.reminderFrequencyMinutes) || 0,
-          message: newEvent.reminderMessage || undefined,
-        }
+      const reminderPayload = buildReminderPayload()
+      if (reminderPayload) {
+        requestBody.reminderConfig = reminderPayload
       }
 
       const response = await fetch('/api/events', {
@@ -320,6 +336,7 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
   const handleEditEvent = (event: Event) => {
     setEditingEvent(event)
     const baseState = createDefaultEventState()
+    const reminderConfig = event.reminderConfig
     setNewEvent({
       ...baseState,
       title: event.title,
@@ -328,6 +345,10 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
       endTime: event.endTime,
       location: event.location || '',
       type: event.type || 'SERVICE',
+      reminderEnabled: Boolean(reminderConfig),
+      reminderDurationHours: reminderConfig?.durationHours || baseState.reminderDurationHours,
+      reminderFrequencyMinutes: reminderConfig?.frequencyMinutes || baseState.reminderFrequencyMinutes,
+      reminderMessage: reminderConfig?.message || '',
     })
     setShowDayPlanner(false)
     setShowCreateEvent(true)
@@ -349,6 +370,7 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
       const [endHour, endMinute] = newEvent.endTime.split(':')
       endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0, 0)
 
+      const reminderConfig = buildReminderPayload()
       const response = await fetch(`/api/events/${editingEvent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -359,6 +381,7 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
           endDate: endDateTime.toISOString(),
           location: newEvent.location,
           type: newEvent.type,
+          reminderConfig: reminderConfig ?? null,
         }),
       })
 
@@ -785,61 +808,151 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
                       <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
                         🔄 Recurring Event
                       </label>
+                    </div>
+
+                    {newEvent.isRecurring && (
+                      <div className="space-y-3 ml-7">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Repeat Pattern
+                          </label>
+                          <select
+                            value={newEvent.recurrencePattern}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                recurrencePattern: e.target.value as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY',
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                          >
+                            <option value="WEEKLY">Weekly (every week)</option>
+                            <option value="BIWEEKLY">Bi-weekly (every 2 weeks)</option>
+                            <option value="MONTHLY">Monthly (same day each month)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            End Date *
+                          </label>
+                          <input
+                            type="date"
+                            value={newEvent.recurrenceEndDate}
+                            onChange={(e) => setNewEvent({ ...newEvent, recurrenceEndDate: e.target.value })}
+                            min={selectedDate?.toISOString().split('T')[0]}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                            required={newEvent.isRecurring}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Events will be created up to this date
+                          </p>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <p className="text-xs text-blue-800">
+                            💡 <strong>Tip:</strong> Recurring events will automatically appear on your calendar.
+                            Perfect for weekly services, monthly meetings, or regular events!
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Reminder options */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="reminderEnabled"
+                      checked={newEvent.reminderEnabled}
+                      onChange={(e) => setNewEvent({ ...newEvent, reminderEnabled: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <div className="flex-1">
+                      <label
+                        htmlFor="reminderEnabled"
+                        className="text-sm font-medium text-gray-700 flex items-center gap-2"
+                      >
+                        🔔 Send reminder push notifications
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Automatically notify registered members leading up to the event.
+                      </p>
+                    </div>
                   </div>
 
-                  {newEvent.isRecurring && (
-                    <div className="space-y-3 ml-7">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Repeat Pattern
-                        </label>
-                        <select
-                          value={newEvent.recurrencePattern}
-                          onChange={(e) => setNewEvent({ ...newEvent, recurrencePattern: e.target.value as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                        >
-                          <option value="WEEKLY">Weekly (every week)</option>
-                          <option value="BIWEEKLY">Bi-weekly (every 2 weeks)</option>
-                          <option value="MONTHLY">Monthly (same day each month)</option>
-                        </select>
-              </div>
+                  {newEvent.reminderEnabled && (
+                    <div className="mt-4 space-y-3 ml-7">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            How far ahead should reminders run?
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={72}
+                            value={newEvent.reminderDurationHours}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                reminderDurationHours: Number(e.target.value || 0),
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                            placeholder="e.g., 6 hours"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Enter number of hours before start time.</p>
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          End Date *
-                        </label>
-                        <input
-                          type="date"
-                          value={newEvent.recurrenceEndDate}
-                          onChange={(e) => setNewEvent({ ...newEvent, recurrenceEndDate: e.target.value })}
-                          min={selectedDate?.toISOString().split('T')[0]}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                          required={newEvent.isRecurring}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Events will be created up to this date
-                        </p>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Reminder frequency (minutes)
+                          </label>
+                          <input
+                            type="number"
+                            min={5}
+                            max={180}
+                            step={5}
+                            value={newEvent.reminderFrequencyMinutes}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                reminderFrequencyMinutes: Number(e.target.value || 0),
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                            placeholder="e.g., every 30 minutes"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Minimum 5 minutes between reminders.</p>
+                        </div>
                       </div>
 
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs text-blue-800">
-                          💡 <strong>Tip:</strong> Recurring events will automatically appear on your calendar.
-                          Perfect for weekly services, monthly meetings, or regular events!
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Custom message (optional)
+                        </label>
+                        <textarea
+                          value={newEvent.reminderMessage}
+                          onChange={(e) => setNewEvent({ ...newEvent, reminderMessage: e.target.value })}
+                          rows={2}
+                          placeholder="Friendly reminder that Sunday Service starts soon..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Leave blank to use the default auto-generated reminder.
                         </p>
                       </div>
                     </div>
                   )}
-                  </div>
-                )}
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex gap-4">
                 <button
-                  onClick={() => {
-                    setShowCreateEvent(false)
-                    setEditingEvent(null)
-                  }}
+                  onClick={closeEventForm}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel

@@ -1,11 +1,35 @@
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { EventService } from '@/lib/services/event-service'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import { EventReminderService } from '@/lib/services/event-reminder-service'
+
+const normalizeReminderConfig = (config?: {
+  durationHours?: number
+  frequencyMinutes?: number
+  message?: string
+} | null) => {
+  if (!config) return undefined
+  const durationHours = Number(config.durationHours)
+  const frequencyMinutes = Number(config.frequencyMinutes)
+
+  if (!durationHours || durationHours <= 0 || !frequencyMinutes || frequencyMinutes <= 0) {
+    return undefined
+  }
+
+  const trimmedMessage = typeof config.message === 'string' ? config.message.trim() : undefined
+
+  return {
+    durationHours,
+    frequencyMinutes,
+    message: trimmedMessage || undefined,
+  }
+}
 
 export async function GET(
   request: Request,
@@ -69,7 +93,11 @@ export async function PATCH(
       isTicketed,
       ticketPrice,
       imageUrl,
+      reminderConfig,
     } = body
+
+    const reminderPayloadProvided = Object.prototype.hasOwnProperty.call(body, 'reminderConfig')
+    const normalizedReminderConfig = reminderPayloadProvided ? normalizeReminderConfig(reminderConfig) : undefined
 
     const updatedEvent = await EventService.update(eventId, {
       ...(title && { title }),
@@ -82,7 +110,20 @@ export async function PATCH(
       ...(isTicketed !== undefined && { isTicketed }),
       ...(ticketPrice !== undefined && { ticketPrice }),
       ...(imageUrl !== undefined && { imageUrl }),
+      ...(reminderPayloadProvided && { reminderConfig: normalizedReminderConfig || null }),
     })
+
+    if (updatedEvent?.id && (reminderPayloadProvided || updatedEvent.reminderConfig)) {
+      await EventReminderService.clearScheduledForEvent(eventId)
+
+      if (updatedEvent.reminderConfig) {
+        await EventReminderService.scheduleForEvent(updatedEvent, {
+          ...updatedEvent.reminderConfig,
+          churchId: updatedEvent.churchId,
+          createdBy: (session.user as any).id,
+        })
+      }
+    }
 
     return NextResponse.json(updatedEvent)
   } catch (error: any) {

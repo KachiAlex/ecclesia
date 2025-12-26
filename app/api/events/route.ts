@@ -1,12 +1,51 @@
-
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+
 import { authOptions } from '@/lib/auth-options'
-import { EventService } from '@/lib/services/event-service'
-import { EventRegistrationService } from '@/lib/services/event-registration-service'
 import { getCurrentChurch } from '@/lib/church-context'
 import { checkUsageLimit } from '@/lib/subscription'
+import { EventReminderService } from '@/lib/services/event-reminder-service'
+import { EventService, type Event } from '@/lib/services/event-service'
+import { EventRegistrationService } from '@/lib/services/event-registration-service'
+
+const normalizeReminderConfig = (config?: {
+  durationHours?: number
+  frequencyMinutes?: number
+  message?: string
+} | null) => {
+  if (!config) return undefined
+  const durationHours = Number(config.durationHours)
+  const frequencyMinutes = Number(config.frequencyMinutes)
+
+  if (!durationHours || durationHours <= 0 || !frequencyMinutes || frequencyMinutes <= 0) {
+    return undefined
+  }
+
+  const trimmedMessage = typeof config.message === 'string' ? config.message.trim() : undefined
+
+  return {
+    durationHours,
+    frequencyMinutes,
+    message: trimmedMessage || undefined,
+  }
+}
+
+const scheduleRemindersForEvent = async (
+  event: Event,
+  reminderConfig: ReturnType<typeof normalizeReminderConfig>,
+  churchId: string,
+  createdBy: string
+) => {
+  if (!reminderConfig) return
+  await EventReminderService.scheduleForEvent(event, {
+    ...reminderConfig,
+    churchId,
+    createdBy,
+  })
+}
 
 export async function GET(request: Request) {
   try {
@@ -127,6 +166,7 @@ export async function POST(request: Request) {
       isRecurring,
       recurrencePattern,
       recurrenceEndDate,
+      reminderConfig,
     } = body
 
     if (!title || !startDate || !type) {
@@ -150,6 +190,8 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    const normalizedReminderConfig = normalizeReminderConfig(reminderConfig)
 
     // Create recurring events if specified
     if (isRecurring) {
@@ -220,9 +262,13 @@ export async function POST(request: Request) {
           isTicketed: isTicketed || false,
           ticketPrice: ticketPrice || undefined,
           imageUrl: imageUrl || undefined,
+          reminderConfig: normalizedReminderConfig || undefined,
         })
-        
+
         events.push(event)
+        if (normalizedReminderConfig) {
+          await scheduleRemindersForEvent(event, normalizedReminderConfig, church.id, userId)
+        }
         
         // Calculate next occurrence
         if (recurrencePattern === 'WEEKLY') {
@@ -268,7 +314,12 @@ export async function POST(request: Request) {
       isTicketed: isTicketed || false,
       ticketPrice: ticketPrice || undefined,
       imageUrl: imageUrl || undefined,
+      reminderConfig: normalizedReminderConfig || undefined,
     })
+
+    if (normalizedReminderConfig) {
+      await scheduleRemindersForEvent(event, normalizedReminderConfig, church.id, userId)
+    }
 
     return NextResponse.json(event, { status: 201 })
   } catch (error: any) {

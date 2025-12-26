@@ -1,5 +1,3 @@
-'use server'
-
 import { FieldValue } from 'firebase-admin/firestore'
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
