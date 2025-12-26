@@ -343,8 +343,8 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600">High-level indicators before diving into the full reports hub.</p>
             </div>
             <Link
-              href="/(dashboard)/reports"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold shadow-sm hover:bg-gray-800"
+              href="/reports"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold shadow-sm hover:bg-primary-700 transition-colors"
             >
               Open reports
               <span aria-hidden="true">↗</span>
@@ -373,8 +373,8 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-600">Switch branches, filter by date, and export detailed attendance & finance metrics.</p>
             </div>
             <Link
-              href="/(dashboard)/reports"
-              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-white"
+              href="/reports"
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white text-sm font-semibold text-primary-700 border border-primary-100 shadow-sm hover:bg-primary-50"
             >
               Go to reports hub
             </Link>

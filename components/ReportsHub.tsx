@@ -303,9 +303,9 @@ export default function ReportsHub() {
             <button
               onClick={() => loadReports(true)}
               disabled={refreshing}
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold disabled:opacity-60"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold shadow-sm hover:bg-primary-700 disabled:opacity-60 disabled:hover:bg-primary-600"
             >
-              {refreshing ? 'Refreshing...' : 'Apply filters'}
+              {refreshing ? 'Refreshing…' : 'Apply filters'}
             </button>
           </div>
         </div>
