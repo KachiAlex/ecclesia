@@ -754,9 +754,6 @@ export default function GivingConfigDashboard() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
 
               <div className="flex justify-end">
                 <button
@@ -769,6 +766,7 @@ export default function GivingConfigDashboard() {
               </div>
             </div>
           )}
+
         </div>
 
         {/* Save Button */}

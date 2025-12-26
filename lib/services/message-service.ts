@@ -114,6 +114,35 @@ export class MessageService {
     })) as Message[]
   }
 
+  static async listUserMessages(userId: string): Promise<Message[]> {
+    const sentSnapshot = await db
+      .collection(COLLECTIONS.messages)
+      .where('senderId', '==', userId)
+      .get()
+
+    const receivedSnapshot = await db
+      .collection(COLLECTIONS.messages)
+      .where('receiverId', '==', userId)
+      .get()
+
+    const merged = [
+      ...sentSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
+      ...receivedSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
+    ].sort((a, b) => {
+      const dateA = toDate(a.createdAt).getTime()
+      const dateB = toDate(b.createdAt).getTime()
+      return dateA - dateB
+    })
+
+    return merged.map((msg) => ({
+      id: msg.id,
+      read: msg.read || false,
+      ...msg,
+      createdAt: toDate(msg.createdAt),
+      updatedAt: toDate(msg.updatedAt),
+    })) as Message[]
+  }
+
   static async markAsRead(messageId: string): Promise<void> {
     await db.collection(COLLECTIONS.messages).doc(messageId).update({
       read: true,
@@ -141,6 +170,18 @@ export class MessageService {
   static async getUnreadCount(userId: string): Promise<number> {
     const snapshot = await db.collection(COLLECTIONS.messages)
       .where('receiverId', '==', userId)
+      .where('read', '==', false)
+      .count()
+      .get()
+
+    return snapshot.data().count || 0
+  }
+
+  static async getUnreadCountFromUser(userId: string, otherUserId: string): Promise<number> {
+    const snapshot = await db
+      .collection(COLLECTIONS.messages)
+      .where('receiverId', '==', userId)
+      .where('senderId', '==', otherUserId)
       .where('read', '==', false)
       .count()
       .get()

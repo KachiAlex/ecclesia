@@ -50,47 +50,71 @@ export async function GET(request: Request) {
       return NextResponse.json(messagesWithUsers)
     }
 
-    // Get all conversations - need to get all messages and group them
-    // This is less efficient but Firestore doesn't support OR queries easily
-    const sentMessages = await MessageService.findByConversation(userId, userId, 1000) // Get all sent
-    const receivedMessages = await MessageService.findByConversation(userId, userId, 1000) // Get all received
-    
-    // Combine and get unique partners
-    const allMessages = [...sentMessages, ...receivedMessages]
-    const partnerIds = new Set<string>()
-    allMessages.forEach(msg => {
-      if (msg.senderId !== userId) partnerIds.add(msg.senderId)
-      if (msg.receiverId !== userId) partnerIds.add(msg.receiverId)
-    })
+    // Get all messages (sent & received) to derive conversation list
+    const allMessages = await MessageService.listUserMessages(userId)
 
-    // Group by conversation partner
-    const conversationMap = new Map<string, any>()
+    const partnerIds = Array.from(
+      new Set(
+        allMessages
+          .map((message) => (message.senderId === userId ? message.receiverId : message.senderId))
+          .filter((partnerId): partnerId is string => Boolean(partnerId) && partnerId !== userId)
+      )
+    )
 
-    for (const partnerId of partnerIds) {
-      const conversationMessages = await MessageService.findByConversation(userId, partnerId, 1)
-      if (conversationMessages.length > 0) {
-        const lastMessage = conversationMessages[conversationMessages.length - 1]
-        const partner = await UserService.findById(partnerId)
-        const unreadCount = await MessageService.getUnreadCount(userId)
-
-        conversationMap.set(partnerId, {
-          partner: partner ? {
-            id: partner.id,
-            firstName: partner.firstName,
-            lastName: partner.lastName,
-            profileImage: partner.profileImage,
-          } : null,
-          lastMessage: {
-            ...lastMessage,
-            senderId: lastMessage.senderId,
-            receiverId: lastMessage.receiverId,
-          },
-          unreadCount: lastMessage.receiverId === userId && !lastMessage.read ? 1 : 0,
-        })
+    const partnerMeta = new Map<
+      string,
+      {
+        user: Awaited<ReturnType<typeof UserService.findById>> | null
+        unreadCount: number
       }
-    }
+    >()
 
-    return NextResponse.json(Array.from(conversationMap.values()))
+    await Promise.all(
+      partnerIds.map(async (partnerId) => {
+        const [user, unreadCount] = await Promise.all([
+          UserService.findById(partnerId),
+          MessageService.getUnreadCountFromUser(userId, partnerId),
+        ])
+        partnerMeta.set(partnerId, { user, unreadCount })
+      })
+    )
+
+    const conversations = partnerIds
+      .map((partnerId) => {
+        const conversationMessages = allMessages.filter(
+          (message) => message.senderId === partnerId || message.receiverId === partnerId
+        )
+
+        if (!conversationMessages.length) {
+          return null
+        }
+
+        const lastMessage = conversationMessages[conversationMessages.length - 1]
+        const meta = partnerMeta.get(partnerId)
+
+        return {
+          partner: meta?.user
+            ? {
+                id: meta.user.id,
+                firstName: meta.user.firstName,
+                lastName: meta.user.lastName,
+                profileImage: meta.user.profileImage,
+              }
+            : null,
+          lastMessage: {
+            content: lastMessage.content,
+            createdAt:
+              lastMessage.createdAt instanceof Date
+                ? lastMessage.createdAt.toISOString()
+                : new Date(lastMessage.createdAt).toISOString(),
+            senderId: lastMessage.senderId,
+          },
+          unreadCount: meta?.unreadCount || 0,
+        }
+      })
+      .filter((conversation): conversation is NonNullable<typeof conversation> => Boolean(conversation))
+
+    return NextResponse.json(conversations)
   } catch (error) {
     console.error('Error fetching messages:', error)
     return NextResponse.json(

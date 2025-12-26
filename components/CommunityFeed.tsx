@@ -646,7 +646,27 @@ export default function CommunityFeed() {
               <div className="p-6 pt-4">
                 <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                   <span>{post._count.likes} likes</span>
-                  <span>{post._count.comments} comments</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const next = openCommentsPostId === post.id ? null : post.id
+                      setOpenCommentsPostId(next)
+                      if (next && !(commentsByPostId[post.id]?.length)) {
+                        await loadComments(post.id)
+                      }
+                    }}
+                    className="flex items-center gap-1 hover:text-primary-600 transition-colors"
+                  >
+                    {post._count.comments} comments
+                    <svg
+                      className={`w-4 h-4 transition-transform ${openCommentsPostId === post.id ? 'rotate-180 text-primary-600' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
