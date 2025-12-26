@@ -39,6 +39,8 @@ interface GivingConfig {
   defaultMethod?: string
 }
 
+type Toast = { message: string; tone: 'success' | 'error' }
+
 export default function GivingConfigDashboard() {
   const [config, setConfig] = useState<GivingConfig>({
     paymentMethods: {
@@ -60,6 +62,7 @@ export default function GivingConfigDashboard() {
     currency: 'USD',
     instructions: '',
   })
+  const [toast, setToast] = useState<Toast | null>(null)
 
   useEffect(() => {
     loadConfig()
@@ -106,7 +109,13 @@ export default function GivingConfigDashboard() {
     }
   }
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (!toast) return
+    const timeout = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [toast])
+
+  const handleSave = async (successMessage?: string) => {
     setSaving(true)
     try {
       const response = await fetch('/api/giving/config', {
@@ -116,14 +125,14 @@ export default function GivingConfigDashboard() {
       })
 
       if (response.ok) {
-        alert('Configuration saved successfully!')
+        setToast({ message: successMessage ?? 'Configuration saved successfully!', tone: 'success' })
         loadConfig()
       } else {
-        alert('Failed to save configuration')
+        setToast({ message: 'Failed to save configuration', tone: 'error' })
       }
     } catch (error) {
       console.error('Error saving config:', error)
-      alert('Failed to save configuration')
+      setToast({ message: 'Failed to save configuration', tone: 'error' })
     } finally {
       setSaving(false)
     }
@@ -188,6 +197,18 @@ export default function GivingConfigDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-50 flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg text-white ${
+            toast.tone === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+          }`}
+        >
+          <span className="text-sm font-medium">{toast.message}</span>
+          <button className="text-white/80 hover:text-white text-sm" onClick={() => setToast(null)}>
+            ×
+          </button>
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Giving Configuration</h1>
         <p className="text-gray-600">
@@ -324,6 +345,15 @@ export default function GivingConfigDashboard() {
                   and find your API keys in the Developers section.
                 </p>
               </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => handleSave('Stripe settings saved!')}
+                  disabled={saving}
+                  className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Stripe Settings'}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -413,6 +443,15 @@ export default function GivingConfigDashboard() {
                   </a>{' '}
                   and find your API keys in Settings → API Keys & Webhooks.
                 </p>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => handleSave('Paystack settings saved!')}
+                  disabled={saving}
+                  className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Paystack Settings'}
+                </button>
               </div>
             </div>
           )}
@@ -556,7 +595,7 @@ export default function GivingConfigDashboard() {
 
               <div className="flex justify-end">
                 <button
-                  onClick={handleSave}
+                  onClick={() => handleSave('Flutterwave settings saved!')}
                   disabled={saving}
                   className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                 >
@@ -719,10 +758,23 @@ export default function GivingConfigDashboard() {
           )}
         </div>
 
+              <div className="flex justify-end">
+                <button
+                  onClick={() => handleSave('Bank transfer settings saved!')}
+                  disabled={saving}
+                  className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Bank Transfer Settings'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Save Button */}
         <div className="flex justify-end gap-4">
           <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={saving}
             className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
