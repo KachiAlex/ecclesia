@@ -2601,7 +2601,7 @@ export default function DigitalSchool() {
                       className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
                       onClick={() => handleEnrollAction(course.id)}
                     >
-                      {actionLabel(course.access, course.status)}
+                      {courseActionLabel(course, enrollmentRecords.find((en) => en.courseId === course.id))}
                     </button>
                     <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
                   </div>
