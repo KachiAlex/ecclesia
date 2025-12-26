@@ -651,27 +651,6 @@ export default function DigitalSchool() {
     })
   }, [])
 
-  const pendingItems = useMemo(
-    () =>
-      TODO_ITEMS.map((item, index) => ({
-        ...item,
-        label: `DS-0${index + 1}`,
-      })),
-    [],
-  )
-
-  const courseStats = useMemo(() => {
-    const pendingInvites = accessRequests.filter((req) =>
-      req.status.toLowerCase().includes('await') || req.status.toLowerCase().includes('pending'),
-    ).length
-    const badgesEarned = progressRows.filter((row) => row.completion >= 100).length
-    return [
-      { label: 'Active Courses', value: courses.length },
-      { label: 'Invites Pending', value: pendingInvites },
-      { label: 'Badges Earned', value: badgesEarned },
-    ]
-  }, [accessRequests, courses, progressRows])
-
   const loadCourses = useCallback(async () => {
     setIsLoadingCourses(true)
     try {
@@ -2397,6 +2376,52 @@ export default function DigitalSchool() {
   return (
     <>
       {builderModal}
+      {isCourseManager ? (
+        !isBuilderOpen && (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-6 py-12 text-center">
+            <div className="max-w-md space-y-4">
+              <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Digital School</p>
+              <h1 className="text-3xl font-semibold text-gray-900">Course creation workspace</h1>
+              <p className="text-sm text-gray-600">
+                Launch the builder modal to create new discipleship tracks or resume an existing draft.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleOpenNewCourse}
+                  className="px-4 py-2 rounded-full bg-primary-600 text-white text-sm font-semibold shadow hover:bg-primary-700"
+                >
+                  Open course builder
+                </button>
+                {latestDraftId && (
+                  <button
+                    type="button"
+                    onClick={() => void handleResumeDraft(latestDraftId)}
+                    disabled={resumingCourseId === latestDraftId}
+                    className="px-4 py-2 rounded-full border text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    {resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft'}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                Closing the modal returns you to this launcher so you can reopen it whenever you need to edit courses.
+              </p>
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
+          <div className="max-w-md rounded-2xl bg-white p-6 text-center shadow">
+            <h2 className="text-lg font-semibold text-gray-900">Access restricted</h2>
+            <p className="text-sm text-gray-600 mt-2">You need an administrator role to manage Digital School courses.</p>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  /*
       <div className="container mx-auto px-4 py-8 space-y-8">
         <section className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white p-8 shadow-lg">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
