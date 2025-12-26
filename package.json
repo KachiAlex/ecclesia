@@ -23,6 +23,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.948.0",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource/inter": "^5.2.8",
     "@google-cloud/firestore": "^8.0.0",
     "@google-cloud/storage": "^7.18.0",
     "@headlessui/react": "^2.2.9",

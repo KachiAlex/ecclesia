@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import '@fontsource-variable/inter/index.css'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
 export const dynamic = 'force-dynamic'
 
