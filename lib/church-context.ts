@@ -51,6 +51,13 @@ export async function setCurrentChurchId(churchId: string) {
 /**
  * Get current church with subscription info
  */
+const serialize = <T>(value: T): T => {
+  if (value === null || value === undefined) {
+    return value
+  }
+  return JSON.parse(JSON.stringify(value))
+}
+
 export async function getCurrentChurch(userId?: string) {
   const churchId = await getCurrentChurchId(userId)
   if (!churchId) {
@@ -79,9 +86,9 @@ export async function getCurrentChurch(userId?: string) {
     }
   }
 
-  return {
+  return serialize({
     ...church,
     subscription,
-  }
+  })
 }
 

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
@@ -35,6 +36,14 @@ export default async function BrandingPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <Link href="/settings" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+          <span aria-hidden="true" className="mr-2">
+            ←
+          </span>
+          Back to settings
+        </Link>
+      </div>
       <h1 className="text-3xl font-bold mb-8">Branding Settings</h1>
       <BrandingSettings church={church} />
     </div>

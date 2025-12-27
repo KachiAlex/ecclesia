@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
@@ -39,6 +40,12 @@ async function HierarchySettingsPageInner() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
+          <Link href="/settings" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-2">
+            <span aria-hidden="true" className="mr-2">
+              ←
+            </span>
+            Back to settings
+          </Link>
           <h1 className="text-3xl font-bold text-gray-900">Hierarchy levels</h1>
           <p className="text-gray-600 mt-1">
             Define the labels and order for headquarters, regions, zones, and other tiers in your
