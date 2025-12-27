@@ -237,7 +237,11 @@ export async function getSubscriptionStatus(churchId: string) {
   const plan = await SubscriptionPlanService.findById(subscription.planId)
   const usage = await getChurchUsage(churchId)
   const limits = await getPlanLimits(subscription.planId)
-  const active = await isSubscriptionActive(churchId)
+
+  const planPrice = typeof plan?.price === 'number' ? plan.price : Number(plan?.price ?? 0)
+  const isFreePlan = planPrice <= 0
+  const baseActive = await isSubscriptionActive(churchId)
+  const active = baseActive || isFreePlan
 
   // Calculate current billing period
   const now = new Date()
@@ -259,16 +263,18 @@ export async function getSubscriptionStatus(churchId: string) {
   }
 
   // Transform subscription to include required fields
+  const normalizedStatus = isFreePlan ? 'ACTIVE' : subscription.status
   const subscriptionWithPeriod = {
     ...subscription,
+    status: normalizedStatus,
     currentPeriodStart,
     currentPeriodEnd,
-    cancelAtPeriodEnd: subscription.status === 'CANCELLED' || subscription.status === 'CANCELING',
+    cancelAtPeriodEnd: normalizedStatus === 'CANCELLED' || normalizedStatus === 'CANCELING',
   }
 
   return {
     active,
-    status: subscription.status,
+    status: normalizedStatus,
     plan,
     usage,
     limits,
