@@ -84,5 +84,8 @@
     "typescript": "^5.3.3",
     "vite-tsconfig-paths": "^6.0.1",
     "vitest": "^4.0.16"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.54.0"
   }
 }
