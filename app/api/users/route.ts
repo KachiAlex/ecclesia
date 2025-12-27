@@ -6,6 +6,33 @@ import { canManageUser } from '@/lib/permissions'
 import { checkUsageLimit } from '@/lib/subscription'
 import { guardApi } from '@/lib/api-guard'
 import { DesignationService } from '@/lib/services/designation-service'
+import { StaffLevelService, STAFF_PAY_FREQUENCIES } from '@/lib/services/staff-level-service'
+
+const isValidCurrency = (value: unknown) => typeof value === 'string' && /^[A-Z]{3}$/.test(value.trim())
+const isValidAmount = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0
+
+const normalizeCustomWage = (input: any) => {
+  if (!input || typeof input !== 'object') {
+    throw new Error('Custom wage must include amount, currency, and payFrequency')
+  }
+  const amount = typeof input.amount === 'number' ? input.amount : Number(input.amount)
+  if (!isValidAmount(amount)) {
+    throw new Error('Custom wage amount must be greater than 0')
+  }
+  const currency = String(input.currency ?? '').trim().toUpperCase()
+  if (!isValidCurrency(currency)) {
+    throw new Error('Custom wage currency must be a 3-letter ISO code')
+  }
+  const payFrequency = String(input.payFrequency ?? '').toLowerCase()
+  if (!STAFF_PAY_FREQUENCIES.includes(payFrequency as any)) {
+    throw new Error('Custom wage pay frequency is invalid')
+  }
+  return {
+    amount,
+    currency,
+    payFrequency,
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -28,6 +55,7 @@ export async function GET(request: Request) {
     const branchId = searchParams.get('branchId')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
+    const staffFilter = searchParams.get('isStaff')
 
     // Get users by church
     let users = await UserService.findByChurch(church.id, limit * page) // Get more to filter
@@ -40,6 +68,12 @@ export async function GET(request: Request) {
     // Filter by role
     if (roleFilter) {
       users = users.filter(user => user.role === roleFilter)
+    }
+
+    if (staffFilter === 'true') {
+      users = users.filter((user: any) => Boolean(user.isStaff))
+    } else if (staffFilter === 'false') {
+      users = users.filter((user: any) => !user.isStaff)
     }
 
     // Filter by designation
@@ -113,6 +147,9 @@ export async function POST(request: Request) {
       dateOfBirth,
       employmentStatus,
       designationId,
+      isStaff,
+      staffLevelId,
+      customWage,
     } = body
 
     // Validate input
@@ -171,6 +208,35 @@ export async function POST(request: Request) {
       designationName = designation.name
     }
 
+    let normalizedStaffLevelId: string | null = null
+    let normalizedStaffLevelName: string | undefined
+    let normalizedCustomWage: { amount: number; currency: string; payFrequency: string } | null = null
+    const isStaffFlag = Boolean(isStaff)
+
+    if (isStaffFlag) {
+      if (!staffLevelId) {
+        return NextResponse.json({ error: 'Staff level is required for staff members' }, { status: 400 })
+      }
+      const staffLevel = await StaffLevelService.get(church.id, staffLevelId)
+      if (!staffLevel) {
+        return NextResponse.json({ error: 'Invalid staff level' }, { status: 400 })
+      }
+      normalizedStaffLevelId = staffLevel.id
+      normalizedStaffLevelName = staffLevel.name
+
+      if (customWage) {
+        try {
+          normalizedCustomWage = normalizeCustomWage(customWage)
+        } catch (err: any) {
+          return NextResponse.json({ error: err.message }, { status: 400 })
+        }
+      }
+    } else {
+      normalizedStaffLevelId = null
+      normalizedStaffLevelName = undefined
+      normalizedCustomWage = null
+    }
+
     // Create user
     const user = await UserService.create({
       firstName,
@@ -186,6 +252,10 @@ export async function POST(request: Request) {
       employmentStatus: employmentStatus || undefined,
       designationId: designationId || undefined,
       designationName,
+      isStaff: isStaffFlag,
+      staffLevelId: normalizedStaffLevelId || undefined,
+      staffLevelName: normalizedStaffLevelName,
+      customWage: normalizedCustomWage,
     } as any)
 
     // Remove password from response

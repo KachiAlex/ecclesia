@@ -2,6 +2,7 @@ import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import bcrypt from 'bcryptjs'
 import { FieldValue, Query } from 'firebase-admin/firestore'
+import type { PayFrequencyOption } from './staff-level-service'
 
 export interface User {
   id: string
@@ -27,6 +28,14 @@ export interface User {
   bio?: string
   spiritualMaturity?: string
   employmentStatus?: string
+  isStaff?: boolean
+  staffLevelId?: string
+  staffLevelName?: string
+  customWage?: {
+    amount: number
+    currency: string
+    payFrequency: PayFrequencyOption
+  }
   parentId?: string
   spouseId?: string
   xp?: number
@@ -87,6 +96,10 @@ export class UserService {
       password: hashedPassword,
       xp: data.xp || 0,
       level: data.level || 1,
+      isStaff: Boolean(data.isStaff),
+      staffLevelId: data.staffLevelId || null,
+      staffLevelName: data.staffLevelName || null,
+      customWage: data.customWage || null,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }

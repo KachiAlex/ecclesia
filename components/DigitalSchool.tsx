@@ -1,5 +1,28 @@
 'use client'
 
+type AnalyticsBadgeProps = {
+  label: string
+  value: number
+  tone: 'slate' | 'gray' | 'amber' | 'emerald'
+}
+
+const TONE_STYLES: Record<AnalyticsBadgeProps['tone'], { bg: string; text: string }> = {
+  slate: { bg: 'bg-slate-100', text: 'text-slate-900' },
+  gray: { bg: 'bg-gray-100', text: 'text-gray-900' },
+  amber: { bg: 'bg-amber-100', text: 'text-amber-900' },
+  emerald: { bg: 'bg-emerald-100', text: 'text-emerald-900' },
+}
+
+const AnalyticsBadge = ({ label, value, tone }: AnalyticsBadgeProps) => {
+  const style = TONE_STYLES[tone]
+  return (
+    <div className={`rounded-2xl ${style.bg} p-4`}>
+      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${style.text}`}>{value}</p>
+    </div>
+  )
+}
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import Link from 'next/link'
@@ -13,6 +36,7 @@ type CoursePricing =
   | { type: 'paid'; amount: number; currency?: string }
 
 const COURSE_MANAGER_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR'])
+type QuestionFilter = 'all' | 'correct' | 'incorrect'
 
 type Course = {
   id: string
@@ -49,11 +73,56 @@ type EnrollmentQueueItem = {
   certificateUrl?: string
 }
 
+type CourseAnalyticsRow = {
+  enrollmentId: string
+  userId: string
+  memberName: string
+  churchLevel: string
+  branch: string
+  designation: string
+  progressPercent: number
+  status: string
+  examScore: number | null
+  lastExamAt: string | null
+}
+
+type CourseAnalyticsSummary = {
+  total: number
+  notStarted: number
+  inProgress: number
+  completed: number
+}
+
 type AdminAction = {
   title: string
   status: string
   updatedBy: string
   timestamp: string
+}
+
+type ExamAttemptRow = {
+  id: string
+  examId: string
+  courseId: string
+  status: 'in_progress' | 'submitted'
+  score: number | null
+  totalQuestions: number | null
+  startedAt: string
+  submittedAt?: string | null
+  responses?: Array<{ questionId: string; answerIndex: number; correct: boolean }>
+  examMeta?: {
+    id: string
+    title: string
+    sectionId?: string | null
+  } | null
+  questionSummaries?: ExamQuestionSummary[]
+}
+
+type ExamQuestionSummary = {
+  id: string
+  question: string
+  options: string[]
+  correctOption: number
 }
 
 type AccessRequest = {
@@ -78,6 +147,17 @@ type ExamUpload = {
   owner: string
 }
 
+type ExamParseSummaryState = {
+  status: 'idle' | 'parsing' | 'success' | 'error'
+  summary?: {
+    totalRows: number
+    createdCount: number
+    skipped: { rowNumber: number; reason: string }[]
+    warnings: string[]
+  }
+  error?: string
+}
+
 type SectionGatingSummary = {
   enrollmentId: string
   courseId: string
@@ -90,6 +170,26 @@ type SectionGatingSummary = {
   isCompleted: boolean
   certificateUrl?: string
 }
+
+type LeaderboardBadge = {
+  badge: {
+    name: string
+    icon?: string
+  }
+}
+
+type LeaderboardEntry = {
+  rank: number
+  id: string
+  firstName: string
+  lastName: string
+  profileImage?: string | null
+  xp: number
+  level: number
+  badges: LeaderboardBadge[]
+}
+
+type LeaderboardScope = 'global' | 'department' | 'group' | 'family'
 
 type ModuleContentType = 'video' | 'audio' | 'text'
 
@@ -120,6 +220,8 @@ type SectionExamDraft = {
   uploadPlaceholder?: string
   uploadUrl?: string
   uploadStoragePath?: string
+  retakeMaxAttempts: number | null
+  retakeCooldownHours: number | null
 }
 
 type SectionDraft = {
@@ -201,7 +303,19 @@ const createExamDraft = (overrides: Partial<SectionExamDraft> = {}): SectionExam
   uploadPlaceholder: overrides.uploadPlaceholder ?? '',
   uploadUrl: overrides.uploadUrl,
   uploadStoragePath: overrides.uploadStoragePath,
+  retakeMaxAttempts:
+    overrides.retakeMaxAttempts !== undefined ? overrides.retakeMaxAttempts : null,
+  retakeCooldownHours:
+    overrides.retakeCooldownHours !== undefined ? overrides.retakeCooldownHours : null,
 })
+
+const buildRetakePolicyPayload = (exam: SectionExamDraft) =>
+  exam.retakeMaxAttempts != null || exam.retakeCooldownHours != null
+    ? {
+        maxAttempts: exam.retakeMaxAttempts,
+        cooldownHours: exam.retakeCooldownHours,
+      }
+    : null
 
 const createSectionDraft = (overrides: Partial<SectionDraft> = {}): SectionDraft => ({
   id:
@@ -250,6 +364,25 @@ const MODULE_CONTENT_TYPES: { value: ModuleContentType; label: string; descripti
   { value: 'text', label: 'Text-based study', description: 'Paste a devotional, transcript, or study notes.' },
 ]
 
+const LEADERBOARD_SCOPES: LeaderboardScope[] = ['global', 'department', 'group', 'family']
+const LEADERBOARD_SCOPE_LABELS: Record<LeaderboardScope, string> = {
+  global: 'Global',
+  department: 'Department',
+  group: 'Group',
+  family: 'Family',
+}
+const LEADERBOARD_SCOPE_HINTS: Record<LeaderboardScope, string> = {
+  global: 'Shows every active member in your church digital school.',
+  department: 'Focus on a ministry department. Enter the department document ID below.',
+  group: 'Zoom into a small group or cohort.',
+  family: 'Track progress across household/family clusters.',
+}
+const LEADERBOARD_FILTER_LABELS: Record<Exclude<LeaderboardScope, 'global'>, string> = {
+  department: 'Department ID',
+  group: 'Group ID',
+  family: 'Family ID',
+}
+
 const formatPricingLabel = (pricing?: CoursePricing) => {
   if (!pricing || pricing.type === 'free') return 'Free access'
   const amount = typeof pricing.amount === 'number' ? pricing.amount : 0
@@ -257,6 +390,15 @@ const formatPricingLabel = (pricing?: CoursePricing) => {
   const currency = pricing.currency ?? 'NGN'
   return `${currency} ${formatted}`
 }
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+const optionLetter = (index: number) => String.fromCharCode(65 + index)
 
 const badgeColorForAccess = (access: AccessType) => {
   switch (access) {
@@ -266,6 +408,38 @@ const badgeColorForAccess = (access: AccessType) => {
       return 'bg-amber-500'
     default:
       return 'bg-indigo-500'
+  }
+}
+
+const formatMemberName = (entry: LeaderboardEntry) => {
+  const first = entry.firstName?.trim() ?? ''
+  const last = entry.lastName?.trim() ?? ''
+  const resolved = `${first} ${last}`.trim()
+  return resolved || 'Member'
+}
+
+const memberInitials = (entry: LeaderboardEntry) => {
+  const first = entry.firstName?.trim().charAt(0) ?? ''
+  const last = entry.lastName?.trim().charAt(0) ?? ''
+  const initials = `${first}${last}`.toUpperCase()
+  return initials || 'DS'
+}
+
+const formatXP = (xp: number) => {
+  if (!Number.isFinite(xp)) return '0'
+  return xp.toLocaleString()
+}
+
+const formatRankIcon = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return '🥇'
+    case 2:
+      return '🥈'
+    case 3:
+      return '🥉'
+    default:
+      return `#${rank}`
   }
 }
 
@@ -475,6 +649,10 @@ type ApiExamResponse = {
     fileUrl?: string
     storagePath?: string
   }
+  retakePolicy?: {
+    maxAttempts?: number | null
+    cooldownHours?: number | null
+  }
 }
 
 type ApiEnrollmentResponse = {
@@ -596,8 +774,19 @@ export default function DigitalSchool() {
   const [adminActions, setAdminActions] = useState<AdminAction[]>([])
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([])
   const [examUploads, setExamUploads] = useState<ExamUpload[]>([])
+  const [examParseSummaries, setExamParseSummaries] = useState<Record<string, ExamParseSummaryState>>({})
+  const [pendingExamImports, setPendingExamImports] = useState<
+    Record<string, { fileUrl: string; originalName: string }>
+  >({})
   const [progressRows, setProgressRows] = useState<ProgressRow[]>([])
   const [selectedProgress, setSelectedProgress] = useState<ProgressRow | null>(null)
+  const [courseAnalytics, setCourseAnalytics] = useState<{
+    summary: CourseAnalyticsSummary
+    rows: CourseAnalyticsRow[]
+  } | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
+  const [analyticsCourseId, setAnalyticsCourseId] = useState<string | null>(null)
   const [courseDraft, setCourseDraft] = useState<CourseDraft>(createCourseDraft())
   const [resumeMetadata, setResumeMetadata] = useState<ResumeMetadata | null>(null)
   const [draftMessage, setDraftMessage] = useState<string | null>(null)
@@ -614,11 +803,23 @@ export default function DigitalSchool() {
   const [resumingCourseId, setResumingCourseId] = useState<string | null>(null)
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
   const [isCourseManager, setIsCourseManager] = useState(false)
+  const [reviewCourseId, setReviewCourseId] = useState<string | null>(null)
+  const [examAttempts, setExamAttempts] = useState<ExamAttemptRow[]>([])
+  const [attemptsLoading, setAttemptsLoading] = useState(false)
+  const [attemptsError, setAttemptsError] = useState<string | null>(null)
+  const [selectedExamAttempt, setSelectedExamAttempt] = useState<ExamAttemptRow | null>(null)
+  const [questionFilter, setQuestionFilter] = useState<QuestionFilter>('all')
   const examUploadInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
   const [uploadingTargets, setUploadingTargets] = useState<Record<string, boolean>>({})
   const [enrollmentRecords, setEnrollmentRecords] = useState<ApiEnrollmentResponse[]>([])
   const [gatingSummaries, setGatingSummaries] = useState<SectionGatingSummary[]>([])
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([])
+  const [leaderboardScope, setLeaderboardScope] = useState<LeaderboardScope>('global')
+  const [leaderboardFilterId, setLeaderboardFilterId] = useState<string | null>(null)
+  const [leaderboardFilterDraft, setLeaderboardFilterDraft] = useState('')
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true)
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
 
   const supportsCourseArchive = false // TODO: replace deletions with archive/undo flow when audit requirements land.
 
@@ -635,6 +836,44 @@ export default function DigitalSchool() {
       return next
     })
   }, [])
+
+  const loadCourseAnalytics = useCallback(
+    async (courseId: string) => {
+      if (!courseId) return
+      setAnalyticsLoading(true)
+      setAnalyticsError(null)
+      try {
+        const data = await requestJson<{
+          summary: CourseAnalyticsSummary
+          rows: CourseAnalyticsRow[]
+        }>(`/api/digital-school/courses/${courseId}/analytics`)
+        setCourseAnalytics({
+          summary: data.summary,
+          rows: data.rows,
+        })
+      } catch (error) {
+        console.error('DigitalSchool.loadCourseAnalytics', error)
+        setCourseAnalytics(null)
+        setAnalyticsError(error instanceof Error ? error.message : 'Unable to load analytics.')
+      } finally {
+        setAnalyticsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const handleAnalyticsCourseChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const courseId = event.target.value || null
+      setAnalyticsCourseId(courseId)
+      if (courseId) {
+        void loadCourseAnalytics(courseId)
+      } else {
+        setCourseAnalytics(null)
+      }
+    },
+    [loadCourseAnalytics],
+  )
 
   const isUploading = useCallback((key: string) => Boolean(uploadingTargets[key]), [uploadingTargets])
   const setCertificateLoadingState = useCallback((id: string, value: boolean) => {
@@ -680,6 +919,105 @@ export default function DigitalSchool() {
     }
   }, [])
 
+  const loadLeaderboard = useCallback(async () => {
+    setIsLoadingLeaderboard(true)
+    setLeaderboardError(null)
+    if (leaderboardScope !== 'global' && !leaderboardFilterId) {
+      setLeaderboardEntries([])
+      setIsLoadingLeaderboard(false)
+      return
+    }
+    try {
+      const params = new URLSearchParams({ type: leaderboardScope })
+      if (leaderboardScope !== 'global' && leaderboardFilterId) {
+        params.set('filterId', leaderboardFilterId)
+      }
+      const response = await fetch(`/api/gamification/leaderboard?${params.toString()}`, {
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data?.error || 'Unable to load leaderboard')
+      }
+      const data = (await response.json()) as LeaderboardEntry[]
+      setLeaderboardEntries(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('DigitalSchool.loadLeaderboard', error)
+      setLeaderboardEntries([])
+      setLeaderboardError(error instanceof Error ? error.message : 'Unable to load leaderboard.')
+    } finally {
+      setIsLoadingLeaderboard(false)
+    }
+  }, [leaderboardFilterId, leaderboardScope])
+
+  const handleLeaderboardScopeChange = useCallback((scope: LeaderboardScope) => {
+    setLeaderboardScope(scope)
+    setLeaderboardFilterDraft('')
+    if (scope === 'global') {
+      setLeaderboardFilterId(null)
+    }
+  }, [])
+
+  const handleLeaderboardFilterDraftChange = useCallback(
+    (value: string) => {
+      setLeaderboardFilterDraft(value)
+      if (leaderboardError) {
+        setLeaderboardError(null)
+      }
+    },
+    [leaderboardError],
+  )
+
+  const handleApplyLeaderboardFilter = useCallback(
+    (event?: FormEvent<HTMLFormElement>) => {
+      event?.preventDefault()
+      const trimmed = leaderboardFilterDraft.trim()
+      if (!trimmed) {
+        setLeaderboardError('Enter an ID before applying this filter.')
+        return
+      }
+      if (trimmed === leaderboardFilterId) {
+        void loadLeaderboard()
+        return
+      }
+      setLeaderboardFilterId(trimmed)
+    },
+    [leaderboardFilterDraft, leaderboardFilterId, loadLeaderboard],
+  )
+
+  const handleClearLeaderboardFilter = useCallback(() => {
+    setLeaderboardFilterDraft('')
+    setLeaderboardFilterId(null)
+    setLeaderboardError(null)
+  }, [])
+
+  const handleDownloadTemplate = useCallback(() => {
+    const instructions = [
+      '# Digital School CBT Template',
+      '# Columns: question | optionA | optionB | optionC | optionD | correctOption | durationSeconds | explanation | weight',
+      '# Accepted formats:',
+      '#   • correctOption: letter (A/B/C/D), 1-based index, or the exact option text.',
+      '#   • durationSeconds: number of seconds or mm:ss (e.g., 90 or 01:30). Defaults to 60 if empty.',
+      '#   • Add more option columns (optionE, optionF, …) if needed. Leave blanks for unused options.',
+      '#   • Rows starting with # are ignored. Header row optional.',
+      '#   • Spreadsheet/JSON uploads follow the same column names.',
+      '#',
+      'question,optionA,optionB,optionC,optionD,correctOption,durationSeconds,explanation,weight',
+      '"Who is the Holy Spirit?","Comforter","Friend","Guide","All of the above","D","60","Helper promised by Jesus","1"',
+    ].join('\n')
+
+    const csv = `${instructions}\n`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'digital-school-cbt-template.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [])
+
   useEffect(() => {
     loadCourses()
   }, [loadCourses])
@@ -687,6 +1025,10 @@ export default function DigitalSchool() {
   useEffect(() => {
     loadEnrollments()
   }, [loadEnrollments])
+
+  useEffect(() => {
+    loadLeaderboard()
+  }, [loadLeaderboard])
 
   useEffect(() => {
     let cancelled = false
@@ -825,6 +1167,8 @@ export default function DigitalSchool() {
               uploadPlaceholder: examPayload?.uploadMetadata?.originalFileName ?? '',
               uploadUrl: examPayload?.uploadMetadata?.fileUrl,
               uploadStoragePath: examPayload?.uploadMetadata?.storagePath,
+              retakeMaxAttempts: examPayload?.retakePolicy?.maxAttempts ?? null,
+              retakeCooldownHours: examPayload?.retakePolicy?.cooldownHours ?? null,
             })
 
             return createSectionDraft({
@@ -932,15 +1276,95 @@ export default function DigitalSchool() {
     [closeAndResetBuilder, courses, deletingCourseId, loadCourses, resumeMetadata?.courseId, supportsCourseArchive],
   )
 
-  const courseActionLabel = (course: Course, enrollment?: ApiEnrollmentResponse) => {
-    const snapshot = deriveEnrollmentSnapshot(enrollment, course)
-    if (snapshot.isCompleted) return 'View certificate'
-    if (snapshot.status === 'in-progress') return 'Continue course'
-    if (snapshot.status === 'not-started' && course.access === 'open') return 'Begin course'
-    if (course.access === 'request') return 'Request access'
-    if (course.access === 'invite') return 'Accept invite'
-    return 'Begin course'
-  }
+  const reviewableCourses = useMemo(() => {
+    if (!enrollmentRecords.length) return []
+    const courseMap = new Map(courses.map((course) => [course.id, course]))
+    const seen = new Set<string>()
+    return enrollmentRecords.reduce<Array<{ courseId: string; title: string; isCompleted: boolean }>>((acc, enrollment) => {
+      if (seen.has(enrollment.courseId)) return acc
+      const course = courseMap.get(enrollment.courseId)
+      if (!course) return acc
+      seen.add(enrollment.courseId)
+      acc.push({
+        courseId: course.id,
+        title: course.title,
+        isCompleted: enrollment.status === 'completed',
+      })
+      return acc
+    }, [])
+  }, [courses, enrollmentRecords])
+
+  useEffect(() => {
+    if (!reviewableCourses.length) {
+      if (reviewCourseId !== null) {
+        setReviewCourseId(null)
+      }
+      return
+    }
+    if (!reviewCourseId || !reviewableCourses.some((course) => course.courseId === reviewCourseId)) {
+      setReviewCourseId(reviewableCourses[0].courseId)
+    }
+  }, [reviewableCourses, reviewCourseId])
+
+  useEffect(() => {
+    if (!reviewCourseId) {
+      setExamAttempts([])
+      setSelectedExamAttempt(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      setAttemptsLoading(true)
+      try {
+        const attempts = await requestJson<ExamAttemptRow[]>(
+          `/api/digital-school/attempts?courseId=${reviewCourseId}&includeQuestionSummaries=1`,
+        )
+        if (cancelled) return
+        setExamAttempts(attempts)
+        setSelectedExamAttempt((prev) =>
+          prev ? attempts.find((attempt) => attempt.id === prev.id) ?? null : attempts[0] ?? null,
+        )
+        setAttemptsError(null)
+      } catch (error) {
+        if (cancelled) return
+        console.error('DigitalSchool.loadExamAttempts', error)
+        setAttemptsError(error instanceof Error ? error.message : 'Unable to load attempts.')
+        setExamAttempts([])
+        setSelectedExamAttempt(null)
+      } finally {
+        if (!cancelled) {
+          setAttemptsLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [reviewCourseId])
+
+  useEffect(() => {
+    setQuestionFilter('all')
+  }, [selectedExamAttempt?.id])
+
+  const selectedAttemptQuestionEntries = useMemo(() => {
+    if (!selectedExamAttempt?.questionSummaries?.length) return []
+    const responseMap = new Map(
+      (selectedExamAttempt.responses ?? []).map((response) => [response.questionId, response]),
+    )
+    return selectedExamAttempt.questionSummaries.map((question, index) => ({
+      question,
+      index,
+      response: responseMap.get(question.id),
+    }))
+  }, [selectedExamAttempt])
+
+  const filteredQuestionEntries = useMemo(() => {
+    if (questionFilter === 'all') return selectedAttemptQuestionEntries
+    return selectedAttemptQuestionEntries.filter(({ response }) =>
+      questionFilter === 'correct' ? response?.correct : !(response?.correct),
+    )
+  }, [questionFilter, selectedAttemptQuestionEntries])
 
   const accessBadge = (access: AccessType) => {
     switch (access) {
@@ -1129,22 +1553,37 @@ export default function DigitalSchool() {
   }
 
   const handleExamChange = (sectionId: string, field: keyof SectionExamDraft, value: string | number) => {
-    const resolvedValue =
-      field === 'timeLimitMinutes' || field === 'questionCount' ? Math.max(1, Number(value) || 0) : value
-
     updateSections((sections) =>
-      sections.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              exam: {
-                ...section.exam,
-                [field]: resolvedValue,
-              },
-            }
-          : section,
-      ),
+      sections.map((section) => {
+        if (section.id !== sectionId) return section
+
+        let resolvedValue: string | number | null = value
+        if (field === 'timeLimitMinutes' || field === 'questionCount') {
+          const numeric = typeof value === 'number' ? value : Number(value)
+          const minimum = field === 'questionCount' ? 1 : 1
+          resolvedValue = Math.max(minimum, Number.isFinite(numeric) ? numeric : minimum)
+        } else if (field === 'retakeMaxAttempts' || field === 'retakeCooldownHours') {
+          if (value === '' || value === null) {
+            resolvedValue = null
+          } else {
+            const numeric = typeof value === 'number' ? value : Number(value)
+            resolvedValue = Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : null
+          }
+        }
+
+        return {
+          ...section,
+          exam: {
+            ...section.exam,
+            [field]: resolvedValue,
+          },
+        }
+      }),
     )
+  }
+
+  const getExamIdForSection = (sectionId: string) => {
+    return courseDraft.sections.find((section) => section.id === sectionId)?.exam.persistedId
   }
 
   const handleExamFileChange = async (sectionId: string, file: File | null) => {
@@ -1152,6 +1591,7 @@ export default function DigitalSchool() {
     const uploadKey = `exam-${sectionId}`
     setUploadingState(uploadKey, true)
     try {
+      const examId = getExamIdForSection(sectionId)
       const upload = await uploadDigitalSchoolFile(file, { type: 'examUpload', sectionId })
       updateSections((sections) =>
         sections.map((section) =>
@@ -1169,9 +1609,52 @@ export default function DigitalSchool() {
         ),
       )
       setUploadMessage(`Uploaded ${file.name}`)
+
+      if (examId) {
+        setPendingExamImports((prev) => ({
+          ...prev,
+          [sectionId]: {
+            fileUrl: upload.url,
+            originalName: upload.originalName || upload.fileName,
+          },
+        }))
+        setExamParseSummaries((prev) => ({
+          ...prev,
+          [sectionId]: {
+            status: 'idle',
+          },
+        }))
+        setToast({
+          message: 'Exam file ready. Click “Import questions” to parse and replace existing items.',
+          tone: 'success',
+        })
+      } else {
+        setExamParseSummaries((prev) => ({
+          ...prev,
+          [sectionId]: {
+            status: 'error',
+            error: 'Save draft to generate an exam ID before parsing.',
+          },
+        }))
+        setToast({
+          message: 'Save your draft before importing questions — exam ID is missing.',
+          tone: 'error',
+        })
+      }
     } catch (error) {
       console.error('DigitalSchool.handleExamFileChange', error)
       setUploadMessage(error instanceof Error ? `Upload failed: ${error.message}` : 'Unable to upload exam file.')
+      setExamParseSummaries((prev) => ({
+        ...prev,
+        [sectionId]: {
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unable to upload exam file.',
+        },
+      }))
+      setToast({
+        message: error instanceof Error ? `Exam upload failed: ${error.message}` : 'Exam upload failed.',
+        tone: 'error',
+      })
     } finally {
       setUploadingState(uploadKey, false)
     }
@@ -1188,6 +1671,114 @@ export default function DigitalSchool() {
   const triggerFilePicker = (key: string) => {
     fileInputsRef.current[key]?.click()
   }
+
+  const clearPendingExamImport = (sectionId: string) => {
+    setPendingExamImports((prev) => {
+      const next = { ...prev }
+      delete next[sectionId]
+      return next
+    })
+  }
+
+  const handleImportExamQuestions = useCallback(
+    async (sectionId: string) => {
+      const examId = getExamIdForSection(sectionId)
+      const pending = pendingExamImports[sectionId]
+      if (!examId) {
+        setToast({
+          message: 'Save your draft to create an exam before importing questions.',
+          tone: 'error',
+        })
+        return
+      }
+      if (!pending) {
+        setToast({
+          message: 'Upload an exam file first before importing.',
+          tone: 'error',
+        })
+        return
+      }
+
+      setExamParseSummaries((prev) => ({
+        ...prev,
+        [sectionId]: { status: 'parsing' },
+      }))
+
+      try {
+        const summaryResponse = await requestJson<{
+          summary: ExamParseSummaryState['summary']
+        }>(`/api/digital-school/exams/${examId}/parse-upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileUrl: pending.fileUrl,
+            originalName: pending.originalName,
+            replaceExisting: true,
+          }),
+        })
+
+        const summary = summaryResponse.summary
+        setExamParseSummaries((prev) => ({
+          ...prev,
+          [sectionId]: {
+            status: 'success',
+            summary,
+          },
+        }))
+
+        const importedCount =
+          typeof summary?.createdCount === 'number'
+            ? summary.createdCount
+            : typeof summary?.totalRows === 'number'
+              ? summary.totalRows - (summary.skipped?.length ?? 0)
+              : 0
+
+        if (importedCount > 0) {
+          setCourseDraft((prev) => ({
+            ...prev,
+            sections: prev.sections.map((section) =>
+              section.id === sectionId
+                ? {
+                    ...section,
+                    exam: {
+                      ...section.exam,
+                      questionCount: importedCount,
+                      status: 'published',
+                    },
+                  }
+                : section,
+            ),
+          }))
+        }
+
+        clearPendingExamImport(sectionId)
+
+        const sectionMeta = courseDraft.sections.find((section) => section.id === sectionId)
+        setToast({
+          message:
+            importedCount > 0
+              ? `Imported ${importedCount} question${importedCount === 1 ? '' : 's'} for “${sectionMeta?.exam.title || 'Section exam'}”.`
+              : `No questions were imported for “${sectionMeta?.exam.title || 'Section exam'}”. Check skipped rows and template formatting.`,
+          tone: importedCount > 0 ? 'success' : 'error',
+        })
+      } catch (error) {
+        console.error('DigitalSchool.handleImportExamQuestions', error)
+        setExamParseSummaries((prev) => ({
+          ...prev,
+          [sectionId]: {
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Unable to parse exam file.',
+          },
+        }))
+        setToast({
+          message:
+            error instanceof Error ? `Unable to import questions: ${error.message}` : 'Unable to import questions.',
+          tone: 'error',
+        })
+      }
+    },
+    [courseDraft.sections, pendingExamImports],
+  )
 
   const handleModuleFileInput =
     (sectionId: string, moduleId: string, type: 'audio' | 'book') => async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1360,6 +1951,7 @@ export default function DigitalSchool() {
           nextModulesBySection[persistedSectionId] = moduleIdsForMetadata
 
           const previousExamId = resumeMetadata.examIdsBySection[persistedSectionId]?.[0]
+          const retakePolicyPayload = buildRetakePolicyPayload(section.exam)
           const examPayload = {
             title: section.exam.title.trim() || `${section.title || `Section ${sectionIndex + 1}`} exam`,
             description: section.exam.description,
@@ -1374,6 +1966,7 @@ export default function DigitalSchool() {
                   storagePath: section.exam.uploadStoragePath,
                 }
               : undefined,
+            retakePolicy: retakePolicyPayload,
           }
 
           let resolvedExamId = section.exam.persistedId
@@ -1497,6 +2090,7 @@ export default function DigitalSchool() {
             })
           }
 
+          const retakePolicyPayload = buildRetakePolicyPayload(section.exam)
           await requestJson<ApiExamResponse>('/api/digital-school/exams', {
             method: 'POST',
             headers,
@@ -1516,6 +2110,7 @@ export default function DigitalSchool() {
                     storagePath: section.exam.uploadStoragePath,
                   }
                 : undefined,
+              retakePolicy: retakePolicyPayload,
             }),
           })
         }
@@ -1579,6 +2174,7 @@ export default function DigitalSchool() {
                   {resumeMetadata ? `Resuming "${resumeMetadata.courseTitle}"` : 'Starting a new draft'}
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={closeBuilder}
@@ -2098,6 +2694,49 @@ export default function DigitalSchool() {
 
                             <div className="grid gap-3 md:grid-cols-2">
                               <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Max attempts allowed
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={section.exam.retakeMaxAttempts ?? ''}
+                                  onChange={(event) =>
+                                    handleExamChange(
+                                      section.id,
+                                      'retakeMaxAttempts',
+                                      event.target.value === '' ? '' : Number(event.target.value),
+                                    )
+                                  }
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                  placeholder="Leave blank for unlimited"
+                                />
+                                <span className="text-xs text-gray-500">
+                                  Leave blank to allow unlimited attempts.
+                                </span>
+                              </label>
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
+                                Cooldown between attempts (hours)
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={section.exam.retakeCooldownHours ?? ''}
+                                  onChange={(event) =>
+                                    handleExamChange(
+                                      section.id,
+                                      'retakeCooldownHours',
+                                      event.target.value === '' ? '' : Number(event.target.value),
+                                    )
+                                  }
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                                  placeholder="Leave blank for no delay"
+                                />
+                                <span className="text-xs text-gray-500">
+                                  Leave blank to allow immediate retakes.
+                                </span>
+                              </label>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="text-sm text-gray-600 flex flex-col gap-1">
                                 Time limit (minutes)
                                 <input
                                   type="number"
@@ -2124,7 +2763,16 @@ export default function DigitalSchool() {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                              <p className="text-sm text-gray-600">Upload CBT file</p>
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm text-gray-600">Upload CBT file</p>
+                                <button
+                                  type="button"
+                                  onClick={handleDownloadTemplate}
+                                  className="text-xs font-semibold text-primary-600 hover:text-primary-700"
+                                >
+                                  Download template
+                                </button>
+                              </div>
                               <div className="flex flex-wrap gap-2">
                                 <input
                                   type="file"
@@ -2144,6 +2792,38 @@ export default function DigitalSchool() {
                                   <span className="text-xs text-gray-500">{section.exam.uploadPlaceholder}</span>
                                 )}
                               </div>
+                              {pendingExamImports[section.id] && (
+                                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                  <span>File staged. Import questions to replace existing ones.</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleImportExamQuestions(section.id)}
+                                    disabled={examParseSummaries[section.id]?.status === 'parsing'}
+                                    className="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1 text-white hover:bg-amber-700 disabled:opacity-60"
+                                  >
+                                    {examParseSummaries[section.id]?.status === 'parsing' ? 'Importing…' : 'Import questions'}
+                                  </button>
+                                </div>
+                              )}
+                              {examParseSummaries[section.id]?.summary && (
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                  <p>
+                                    Imported{' '}
+                                    <strong>
+                                      {examParseSummaries[section.id]?.summary?.createdCount ??
+                                        examParseSummaries[section.id]?.summary?.totalRows ??
+                                        0}
+                                    </strong>{' '}
+                                    questions. {examParseSummaries[section.id]?.summary?.skipped.length || 0} skipped.
+                                  </p>
+                                </div>
+                              )}
+                              {examParseSummaries[section.id]?.status === 'error' &&
+                                examParseSummaries[section.id]?.error && (
+                                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                                    {examParseSummaries[section.id]?.error}
+                                  </div>
+                                )}
                             </div>
                           </div>
                         </div>
@@ -2265,7 +2945,7 @@ export default function DigitalSchool() {
     }
 
     if (!enrollmentId && enrollment?.id) {
-      router.push(`/(dashboard)/digital-school/courses/${enrollment.courseId}`)
+      router.push(`/digital-school/courses/${enrollment.courseId}`)
       return
     }
 
@@ -2278,7 +2958,7 @@ export default function DigitalSchool() {
             body: JSON.stringify({ courseId }),
           })
           await loadEnrollments()
-          router.push(`/(dashboard)/digital-school/courses/${created.courseId}`)
+          router.push(`/digital-school/courses/${created.courseId}`)
         } catch (error) {
           console.error('DigitalSchool.handleEnrollAction', error)
           setToast({
@@ -2290,7 +2970,7 @@ export default function DigitalSchool() {
       return
     }
 
-    router.push(`/(dashboard)/digital-school/courses/${courseId}`)
+    router.push(`/digital-school/courses/${courseId}`)
   }
 
   const handleExamUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -2329,22 +3009,6 @@ export default function DigitalSchool() {
       ),
     )
   }
-
-  const handleDownloadTemplate = () => {
-    const csv =
-      'question,optionA,optionB,optionC,optionD,correctOption,durationSeconds\n' +
-      '"Who is the Holy Spirit?","Comforter","Friend","Guide","All of the above","D","60"\n'
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'digital-school-cbt-template.csv')
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
   const handleTimelineView = (row: ProgressRow) => {
     setSelectedProgress(row)
   }
@@ -2373,43 +3037,555 @@ export default function DigitalSchool() {
     setSelectedProgress((prev) => (prev && prev.member === member ? { ...prev, examScore: score } : prev))
   }
 
+  const nonGlobalLeaderboardScope: Exclude<LeaderboardScope, 'global'> | null =
+    leaderboardScope === 'global' ? null : leaderboardScope
+  const leaderboardFilterLabel = nonGlobalLeaderboardScope ? LEADERBOARD_FILTER_LABELS[nonGlobalLeaderboardScope] : null
+  const leaderboardScopeHint = LEADERBOARD_SCOPE_HINTS[leaderboardScope]
+  const leaderboardRequiresFilter = Boolean(nonGlobalLeaderboardScope)
+  const leaderboardFilterActive = Boolean(leaderboardFilterId)
+  const leaderboardReady = !leaderboardRequiresFilter || leaderboardFilterActive
+  const hasLeaderboardEntries = leaderboardEntries.length > 0
+  const topLeaderboardEntry = hasLeaderboardEntries ? leaderboardEntries[0] : null
+
+  const analyticsPanel = !isCourseManager
+    ? null
+    : (
+        <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Analytics</p>
+              <h2 className="text-lg font-semibold text-gray-900">Learner progress & exams</h2>
+              <p className="text-sm text-gray-500">Track who has started, completed, and how they scored.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={analyticsCourseId ?? ''}
+                onChange={handleAnalyticsCourseChange}
+                className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+              >
+                <option value="">Select course</option>
+                {courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => analyticsCourseId && loadCourseAnalytics(analyticsCourseId)}
+                className="inline-flex items-center rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                disabled={!analyticsCourseId || analyticsLoading}
+              >
+                {analyticsLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+
+          {analyticsError && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {analyticsError}
+            </div>
+          )}
+
+          {!analyticsCourseId ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+              Select a course to view analytics.
+            </div>
+          ) : analyticsLoading ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+              Loading analytics…
+            </div>
+          ) : courseAnalytics ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <AnalyticsBadge label="Total enrolled" value={courseAnalytics.summary.total} tone="slate" />
+                <AnalyticsBadge label="Not started" value={courseAnalytics.summary.notStarted} tone="gray" />
+                <AnalyticsBadge label="In progress" value={courseAnalytics.summary.inProgress} tone="amber" />
+                <AnalyticsBadge label="Completed" value={courseAnalytics.summary.completed} tone="emerald" />
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-4 py-3">Member</th>
+                      <th className="px-4 py-3">Church level</th>
+                      <th className="px-4 py-3">Branch</th>
+                      <th className="px-4 py-3">Designation</th>
+                      <th className="px-4 py-3">Progress</th>
+                      <th className="px-4 py-3">Exam score</th>
+                      <th className="px-4 py-3">Last exam</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {courseAnalytics.rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                          No enrollments yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      courseAnalytics.rows.map((row) => (
+                        <tr key={row.enrollmentId}>
+                          <td className="px-4 py-3 text-gray-900">{row.memberName}</td>
+                          <td className="px-4 py-3 text-gray-600">{row.churchLevel}</td>
+                          <td className="px-4 py-3 text-gray-600">{row.branch}</td>
+                          <td className="px-4 py-3 text-gray-600">{row.designation}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-gray-900">{row.progressPercent}%</span>
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                  row.status === 'completed'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : row.status === 'active'
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-900">
+                            {typeof row.examScore === 'number' ? `${row.examScore}%` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {row.lastExamAt ? new Date(row.lastExamAt).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+              Analytics unavailable for this course.
+            </div>
+          )}
+        </div>
+      )
+
+  const examReviewPanel = (
+    <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Exam review</p>
+          <h2 className="text-lg font-semibold text-gray-900">Revisit every answer</h2>
+          <p className="text-sm text-gray-500">See how you performed and what to improve on before the next attempt.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={reviewCourseId ?? ''}
+            onChange={(event) => setReviewCourseId(event.target.value || null)}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+            disabled={!reviewableCourses.length}
+          >
+            {reviewableCourses.length === 0 ? (
+              <option value="">No courses yet</option>
+            ) : (
+              reviewableCourses.map((course) => (
+                <option key={course.courseId} value={course.courseId}>
+                  {course.title}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      </div>
+
+      {reviewableCourses.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+          Enroll in a course and complete an exam to unlock detailed review insights.
+        </div>
+      ) : (
+        <>
+          {attemptsError && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {attemptsError}
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Exam attempts</p>
+              {attemptsLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="animate-pulse rounded-xl bg-white p-4 shadow-sm">
+                      <div className="h-4 w-3/4 rounded bg-gray-200" />
+                      <div className="mt-2 h-3 w-1/2 rounded bg-gray-200" />
+                    </div>
+                  ))}
+                </div>
+              ) : examAttempts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-gray-600">
+                  No graded attempts yet. Submit an exam to see detailed feedback.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {examAttempts.map((attempt) => {
+                    const active = selectedExamAttempt?.id === attempt.id
+                    return (
+                      <button
+                        key={attempt.id}
+                        type="button"
+                        onClick={() => setSelectedExamAttempt(attempt)}
+                        className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                          active
+                            ? 'border-primary-500 bg-primary-50 text-primary-900 shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-800 hover:border-primary-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-semibold">
+                            {attempt.score != null ? `${attempt.score}%` : 'Pending score'}
+                          </span>
+                          <span className="text-xs uppercase tracking-wide text-gray-500">
+                            {attempt.status === 'submitted' ? 'Submitted' : 'In progress'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500">{formatDateTime(attempt.submittedAt ?? attempt.startedAt)}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-2 space-y-4 rounded-2xl border border-gray-100 bg-white p-4">
+              {!selectedExamAttempt ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                  Select an attempt to review your question-by-question performance.
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Score</p>
+                      <p className="mt-2 text-2xl font-semibold text-gray-900">
+                        {typeof selectedExamAttempt.score === 'number' ? `${selectedExamAttempt.score}%` : 'Pending'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Questions</p>
+                      <p className="mt-2 text-2xl font-semibold text-gray-900">
+                        {selectedExamAttempt.totalQuestions ?? selectedExamAttempt.questionSummaries?.length ?? '—'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Submitted</p>
+                      <p className="mt-2 text-sm font-medium text-gray-900">{formatDateTime(selectedExamAttempt.submittedAt)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>Filter:</span>
+                      {(['all', 'correct', 'incorrect'] as QuestionFilter[]).map((filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => setQuestionFilter(filter)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                            questionFilter === filter
+                              ? 'border-primary-500 bg-primary-50 text-primary-700'
+                              : 'border-gray-200 text-gray-600 hover:border-primary-200'
+                          }`}
+                        >
+                          {filter === 'all'
+                            ? 'All'
+                            : filter === 'correct'
+                              ? 'Correct'
+                              : 'Incorrect'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Showing {filteredQuestionEntries.length} of {selectedAttemptQuestionEntries.length} questions
+                    </p>
+                  </div>
+
+                  {selectedAttemptQuestionEntries.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                      Question summaries are not available for this attempt.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredQuestionEntries.map(({ question, response, index }) => {
+                        const isCorrect = response?.correct
+                        const userAnswerText =
+                          typeof response?.answerIndex === 'number'
+                            ? `${optionLetter(response.answerIndex)}. ${question.options[response.answerIndex] ?? '—'}`
+                            : 'No answer selected'
+                        const correctAnswerText = `${optionLetter(question.correctOption)}. ${
+                          question.options[question.correctOption] ?? '—'
+                        }`
+                        return (
+                          <div
+                            key={question.id}
+                            className={`rounded-2xl border p-4 ${
+                              isCorrect === true
+                                ? 'border-emerald-200 bg-emerald-50'
+                                : 'border-rose-200 bg-rose-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs uppercase tracking-wide">
+                              <span className="font-semibold text-gray-500">Question {index + 1}</span>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                  isCorrect === true
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-rose-100 text-rose-700'
+                                }`}
+                              >
+                                {isCorrect === true ? 'Correct' : 'Incorrect'}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm font-medium text-gray-900">{question.question}</p>
+                            <div className="mt-3 space-y-1 text-sm">
+                              <p className="text-gray-500">Your answer</p>
+                              <p className={`font-medium ${isCorrect === true ? 'text-emerald-900' : 'text-rose-900'}`}>
+                                {userAnswerText}
+                              </p>
+                            </div>
+                            <div className="mt-2 space-y-1 text-sm">
+                              <p className="text-gray-500">Correct answer</p>
+                              <p className="font-semibold text-emerald-900">{correctAnswerText}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  const renderCourseGrid = () => {
+    if (isLoadingCourses) {
+      return Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={`skeleton-${index}`}
+          className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm animate-pulse bg-gray-50"
+        >
+          <div className="flex items-center justify-between">
+            <span className="h-6 w-20 rounded-full bg-gray-200" />
+            <span className="h-4 w-16 rounded bg-gray-200" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-5 w-3/4 rounded bg-gray-200" />
+            <div className="h-4 w-full rounded bg-gray-200" />
+            <div className="h-4 w-5/6 rounded bg-gray-200" />
+          </div>
+          <div className="flex gap-2">
+            <span className="h-6 w-16 rounded-full bg-gray-200" />
+            <span className="h-6 w-20 rounded-full bg-gray-200" />
+          </div>
+          <div className="h-2 w-full rounded bg-gray-200" />
+          <div className="flex gap-2">
+            <span className="h-9 flex-1 rounded-lg bg-gray-200" />
+            <span className="h-9 w-20 rounded-lg bg-gray-200" />
+          </div>
+        </div>
+      ))
+    }
+
+    if (courses.length === 0) {
+      return (
+        <div className="col-span-full rounded-3xl border border-dashed border-gray-200 p-6 text-center">
+          <p className="text-sm text-gray-600">
+            No courses published yet. Start a builder draft to seed the catalog for your campus.
+          </p>
+          {isCourseManager && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+                onClick={handleOpenNewCourse}
+              >
+                + Create course
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                onClick={() => latestDraftId && void handleResumeDraft(latestDraftId)}
+                disabled={!latestDraftId || resumingCourseId === latestDraftId}
+              >
+                {latestDraftId ? (resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft') : 'No drafts yet'}
+              </button>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return courses.map((course) => {
+      const enrollment = enrollmentRecords.find((en) => en.courseId === course.id)
+      const snapshot = deriveEnrollmentSnapshot(enrollment, course)
+      const progressPercent = snapshot.progressPercent
+      const isCompleted = snapshot.isCompleted
+
+      return (
+        <div
+          key={course.id}
+          className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition relative"
+        >
+          {isCourseManager && (
+            <div className="absolute top-4 right-4 flex gap-2">
+              <button
+                type="button"
+                className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => handleEditCourse(course.id)}
+                disabled={resumingCourseId === course.id}
+              >
+                {resumingCourseId === course.id ? 'Loading…' : 'Edit'}
+              </button>
+              <button
+                type="button"
+                className="rounded-full border px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                onClick={() => handleDeleteCourse(course.id)}
+                disabled={deletingCourseId === course.id}
+              >
+                {deletingCourseId === course.id ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
+              {course.access === 'open'
+                ? 'Open'
+                : course.access === 'request'
+                  ? 'Request access'
+                  : 'Invitation only'}
+            </span>
+            <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+            <p className="text-sm text-gray-600 mt-1">{course.description}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+            {course.format.map((item) => (
+              <span key={item} className="bg-gray-100 px-2 py-1 rounded-full">
+                {item}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-400">Mentors</p>
+              <p className="text-sm text-gray-800">{course.mentors.join(', ')}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-gray-400">Hours</p>
+              <p className="text-sm text-gray-800">{course.hours} hrs</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-400">Format</p>
+              <p className="text-sm text-gray-800">{course.format.join(', ')}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-gray-400">Pricing</p>
+              <p className="text-sm font-semibold text-gray-900">{formatPricingLabel(course.pricing)}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`${course.badgeColor} h-2 rounded-full transition-all`}
+                style={{ width: `${progressPercent}%` }}
+              ></div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>{isCompleted ? 'Completed' : `${progressPercent}% progress`}</span>
+              {isCompleted && <span className="text-emerald-600 font-semibold">Badge issued</span>}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
+              onClick={() => handleEnrollAction(course.id)}
+            >
+              {courseActionLabel(course, enrollment)}
+            </button>
+            <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
+          </div>
+        </div>
+      )
+    })
+  }
+
   return (
     <>
       {builderModal}
       {isCourseManager ? (
-        !isBuilderOpen && (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-6 py-12 text-center">
-            <div className="max-w-md space-y-4">
-              <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Digital School</p>
-              <h1 className="text-3xl font-semibold text-gray-900">Course creation workspace</h1>
-              <p className="text-sm text-gray-600">
-                Launch the builder modal to create new discipleship tracks or resume an existing draft.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleOpenNewCourse}
-                  className="px-4 py-2 rounded-full bg-primary-600 text-white text-sm font-semibold shadow hover:bg-primary-700"
-                >
-                  Open course builder
-                </button>
-                {latestDraftId && (
+        <div className="px-6 py-12">
+          <div className="max-w-6xl mx-auto space-y-10">
+            <div className="rounded-3xl bg-slate-900 text-white px-10 py-12 shadow-xl">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Digital School</p>
+                  <h1 className="text-3xl font-semibold mt-3">Create and manage discipleship tracks</h1>
+                  <p className="text-sm text-gray-100/80 mt-3 max-w-2xl">
+                    Launch the builder to create a new course or resume a draft. Published courses appear in the catalog grid below.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3 justify-center md:justify-end">
                   <button
                     type="button"
-                    onClick={() => void handleResumeDraft(latestDraftId)}
-                    disabled={resumingCourseId === latestDraftId}
-                    className="px-4 py-2 rounded-full border text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                    onClick={handleOpenNewCourse}
+                    className="px-4 py-2 rounded-full bg-white text-slate-900 text-sm font-semibold shadow hover:bg-slate-100"
                   >
-                    {resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft'}
+                    + Create course
                   </button>
-                )}
+                  {latestDraftId && (
+                    <button
+                      type="button"
+                      onClick={() => void handleResumeDraft(latestDraftId)}
+                      disabled={resumingCourseId === latestDraftId}
+                      className="px-4 py-2 rounded-full border border-white/50 text-sm text-white hover:bg-white/10 disabled:opacity-60"
+                    >
+                      {resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft'}
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-gray-500">
-                Closing the modal returns you to this launcher so you can reopen it whenever you need to edit courses.
-              </p>
+            </div>
+
+            {analyticsPanel}
+            {examReviewPanel}
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Course catalog</h2>
+                  <p className="text-sm text-gray-600">Drafts stay private until you publish them.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenNewCourse}
+                    className="px-4 py-2 rounded-full bg-primary-100 text-primary-700 text-sm font-semibold hover:bg-primary-200"
+                  >
+                    New course
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{renderCourseGrid()}</div>
             </div>
           </div>
-        )
+        </div>
       ) : (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
           <div className="max-w-md rounded-2xl bg-white p-6 text-center shadow">

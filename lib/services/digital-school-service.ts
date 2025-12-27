@@ -210,6 +210,10 @@ export interface DigitalCourseExam {
     fileUrl?: string
     storagePath?: string
   }
+  retakePolicy?: {
+    maxAttempts?: number | null
+    cooldownHours?: number | null
+  }
   createdBy: string
   updatedBy: string
   createdAt: Date
@@ -229,6 +233,10 @@ export interface DigitalCourseExamInput {
     originalFileName?: string
     fileUrl?: string
     storagePath?: string
+  }
+  retakePolicy?: {
+    maxAttempts?: number | null
+    cooldownHours?: number | null
   }
   createdBy: string
   updatedBy?: string
@@ -358,6 +366,17 @@ export class DigitalCourseEnrollmentService {
     return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
   }
 
+  static async findByUserAndCourse(userId: string, courseId: string): Promise<DigitalCourseEnrollment | null> {
+    const snapshot = await this.collection()
+      .where('userId', '==', userId)
+      .where('courseId', '==', courseId)
+      .limit(1)
+      .get()
+    if (snapshot.empty) return null
+    const doc = snapshot.docs[0]
+    return this.fromDoc(doc.id, doc.data()!)
+  }
+
   static async updateProgress(
     enrollmentId: string,
     progressPercent?: number,
@@ -467,6 +486,18 @@ export class DigitalCourseExamService {
       questionCount: 0,
       status: input.status ?? 'draft',
       uploadMetadata: input.uploadMetadata ?? null,
+      retakePolicy: input.retakePolicy
+        ? {
+            maxAttempts:
+              typeof input.retakePolicy.maxAttempts === 'number'
+                ? input.retakePolicy.maxAttempts
+                : null,
+            cooldownHours:
+              typeof input.retakePolicy.cooldownHours === 'number'
+                ? input.retakePolicy.cooldownHours
+                : null,
+          }
+        : null,
       createdBy: input.createdBy,
       updatedBy: input.updatedBy ?? input.createdBy,
       ...serverTimestamps(),
@@ -486,7 +517,23 @@ export class DigitalCourseExamService {
     if (!existing.exists) return null
 
     await docRef.update({
-      ...omitUndefined(data),
+      ...omitUndefined({
+        ...data,
+        retakePolicy: data.retakePolicy
+          ? {
+              maxAttempts:
+                typeof data.retakePolicy.maxAttempts === 'number'
+                  ? data.retakePolicy.maxAttempts
+                  : null,
+              cooldownHours:
+                typeof data.retakePolicy.cooldownHours === 'number'
+                  ? data.retakePolicy.cooldownHours
+                  : null,
+            }
+          : data.retakePolicy === null
+            ? null
+            : undefined,
+      }),
       updatedBy: data.updatedBy ?? existing.data()?.updatedBy,
       updatedAt: FieldValue.serverTimestamp(),
     })
@@ -518,6 +565,18 @@ export class DigitalCourseExamService {
       questionCount: data.questionCount || 0,
       status: data.status ?? 'draft',
       uploadMetadata: data.uploadMetadata || undefined,
+      retakePolicy: data.retakePolicy
+        ? {
+            maxAttempts:
+              typeof data.retakePolicy.maxAttempts === 'number'
+                ? data.retakePolicy.maxAttempts
+                : null,
+            cooldownHours:
+              typeof data.retakePolicy.cooldownHours === 'number'
+                ? data.retakePolicy.cooldownHours
+                : null,
+          }
+        : undefined,
       createdBy: data.createdBy,
       updatedBy: data.updatedBy,
       createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
@@ -623,13 +682,35 @@ export class DigitalExamAttemptService {
   }
 
   static async listByExam(examId: string): Promise<DigitalExamAttempt[]> {
-    const snapshot = await this.collection().where('examId', '==', examId).orderBy('createdAt', 'desc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('examId', '==', examId).orderBy('createdAt', 'desc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+      if (!needsIndex) throw error
+      const fallbackSnapshot = await this.collection().where('examId', '==', examId).get()
+      const attempts = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return attempts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    }
   }
 
   static async listByUser(userId: string): Promise<DigitalExamAttempt[]> {
-    const snapshot = await this.collection().where('userId', '==', userId).orderBy('createdAt', 'desc').get()
-    return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    try {
+      const snapshot = await this.collection().where('userId', '==', userId).orderBy('createdAt', 'desc').get()
+      return snapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+    } catch (error: any) {
+      const needsIndex =
+        error?.code === 9 ||
+        error?.message?.includes('FAILED_PRECONDITION') ||
+        error?.message?.includes('requires an index')
+      if (!needsIndex) throw error
+      const fallbackSnapshot = await this.collection().where('userId', '==', userId).get()
+      const attempts = fallbackSnapshot.docs.map((doc) => this.fromDoc(doc.id, doc.data()))
+      return attempts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    }
   }
 
   static async start(input: DigitalExamAttemptInput): Promise<DigitalExamAttempt> {

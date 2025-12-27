@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type ChurchRole = {
   id: string
@@ -19,17 +19,41 @@ type ChurchDesignation = {
   isProtected?: boolean
 }
 
+type StaffLevel = {
+  id: string
+  name: string
+  description?: string
+  defaultWageAmount: number
+  currency: string
+  payFrequency: 'weekly' | 'biweekly' | 'monthly' | 'annual'
+  isDefault?: boolean
+  order?: number
+}
+
+const DEFAULT_PAY_FREQUENCIES: StaffLevel['payFrequency'][] = ['weekly', 'biweekly', 'monthly', 'annual']
+
 export default function RoleDesignationSettings() {
   const [roles, setRoles] = useState<ChurchRole[]>([])
   const [designations, setDesignations] = useState<ChurchDesignation[]>([])
+  const [staffLevels, setStaffLevels] = useState<StaffLevel[]>([])
   const [loadingRoles, setLoadingRoles] = useState(true)
   const [loadingDesignations, setLoadingDesignations] = useState(true)
+  const [loadingStaffLevels, setLoadingStaffLevels] = useState(true)
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
   const [designationForm, setDesignationForm] = useState({ name: '', description: '' })
+  const [staffLevelForm, setStaffLevelForm] = useState({
+    name: '',
+    description: '',
+    defaultWageAmount: '',
+    currency: 'NGN',
+    payFrequency: 'monthly',
+  })
   const [roleError, setRoleError] = useState('')
   const [designationError, setDesignationError] = useState('')
+  const [staffLevelError, setStaffLevelError] = useState('')
   const [savingRole, setSavingRole] = useState(false)
   const [savingDesignation, setSavingDesignation] = useState(false)
+  const [savingStaffLevel, setSavingStaffLevel] = useState(false)
   const [editingRole, setEditingRole] = useState<{ id: string; name: string; description: string } | null>(null)
   const [editingDesignation, setEditingDesignation] = useState<{
     id: string
@@ -37,10 +61,20 @@ export default function RoleDesignationSettings() {
     description: string
     category?: string
   } | null>(null)
+  const [editingStaffLevel, setEditingStaffLevel] = useState<{
+    id: string
+    name: string
+    description: string
+    defaultWageAmount: string
+    currency: string
+    payFrequency: StaffLevel['payFrequency']
+  } | null>(null)
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null)
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
   const [updatingDesignationId, setUpdatingDesignationId] = useState<string | null>(null)
   const [deletingDesignationId, setDeletingDesignationId] = useState<string | null>(null)
+  const [updatingStaffLevelId, setUpdatingStaffLevelId] = useState<string | null>(null)
+  const [deletingStaffLevelId, setDeletingStaffLevelId] = useState<string | null>(null)
 
   const loadRoles = async () => {
     setLoadingRoles(true)
@@ -139,9 +173,25 @@ export default function RoleDesignationSettings() {
     }
   }
 
+  const loadStaffLevels = async () => {
+    setLoadingStaffLevels(true)
+    try {
+      const response = await fetch('/api/staff-levels')
+      if (!response.ok) throw new Error('Failed to load staff levels')
+      const data = await response.json()
+      setStaffLevels(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error(error)
+      setStaffLevels([])
+    } finally {
+      setLoadingStaffLevels(false)
+    }
+  }
+
   useEffect(() => {
     loadRoles()
     loadDesignations()
+    loadStaffLevels()
   }, [])
 
   const handleCreateRole = async (event: React.FormEvent) => {
@@ -265,6 +315,293 @@ export default function RoleDesignationSettings() {
       setSavingDesignation(false)
     }
   }
+
+  const handleCreateStaffLevel = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!staffLevelForm.name.trim()) {
+      setStaffLevelError('Staff level name is required.')
+      return
+    }
+    const amount = Number(staffLevelForm.defaultWageAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setStaffLevelError('Enter a valid wage greater than 0.')
+      return
+    }
+    if (!/^[A-Za-z]{3}$/.test(staffLevelForm.currency.trim())) {
+      setStaffLevelError('Currency must be a 3-letter code, e.g. USD, NGN.')
+      return
+    }
+    setSavingStaffLevel(true)
+    setStaffLevelError('')
+    try {
+      const response = await fetch('/api/staff-levels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: staffLevelForm.name.trim(),
+          description: staffLevelForm.description.trim() || undefined,
+          defaultWageAmount: amount,
+          currency: staffLevelForm.currency.trim().toUpperCase(),
+          payFrequency: staffLevelForm.payFrequency,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to create staff level')
+      }
+      setStaffLevelForm({
+        name: '',
+        description: '',
+        defaultWageAmount: '',
+        currency: staffLevelForm.currency,
+        payFrequency: staffLevelForm.payFrequency,
+      })
+      await loadStaffLevels()
+    } catch (error: any) {
+      setStaffLevelError(error?.message || 'Unable to create staff level.')
+    } finally {
+      setSavingStaffLevel(false)
+    }
+  }
+
+  const startEditingStaffLevel = (level: StaffLevel) => {
+    setStaffLevelError('')
+    setEditingStaffLevel({
+      id: level.id,
+      name: level.name,
+      description: level.description ?? '',
+      defaultWageAmount: String(level.defaultWageAmount ?? ''),
+      currency: level.currency || 'NGN',
+      payFrequency: level.payFrequency ?? 'monthly',
+    })
+  }
+
+  const handleSaveStaffLevelEdit = async () => {
+    if (!editingStaffLevel) return
+    if (!editingStaffLevel.name.trim()) {
+      setStaffLevelError('Staff level name is required.')
+      return
+    }
+    const amount = Number(editingStaffLevel.defaultWageAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setStaffLevelError('Enter a valid wage greater than 0.')
+      return
+    }
+    if (!/^[A-Za-z]{3}$/.test(editingStaffLevel.currency.trim())) {
+      setStaffLevelError('Currency must be a 3-letter code, e.g. USD, NGN.')
+      return
+    }
+    setUpdatingStaffLevelId(editingStaffLevel.id)
+    setStaffLevelError('')
+    try {
+      const response = await fetch(`/api/staff-levels/${editingStaffLevel.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingStaffLevel.name.trim(),
+          description: editingStaffLevel.description.trim() || undefined,
+          defaultWageAmount: amount,
+          currency: editingStaffLevel.currency.trim().toUpperCase(),
+          payFrequency: editingStaffLevel.payFrequency,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to update staff level')
+      }
+      setEditingStaffLevel(null)
+      await loadStaffLevels()
+    } catch (error: any) {
+      setStaffLevelError(error?.message || 'Unable to update staff level.')
+    } finally {
+      setUpdatingStaffLevelId(null)
+    }
+  }
+
+  const handleDeleteStaffLevel = async (level: StaffLevel) => {
+    const confirmed = window.confirm(`Delete the staff level “${level.name}”?`)
+    if (!confirmed) return
+    setDeletingStaffLevelId(level.id)
+    setStaffLevelError('')
+    try {
+      const response = await fetch(`/api/staff-levels/${level.id}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to delete staff level')
+      }
+      if (editingStaffLevel?.id === level.id) {
+        setEditingStaffLevel(null)
+      }
+      await loadStaffLevels()
+    } catch (error: any) {
+      setStaffLevelError(error?.message || 'Unable to delete staff level.')
+    } finally {
+      setDeletingStaffLevelId(null)
+    }
+  }
+
+  const staffLevelCards = useMemo(() => {
+    if (loadingStaffLevels) {
+      return <div className="text-sm text-gray-500">Loading staff levels…</div>
+    }
+    if (staffLevels.length === 0) {
+      return <div className="text-sm text-gray-500">No staff levels yet. Create your first one.</div>
+    }
+
+    return staffLevels.map((level) => {
+      const isEditing = editingStaffLevel?.id === level.id
+      const isBusy = updatingStaffLevelId === level.id || deletingStaffLevelId === level.id
+      return (
+        <div
+          key={level.id}
+          className="border border-gray-200 rounded-xl px-4 py-3 flex flex-col gap-3 bg-gradient-to-br from-white to-gray-50"
+        >
+          {isEditing ? (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={editingStaffLevel.name}
+                onChange={(event) =>
+                  setEditingStaffLevel((prev) => (prev ? { ...prev, name: event.target.value } : prev))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Staff level name"
+              />
+              <textarea
+                value={editingStaffLevel.description}
+                onChange={(event) =>
+                  setEditingStaffLevel((prev) => (prev ? { ...prev, description: event.target.value } : prev))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Description (optional)"
+                rows={2}
+              />
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="text-sm text-gray-600 flex flex-col gap-1">
+                  Default wage
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingStaffLevel.defaultWageAmount}
+                    onChange={(event) =>
+                      setEditingStaffLevel((prev) =>
+                        prev ? { ...prev, defaultWageAmount: event.target.value } : prev,
+                      )
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </label>
+                <label className="text-sm text-gray-600 flex flex-col gap-1">
+                  Currency
+                  <input
+                    type="text"
+                    maxLength={3}
+                    value={editingStaffLevel.currency}
+                    onChange={(event) =>
+                      setEditingStaffLevel((prev) =>
+                        prev ? { ...prev, currency: event.target.value.toUpperCase() } : prev,
+                      )
+                    }
+                    className="px-3 py-2 uppercase border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </label>
+                <label className="text-sm text-gray-600 flex flex-col gap-1">
+                  Pay frequency
+                  <select
+                    value={editingStaffLevel.payFrequency}
+                    onChange={(event) =>
+                      setEditingStaffLevel((prev) =>
+                        prev ? { ...prev, payFrequency: event.target.value as StaffLevel['payFrequency'] } : prev,
+                      )
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    {DEFAULT_PAY_FREQUENCIES.map((frequency) => (
+                      <option key={frequency} value={frequency}>
+                        {frequency === 'biweekly' ? 'Bi-weekly' : frequency.charAt(0).toUpperCase() + frequency.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingStaffLevel(null)}
+                  className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isBusy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveStaffLevelEdit}
+                  disabled={isBusy}
+                  className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {updatingStaffLevelId === level.id ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-gray-900">{level.name}</div>
+                  {level.description && <p className="text-sm text-gray-500">{level.description}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                    onClick={() => startEditingStaffLevel(level)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    onClick={() => handleDeleteStaffLevel(level)}
+                    disabled={isBusy}
+                  >
+                    {deletingStaffLevelId === level.id ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-2 text-sm text-gray-600 md:grid-cols-3">
+                <div className="rounded-lg bg-white border border-gray-200 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Default wage</p>
+                  <p className="text-base font-semibold text-gray-900 mt-1">
+                    {level.currency} {new Intl.NumberFormat().format(level.defaultWageAmount ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white border border-gray-200 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Pay schedule</p>
+                  <p className="text-base font-semibold text-gray-900 mt-1 capitalize">
+                    {level.payFrequency === 'biweekly' ? 'Bi-weekly' : level.payFrequency}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white border border-gray-200 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Visibility</p>
+                  <p className="text-base font-semibold text-gray-900 mt-1">
+                    {level.isDefault ? 'Default for staff' : 'Custom'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    })
+  }, [
+    deletingStaffLevelId,
+    editingStaffLevel,
+    loadingStaffLevels,
+    staffLevels,
+    updatingStaffLevelId,
+  ])
 
   return (
     <div className="space-y-12">
@@ -546,6 +883,100 @@ export default function RoleDesignationSettings() {
             })
           )}
         </div>
+      </section>
+
+      <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Staff levels</p>
+            <h2 className="text-xl font-semibold text-gray-900 mt-1">Define wage tiers</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Configure wage expectations per tier so payroll and staff onboarding stay synchronized. You can override
+              wages per person later.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleCreateStaffLevel} className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 space-y-4 mb-6 border border-dashed border-gray-200">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="text-sm text-gray-600 flex flex-col gap-1">
+              Staff level name
+              <input
+                type="text"
+                value={staffLevelForm.name}
+                onChange={(event) => setStaffLevelForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="e.g. Junior Staff, Supervising Pastor"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </label>
+            <label className="text-sm text-gray-600 flex flex-col gap-1">
+              Description <span className="text-gray-400">(optional)</span>
+              <input
+                type="text"
+                value={staffLevelForm.description}
+                onChange={(event) => setStaffLevelForm((prev) => ({ ...prev, description: event.target.value }))}
+                placeholder="Optional context for this level"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </label>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="text-sm text-gray-600 flex flex-col gap-1">
+              Default wage amount
+              <input
+                type="number"
+                min="0"
+                value={staffLevelForm.defaultWageAmount}
+                onChange={(event) => setStaffLevelForm((prev) => ({ ...prev, defaultWageAmount: event.target.value }))}
+                placeholder="0.00"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </label>
+            <label className="text-sm text-gray-600 flex flex-col gap-1">
+              Currency
+              <input
+                type="text"
+                maxLength={3}
+                value={staffLevelForm.currency}
+                onChange={(event) =>
+                  setStaffLevelForm((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }))
+                }
+                className="px-3 py-2 uppercase border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </label>
+            <label className="text-sm text-gray-600 flex flex-col gap-1">
+              Pay frequency
+              <select
+                value={staffLevelForm.payFrequency}
+                onChange={(event) =>
+                  setStaffLevelForm((prev) => ({
+                    ...prev,
+                    payFrequency: event.target.value as StaffLevel['payFrequency'],
+                  }))
+                }
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                {DEFAULT_PAY_FREQUENCIES.map((frequency) => (
+                  <option key={frequency} value={frequency}>
+                    {frequency === 'biweekly' ? 'Bi-weekly' : frequency.charAt(0).toUpperCase() + frequency.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {staffLevelError && <p className="text-sm text-red-600">{staffLevelError}</p>}
+          <div className="text-right">
+            <button
+              type="submit"
+              disabled={savingStaffLevel}
+              className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {savingStaffLevel ? 'Saving…' : 'Add staff level'}
+            </button>
+          </div>
+        </form>
+
+        <div className="grid gap-3">{staffLevelCards}</div>
       </section>
     </div>
   )

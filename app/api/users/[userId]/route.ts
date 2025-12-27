@@ -111,6 +111,12 @@ export async function PUT(
       role,
       profileImage,
       password,
+      isStaff,
+      staffLevelId,
+      customWage,
+      customWageAmount,
+      customWageCurrency,
+      customWagePayFrequency,
     } = body
 
     const updateData: any = {}
@@ -130,6 +136,71 @@ export async function PUT(
     // Only admins can change roles
     if (role !== undefined && ['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)) {
       updateData.role = role
+    }
+
+    const normalizeCustomWage = () => {
+      const payload = customWage || {
+        amount: customWageAmount,
+        currency: customWageCurrency,
+        payFrequency: customWagePayFrequency,
+      }
+      if (!payload || typeof payload !== 'object') {
+        throw new Error('Custom wage must include amount, currency, and pay frequency')
+      }
+      const amount = typeof payload.amount === 'number' ? payload.amount : Number(payload.amount)
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Custom wage amount must be greater than 0')
+      }
+      const currency = String(payload.currency ?? '').trim().toUpperCase()
+      if (!/^[A-Z]{3}$/.test(currency)) {
+        throw new Error('Custom wage currency must be a 3-letter ISO code')
+      }
+      const payFrequency = String(payload.payFrequency ?? '').toLowerCase()
+      const validFrequencies = ['weekly', 'biweekly', 'monthly', 'annual']
+      if (!validFrequencies.includes(payFrequency)) {
+        throw new Error('Custom wage pay frequency is invalid')
+      }
+      return { amount, currency, payFrequency }
+    }
+
+    if (isStaff !== undefined || staffLevelId !== undefined || customWage !== undefined || customWageAmount !== undefined) {
+      const church = await getCurrentChurch(currentUserId)
+      if (!church) {
+        return NextResponse.json({ error: 'No church selected' }, { status: 400 })
+      }
+
+      const targetUser = await UserService.findById(userId)
+      if (!targetUser || targetUser.churchId !== church.id) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+
+      const staffFlag = isStaff !== undefined ? Boolean(isStaff) : Boolean(targetUser.isStaff)
+      updateData.isStaff = staffFlag
+
+      if (staffFlag) {
+        const levelId = staffLevelId ?? targetUser.staffLevelId
+        if (!levelId) {
+          return NextResponse.json({ error: 'Staff level is required for staff members' }, { status: 400 })
+        }
+        const staffLevel = await db.collection(COLLECTIONS.staffLevels).doc(levelId).get()
+        if (!staffLevel.exists || staffLevel.data()?.churchId !== church.id) {
+          return NextResponse.json({ error: 'Invalid staff level' }, { status: 400 })
+        }
+        updateData.staffLevelId = levelId
+        updateData.staffLevelName = staffLevel.data()?.name
+
+        if (customWage !== undefined || customWageAmount !== undefined) {
+          try {
+            updateData.customWage = normalizeCustomWage()
+          } catch (err: any) {
+            return NextResponse.json({ error: err.message }, { status: 400 })
+          }
+        }
+      } else {
+        updateData.staffLevelId = null
+        updateData.staffLevelName = null
+        updateData.customWage = null
+      }
     }
 
     // Handle password change

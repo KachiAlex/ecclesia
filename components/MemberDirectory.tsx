@@ -46,6 +46,14 @@ interface User {
   }
   designationId?: string
   designationName?: string
+  isStaff?: boolean
+  staffLevelId?: string
+  staffLevelName?: string
+  customWage?: {
+    amount: number
+    currency: string
+    payFrequency: PayFrequencyOption
+  }
 }
 
 interface Pagination {
@@ -80,6 +88,28 @@ interface AssignPayrollForm {
   startDate: string
 }
 
+interface StaffLevelOption {
+  id: string
+  name: string
+  description?: string
+}
+
+interface ManualFormState {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  phone: string
+  role: string
+  designationId: string
+  isStaff: boolean
+  staffLevelId: string
+  useCustomWage: boolean
+  customWageAmount: string
+  customWageCurrency: string
+  customWagePayFrequency: PayFrequencyOption
+}
+
 const PAY_FREQUENCY_OPTIONS: PayFrequencyOption[] = ['weekly', 'biweekly', 'monthly', 'annual']
 const CURRENCY_OPTIONS = ['USD', 'NGN', 'EUR', 'GBP']
 
@@ -90,6 +120,43 @@ const getDefaultAssignPayrollForm = (): AssignPayrollForm => ({
   payFrequency: 'monthly',
   startDate: new Date().toISOString().slice(0, 10),
 })
+
+const getDefaultManualForm = (): ManualFormState => ({
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  phone: '',
+  role: 'MEMBER',
+  designationId: '',
+  isStaff: false,
+  staffLevelId: '',
+  useCustomWage: false,
+  customWageAmount: '',
+  customWageCurrency: 'NGN',
+  customWagePayFrequency: 'monthly',
+})
+
+const formatPayFrequencyLabel = (frequency?: PayFrequencyOption | string | null) => {
+  if (!frequency) return ''
+  const normalized = frequency.toLowerCase()
+  return normalized === 'biweekly'
+    ? 'Bi-weekly'
+    : normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+const formatCurrency = (amount?: number, currency?: string) => {
+  if (amount === undefined || amount === null || !currency) return ''
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency} ${amount.toLocaleString()}`
+  }
+}
 
 export default function MemberDirectory() {
   const [users, setUsers] = useState<User[]>([])
@@ -108,17 +175,11 @@ export default function MemberDirectory() {
   const [levelLabels, setLevelLabels] = useState<Record<string, string>>({})
   const [inviteLevelSelections, setInviteLevelSelections] = useState<Record<string, string>>({})
   const [savingManual, setSavingManual] = useState(false)
-  const [manualForm, setManualForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    phone: '',
-    role: 'MEMBER',
-    designationId: '',
-  })
+  const [manualForm, setManualForm] = useState<ManualFormState>(() => getDefaultManualForm())
   const [designations, setDesignations] = useState<Designation[]>([])
   const [isLoadingDesignations, setIsLoadingDesignations] = useState(false)
+  const [staffLevels, setStaffLevels] = useState<StaffLevelOption[]>([])
+  const [loadingStaffLevels, setLoadingStaffLevels] = useState(false)
   const [designationModalOpen, setDesignationModalOpen] = useState(false)
   const [designationForm, setDesignationForm] = useState({
     name: '',
@@ -148,6 +209,9 @@ export default function MemberDirectory() {
   const [loadingPayrollData, setLoadingPayrollData] = useState(false)
   const [savingPayroll, setSavingPayroll] = useState(false)
   const [payrollError, setPayrollError] = useState('')
+  const [staffFilter, setStaffFilter] = useState('')
+  const noStaffLevelsAvailable = !loadingStaffLevels && staffLevels.length === 0
+  const staffToggleDisabled = loadingStaffLevels || noStaffLevelsAvailable
 
   const memberInviteLink = useMemo(() => {
     if (memberInvite.url) return memberInvite.url
@@ -156,6 +220,31 @@ export default function MemberDirectory() {
     }
     return ''
   }, [memberInvite.token, memberInvite.url])
+
+  const canSaveManual = useMemo(() => {
+    if (
+      !manualForm.firstName.trim() ||
+      !manualForm.lastName.trim() ||
+      !manualForm.email.trim() ||
+      !manualForm.password.trim()
+    ) {
+      return false
+    }
+
+    if (manualForm.isStaff) {
+      if (!manualForm.staffLevelId) return false
+      if (
+        manualForm.useCustomWage &&
+        (!manualForm.customWageAmount ||
+          Number(manualForm.customWageAmount) <= 0 ||
+          !manualForm.customWageCurrency.trim())
+      ) {
+        return false
+      }
+    }
+
+    return true
+  }, [manualForm])
 
   const branchesByParent = useMemo(() => {
     const map: Record<string, BranchOption[]> = {}
@@ -276,6 +365,25 @@ export default function MemberDirectory() {
     loadDesignations()
   }, [loadDesignations])
 
+  const loadStaffLevels = useCallback(async () => {
+    setLoadingStaffLevels(true)
+    try {
+      const response = await fetch('/api/staff-levels')
+      if (!response.ok) throw new Error('Failed to load staff levels')
+      const data = await response.json()
+      setStaffLevels(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error loading staff levels:', error)
+      setStaffLevels([])
+    } finally {
+      setLoadingStaffLevels(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadStaffLevels()
+  }, [loadStaffLevels])
+
   const resetDesignationForm = () => {
     setDesignationForm({
       name: '',
@@ -322,23 +430,48 @@ export default function MemberDirectory() {
     setSavingManual(true)
     setAddError('')
     try {
+      const payload: Record<string, any> = {
+        firstName: manualForm.firstName,
+        lastName: manualForm.lastName,
+        email: manualForm.email,
+        password: manualForm.password,
+        phone: manualForm.phone || undefined,
+        role: manualForm.role,
+        designationId: manualForm.designationId || undefined,
+        isStaff: manualForm.isStaff,
+      }
+
+      if (manualForm.isStaff) {
+        if (!manualForm.staffLevelId) {
+          throw new Error('Select a staff level for staff members.')
+        }
+        payload.staffLevelId = manualForm.staffLevelId
+
+        if (manualForm.useCustomWage) {
+          const amountValue = Number(manualForm.customWageAmount)
+          if (!Number.isFinite(amountValue) || amountValue <= 0) {
+            throw new Error('Enter a valid custom wage amount greater than 0.')
+          }
+          payload.customWage = {
+            amount: amountValue,
+            currency: manualForm.customWageCurrency.trim().toUpperCase(),
+            payFrequency: manualForm.customWagePayFrequency,
+          }
+        }
+      } else {
+        payload.staffLevelId = undefined
+        payload.customWage = undefined
+      }
+
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: manualForm.firstName,
-          lastName: manualForm.lastName,
-          email: manualForm.email,
-          password: manualForm.password,
-          phone: manualForm.phone || undefined,
-          role: manualForm.role,
-          designationId: manualForm.designationId || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to create user')
 
-      setManualForm({ firstName: '', lastName: '', email: '', password: '', phone: '', role: 'MEMBER', designationId: '' })
+      setManualForm(getDefaultManualForm())
       await loadUsers()
       setAddOpen(false)
     } catch (e: any) {
@@ -463,6 +596,7 @@ export default function MemberDirectory() {
       if (roleFilter) params.append('role', roleFilter)
       if (branchFilter) params.append('branchId', branchFilter)
       if (designationFilter) params.append('designationId', designationFilter)
+      if (staffFilter) params.append('isStaff', staffFilter)
 
       const response = await fetch(`/api/users?${params}`)
       if (!response.ok) {
@@ -480,7 +614,7 @@ export default function MemberDirectory() {
     } finally {
       setLoading(false)
     }
-  }, [branchFilter, designationFilter, pagination.limit, pagination.page, roleFilter, roleCategoryFilter, roleCategoryFor, search])
+  }, [branchFilter, designationFilter, pagination.limit, pagination.page, roleFilter, roleCategoryFilter, roleCategoryFor, search, staffFilter])
 
   useEffect(() => {
     loadBranches()
@@ -641,8 +775,8 @@ export default function MemberDirectory() {
               </div>
 
               {addTab === 'manual' ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-3">
                     <input
                       value={manualForm.firstName}
                       onChange={(e) => setManualForm((p) => ({ ...p, firstName: e.target.value }))}
@@ -656,7 +790,7 @@ export default function MemberDirectory() {
                       className="px-3 py-2 border border-gray-300 rounded-lg"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid md:grid-cols-2 gap-3">
                     <input
                       type="email"
                       value={manualForm.email}
@@ -671,7 +805,7 @@ export default function MemberDirectory() {
                       className="px-3 py-2 border border-gray-300 rounded-lg"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid md:grid-cols-2 gap-3">
                     <input
                       type="password"
                       value={manualForm.password}
@@ -686,7 +820,6 @@ export default function MemberDirectory() {
                     >
                       <option value="MEMBER">Member</option>
                       <option value="LEADER">Leader</option>
-                      <option value="STAFF">Staff</option>
                       <option value="PASTOR">Pastor</option>
                       <option value="ADMIN">Admin</option>
                       <option value="BRANCH_ADMIN">Branch Admin</option>
@@ -717,11 +850,168 @@ export default function MemberDirectory() {
                     </button>
                   </div>
 
+                  <div className="rounded-xl border border-gray-200 p-4 space-y-4 bg-gray-50/60">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Staff assignment</p>
+                        <p className="text-xs text-gray-500">
+                          Tag this member as staff to include them in payroll automatically.
+                        </p>
+                      </div>
+                      <label className={`flex items-center gap-2 text-sm font-medium text-gray-700 ${staffToggleDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={manualForm.isStaff}
+                          disabled={staffToggleDisabled}
+                          onChange={(e) =>
+                            setManualForm((prev) => {
+                              const next = {
+                                ...prev,
+                                isStaff: e.target.checked,
+                              }
+                              if (!e.target.checked) {
+                                next.staffLevelId = ''
+                                next.useCustomWage = false
+                                next.customWageAmount = ''
+                                next.customWageCurrency = 'NGN'
+                                next.customWagePayFrequency = 'monthly'
+                              }
+                              return next
+                            })
+                          }
+                          className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                        />
+                        Mark as staff
+                      </label>
+                    </div>
+
+                    {staffToggleDisabled && (
+                      <p className="text-xs text-amber-600">
+                        {loadingStaffLevels
+                          ? 'Loading staff levels...'
+                          : 'Create staff levels in Settings → Roles & Designations before assigning staff.'}
+                      </p>
+                    )}
+
+                    {manualForm.isStaff ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            Staff level
+                          </label>
+                          <select
+                            value={manualForm.staffLevelId}
+                            onChange={(e) => setManualForm((prev) => ({ ...prev, staffLevelId: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            disabled={loadingStaffLevels || staffLevels.length === 0}
+                          >
+                            <option value="">
+                              {loadingStaffLevels
+                                ? 'Loading staff levels…'
+                                : staffLevels.length === 0
+                                ? 'No staff levels configured'
+                                : 'Select staff level'}
+                            </option>
+                            {staffLevels.map((level) => (
+                              <option key={level.id} value={level.id}>
+                                {level.name}
+                              </option>
+                            ))}
+                          </select>
+                          {!loadingStaffLevels && staffLevels.length === 0 && (
+                            <p className="mt-1 text-xs text-amber-600">
+                              Create staff levels in <strong>Settings → Roles & Designations</strong>.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="rounded-lg border border-gray-100 bg-white p-3 space-y-3">
+                          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={manualForm.useCustomWage}
+                              onChange={(e) =>
+                                setManualForm((prev) => ({
+                                  ...prev,
+                                  useCustomWage: e.target.checked,
+                                  customWageAmount: e.target.checked ? prev.customWageAmount : '',
+                                }))
+                              }
+                              className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                            />
+                            Override default wage
+                          </label>
+                          {manualForm.useCustomWage ? (
+                            <div className="grid gap-3 md:grid-cols-3">
+                              <label className="text-xs font-semibold text-gray-600 flex flex-col gap-1">
+                                Amount
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={manualForm.customWageAmount}
+                                  onChange={(e) =>
+                                    setManualForm((prev) => ({ ...prev, customWageAmount: e.target.value }))
+                                  }
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                />
+                              </label>
+                              <label className="text-xs font-semibold text-gray-600 flex flex-col gap-1">
+                                Currency
+                                <input
+                                  type="text"
+                                  maxLength={3}
+                                  value={manualForm.customWageCurrency}
+                                  onChange={(e) =>
+                                    setManualForm((prev) => ({
+                                      ...prev,
+                                      customWageCurrency: e.target.value.toUpperCase(),
+                                    }))
+                                  }
+                                  className="px-3 py-2 border border-gray-300 rounded-lg uppercase focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                />
+                              </label>
+                              <label className="text-xs font-semibold text-gray-600 flex flex-col gap-1">
+                                Pay frequency
+                                <select
+                                  value={manualForm.customWagePayFrequency}
+                                  onChange={(e) =>
+                                    setManualForm((prev) => ({
+                                      ...prev,
+                                      customWagePayFrequency: e.target.value as PayFrequencyOption,
+                                    }))
+                                  }
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                >
+                                  {PAY_FREQUENCY_OPTIONS.map((frequency) => (
+                                    <option key={frequency} value={frequency}>
+                                      {frequency === 'biweekly'
+                                        ? 'Bi-weekly'
+                                        : frequency.charAt(0).toUpperCase() + frequency.slice(1)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-500">
+                              Default wage from the selected staff level will be applied.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">
+                        Leave unchecked for regular members. You can promote them to staff later.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={createManual}
-                      disabled={savingManual || !manualForm.firstName || !manualForm.lastName || !manualForm.email || !manualForm.password}
+                      disabled={savingManual || !canSaveManual}
                       className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
                     >
                       {savingManual ? 'Saving...' : 'Create Member'}
@@ -870,10 +1160,21 @@ export default function MemberDirectory() {
             <option value="VISITOR">Visitor</option>
             <option value="MEMBER">Member</option>
             <option value="LEADER">Leader</option>
-            <option value="STAFF">Staff</option>
             <option value="PASTOR">Pastor</option>
             <option value="ADMIN">Admin</option>
             <option value="BRANCH_ADMIN">Branch Admin</option>
+          </select>
+          <select
+            value={staffFilter}
+            onChange={(e) => {
+              setStaffFilter(e.target.value)
+              setPagination({ ...pagination, page: 1 })
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="">All members</option>
+            <option value="true">Staff</option>
+            <option value="false">Non-staff</option>
           </select>
           {branches.length > 0 && (
             <select
@@ -1023,9 +1324,34 @@ export default function MemberDirectory() {
                         {user.salary?.position.name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">Level {user.level}</div>
-                        <div className="text-xs text-gray-500">
-                          {user.xp.toLocaleString()} XP
+                        <div className="space-y-2">
+                          <div className="flex flex-col gap-1">
+                            {user.isStaff ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-1 rounded-full">
+                                Staff
+                                {user.staffLevelName && (
+                                  <span className="text-primary-500">· {user.staffLevelName}</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                Non-staff
+                              </span>
+                            )}
+                            {user.isStaff && (
+                              <p className="text-xs text-gray-500">
+                                {user.customWage
+                                  ? `${formatCurrency(user.customWage.amount, user.customWage.currency)} · ${formatPayFrequencyLabel(user.customWage.payFrequency)}`
+                                  : 'Uses staff level wage'}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-900">Level {user.level}</div>
+                            <div className="text-xs text-gray-500">
+                              {user.xp.toLocaleString()} XP
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1038,7 +1364,7 @@ export default function MemberDirectory() {
                         >
                           View
                         </Link>
-                        {user.role === 'STAFF' && (
+                        {user.isStaff && (
                           <button
                             type="button"
                             onClick={() => openAssignPayroll(user)}

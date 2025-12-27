@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
+const PAY_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'annual'] as const
+
 const userSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
@@ -21,6 +23,12 @@ const userSchema = z.object({
   role: z.string().optional(),
   profileImage: z.string().url().optional().or(z.literal('')),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
+  isStaff: z.boolean().optional(),
+  staffLevelId: z.string().optional(),
+  useCustomWage: z.boolean().optional(),
+  customWageAmount: z.string().optional(),
+  customWageCurrency: z.string().optional(),
+  customWagePayFrequency: z.enum(PAY_FREQUENCIES).optional(),
 })
 
 type UserFormData = z.infer<typeof userSchema>
@@ -36,15 +44,25 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [canEditRole, setCanEditRole] = useState(false)
+  const [staffLevels, setStaffLevels] = useState<
+    { id: string; name: string; description?: string }[]
+  >([])
+  const [loadingStaffLevels, setLoadingStaffLevels] = useState(false)
+  const [staffLevelError, setStaffLevelError] = useState('')
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
+    setValue,
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
   })
+
+  const isStaffSelected = watch('isStaff')
+  const useCustomWage = watch('useCustomWage')
 
   const loadUser = useCallback(async () => {
     try {
@@ -79,6 +97,16 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
         role: user.role || '',
         profileImage: user.profileImage || '',
         password: '',
+        isStaff: Boolean(user.isStaff),
+        staffLevelId: user.staffLevelId || '',
+        useCustomWage: Boolean(user.customWage),
+        customWageAmount: user.customWage?.amount
+          ? user.customWage.amount.toString()
+          : '',
+        customWageCurrency: user.customWage?.currency || 'NGN',
+        customWagePayFrequency:
+          (user.customWage?.payFrequency as typeof PAY_FREQUENCIES[number]) ||
+          'monthly',
       })
     } catch (err: any) {
       setError(err.message)
@@ -91,6 +119,24 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
     loadUser()
   }, [loadUser])
 
+  useEffect(() => {
+    const fetchStaffLevels = async () => {
+      setLoadingStaffLevels(true)
+      setStaffLevelError('')
+      try {
+        const response = await fetch('/api/staff-levels')
+        if (!response.ok) throw new Error('Failed to load staff levels')
+        const data = await response.json()
+        setStaffLevels(Array.isArray(data) ? data : [])
+      } catch (err: any) {
+        setStaffLevelError(err?.message || 'Unable to load staff levels.')
+      } finally {
+        setLoadingStaffLevels(false)
+      }
+    }
+    fetchStaffLevels()
+  }, [])
+
   const onSubmit = async (data: UserFormData) => {
     setError('')
     setSuccess(false)
@@ -98,7 +144,46 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
 
     try {
       // Remove empty password
-      const updateData = { ...data }
+      const updateData: Record<string, any> = { ...data }
+
+      const isStaffFlag = Boolean(data.isStaff)
+      updateData.isStaff = isStaffFlag
+
+      if (isStaffFlag) {
+        if (!data.staffLevelId) {
+          throw new Error('Select a staff level for this member.')
+        }
+        updateData.staffLevelId = data.staffLevelId
+        if (data.useCustomWage) {
+          const amountValue = Number(data.customWageAmount)
+          if (!Number.isFinite(amountValue) || amountValue <= 0) {
+            throw new Error('Enter a valid custom wage amount greater than 0.')
+          }
+          const currency = (data.customWageCurrency || '').trim().toUpperCase()
+          if (!/^[A-Z]{3}$/.test(currency)) {
+            throw new Error('Custom wage currency must be a 3-letter code.')
+          }
+          const frequency =
+            data.customWagePayFrequency || ('monthly' as typeof PAY_FREQUENCIES[number])
+          updateData.customWage = {
+            amount: amountValue,
+            currency,
+            payFrequency: frequency,
+          }
+        } else {
+          updateData.customWage = null
+        }
+      } else {
+        updateData.staffLevelId = null
+        updateData.customWage = null
+      }
+
+      delete updateData.useCustomWage
+      delete updateData.customWageAmount
+      delete updateData.customWageCurrency
+      delete updateData.customWagePayFrequency
+      delete updateData.staffLevelId
+
       if (!updateData.password) {
         delete updateData.password
       }
@@ -325,11 +410,121 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
                   <option value="VISITOR">Visitor</option>
                   <option value="MEMBER">Member</option>
                   <option value="LEADER">Leader</option>
-                  <option value="STAFF">Staff</option>
                   <option value="PASTOR">Pastor</option>
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
+            )}
+          </div>
+
+          <div className="border border-gray-200 rounded-xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Staff assignment</h3>
+                <p className="text-sm text-gray-500">
+                  Assign this member to a staff tier to include them in payroll calculations.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  {...register('isStaff')}
+                  className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                />
+                Mark as staff
+              </label>
+            </div>
+
+            {isStaffSelected ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Staff level
+                  </label>
+                  <select
+                    {...register('staffLevelId')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    disabled={loadingStaffLevels || staffLevels.length === 0}
+                  >
+                    <option value="">
+                      {loadingStaffLevels
+                        ? 'Loading staff levels...'
+                        : staffLevels.length === 0
+                        ? 'Create a staff level in Settings > Roles & Designations'
+                        : 'Select staff level'}
+                    </option>
+                    {staffLevels.map((level) => (
+                      <option key={level.id} value={level.id}>
+                        {level.name}
+                      </option>
+                    ))}
+                  </select>
+                  {staffLevelError && (
+                    <p className="mt-1 text-sm text-red-600">{staffLevelError}</p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-3">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <input
+                      type="checkbox"
+                      {...register('useCustomWage')}
+                      className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                    />
+                    Override default wage
+                  </label>
+                  {useCustomWage && (
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <label className="text-sm text-gray-600 flex flex-col gap-1">
+                        Amount
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          {...register('customWageAmount')}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      </label>
+                      <label className="text-sm text-gray-600 flex flex-col gap-1">
+                        Currency
+                        <input
+                          type="text"
+                          maxLength={3}
+                          {...register('customWageCurrency')}
+                          onChange={(event) =>
+                            setValue('customWageCurrency', event.target.value.toUpperCase())
+                          }
+                          className="px-3 py-2 uppercase border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      </label>
+                      <label className="text-sm text-gray-600 flex flex-col gap-1">
+                        Pay frequency
+                        <select
+                          {...register('customWagePayFrequency')}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        >
+                          {PAY_FREQUENCIES.map((freq) => (
+                            <option key={freq} value={freq}>
+                              {freq === 'biweekly'
+                                ? 'Bi-weekly'
+                                : freq.charAt(0).toUpperCase() + freq.slice(1)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  {!useCustomWage && (
+                    <p className="text-sm text-gray-500">
+                      Default wage from the selected staff level will be used unless you override it.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                This member is currently not part of the staff payroll list.
+              </p>
             )}
           </div>
 

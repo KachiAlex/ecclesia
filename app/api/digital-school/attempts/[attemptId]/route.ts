@@ -3,9 +3,11 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import {
+  DigitalCourseEnrollmentService,
   DigitalCourseExamService,
   DigitalCourseService,
   DigitalExamAttemptService,
+  DigitalExamQuestionService,
 } from '@/lib/services/digital-school-service'
 import { UserRole } from '@/types'
 
@@ -29,10 +31,12 @@ async function loadAttempt(attemptId: string) {
   return { attempt, exam, course }
 }
 
-export async function GET(_: Request, { params }: RouteParams) {
+export async function GET(request: Request, { params }: RouteParams) {
   try {
     const guarded = await guardApi({ requireChurch: true })
     if (!guarded.ok) return guarded.response
+
+    const includeQuestions = new URL(request.url).searchParams.get('includeQuestions') === '1'
 
     const scoped = await loadAttempt(params.attemptId)
     if (!scoped.attempt || scoped.course?.churchId !== guarded.ctx.church?.id) {
@@ -43,7 +47,21 @@ export async function GET(_: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    return NextResponse.json(scoped.attempt)
+    let payload: Record<string, any> = scoped.attempt
+    if (includeQuestions) {
+      const questions = await DigitalExamQuestionService.listByExam(scoped.exam.id)
+      payload = {
+        ...payload,
+        questionSummaries: questions.map((question) => ({
+          id: question.id,
+          question: question.question,
+          options: question.options,
+          correctOption: question.correctOption,
+        })),
+      }
+    }
+
+    return NextResponse.json(payload)
   } catch (error: any) {
     console.error('DigitalSchool.attempt.GET', error)
     return NextResponse.json({ error: error.message || 'Failed to load attempt' }, { status: 500 })
@@ -79,6 +97,28 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const updated = await DigitalExamAttemptService.submit(params.attemptId, responses)
     if (!updated) {
       return NextResponse.json({ error: 'Unable to submit attempt' }, { status: 400 })
+    }
+
+    const enrollment = await DigitalCourseEnrollmentService.findByUserAndCourse(
+      guarded.ctx.userId,
+      scoped.exam.courseId,
+    )
+    if (enrollment) {
+      const nextStatus = 'completed'
+      await DigitalCourseEnrollmentService.updateProgress(
+        enrollment.id,
+        100,
+        undefined,
+        nextStatus,
+        undefined,
+        updated.score != null
+          ? {
+              url: enrollment.certificateUrl ?? null,
+              storagePath: enrollment.certificateStoragePath ?? null,
+              issuedAt: enrollment.certificateIssuedAt ?? null,
+            }
+          : undefined,
+      )
     }
 
     return NextResponse.json(updated)

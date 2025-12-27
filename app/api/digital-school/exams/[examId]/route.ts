@@ -71,8 +71,25 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }
     }
 
+    const retakePolicy =
+      'retakePolicy' in body
+        ? body.retakePolicy
+          ? {
+              maxAttempts:
+                typeof body.retakePolicy.maxAttempts === 'number'
+                  ? body.retakePolicy.maxAttempts
+                  : null,
+              cooldownHours:
+                typeof body.retakePolicy.cooldownHours === 'number'
+                  ? body.retakePolicy.cooldownHours
+                  : null,
+            }
+          : null
+        : undefined
+
     const updated = await DigitalCourseExamService.update(params.examId, {
       ...body,
+      retakePolicy,
       updatedBy: guarded.ctx.userId,
     })
     if (!updated) {

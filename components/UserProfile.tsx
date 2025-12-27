@@ -6,8 +6,31 @@ import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import VisitorConversion from './VisitorConversion'
 
+type PayFrequencyOption = 'weekly' | 'biweekly' | 'monthly' | 'annual'
+
 interface UserProfileProps {
   userId: string
+}
+
+const formatCurrency = (amount?: number | null, currency?: string | null) => {
+  if (typeof amount !== 'number' || !currency) return null
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency} ${amount.toLocaleString()}`
+  }
+}
+
+const formatPayFrequencyLabel = (frequency?: PayFrequencyOption | string | null) => {
+  if (!frequency) return null
+  const normalized = frequency.toLowerCase()
+  return normalized === 'biweekly'
+    ? 'Bi-weekly'
+    : normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
 interface UserData {
@@ -43,6 +66,14 @@ interface UserData {
       currency: string
     }
   }
+  isStaff?: boolean
+  staffLevelId?: string
+  staffLevelName?: string
+  customWage?: {
+    amount: number
+    currency: string
+    payFrequency: PayFrequencyOption
+  } | null
   _count: {
     departments: number
     groups: number
@@ -97,6 +128,14 @@ export default function UserProfile({ userId }: UserProfileProps) {
     )
   }
 
+  const formattedCustomWage = user.customWage
+    ? formatCurrency(user.customWage.amount, user.customWage.currency) ??
+      `${user.customWage.currency} ${user.customWage.amount.toLocaleString()}`
+    : null
+  const customWageFrequency = user.customWage
+    ? formatPayFrequencyLabel(user.customWage.payFrequency)
+    : null
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -149,6 +188,39 @@ export default function UserProfile({ userId }: UserProfileProps) {
                     </span>
                   </dd>
                 </div>
+                {typeof user.isStaff === 'boolean' && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Staff Status</dt>
+                    <dd className="mt-1">
+                      {user.isStaff ? (
+                        <div className="space-y-2">
+                          <span className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-primary-50 text-primary-700 text-sm font-semibold">
+                            Staff
+                            {user.staffLevelName && (
+                              <span className="text-primary-500 text-xs font-medium">
+                                · {user.staffLevelName}
+                              </span>
+                            )}
+                          </span>
+                          {formattedCustomWage ? (
+                            <p className="text-xs text-gray-600">
+                              Custom wage: {formattedCustomWage}
+                              {customWageFrequency && <> · {customWageFrequency}</>}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-500">
+                              Uses wage defined by the assigned staff level.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="inline-flex px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-sm font-medium">
+                          Non-staff
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                )}
                 {user.spiritualMaturity && (
                   <div>
                     <dt className="text-sm font-medium text-gray-500">

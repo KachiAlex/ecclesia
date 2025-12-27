@@ -82,6 +82,18 @@ export async function POST(request: Request) {
       timeLimitMinutes: body.timeLimitMinutes,
       status: body.status,
       uploadMetadata: body.uploadMetadata,
+      retakePolicy: body.retakePolicy
+        ? {
+            maxAttempts:
+              typeof body.retakePolicy.maxAttempts === 'number'
+                ? body.retakePolicy.maxAttempts
+                : null,
+            cooldownHours:
+              typeof body.retakePolicy.cooldownHours === 'number'
+                ? body.retakePolicy.cooldownHours
+                : null,
+          }
+        : undefined,
       createdBy: guarded.ctx.userId,
       updatedBy: guarded.ctx.userId,
     })

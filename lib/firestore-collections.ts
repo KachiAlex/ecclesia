@@ -11,6 +11,7 @@ export const COLLECTIONS = {
   churchInvites: 'church_invites',
   churchDesignations: 'church_designations',
   churchRoles: 'church_roles',
+  staffLevels: 'staff_levels',
   
   // Subscription collections
   subscriptions: 'subscriptions',
