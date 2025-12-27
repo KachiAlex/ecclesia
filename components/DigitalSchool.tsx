@@ -6,6 +6,11 @@ type AnalyticsBadgeProps = {
   tone: 'slate' | 'gray' | 'amber' | 'emerald'
 }
 
+const courseActionLabel = (course: Course, enrollment?: ApiEnrollmentResponse) => {
+  const snapshot = deriveEnrollmentSnapshot(enrollment, course)
+  return snapshot.actionLabel
+}
+
 const TONE_STYLES: Record<AnalyticsBadgeProps['tone'], { bg: string; text: string }> = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-900' },
   gray: { bg: 'bg-gray-100', text: 'text-gray-900' },
