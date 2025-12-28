@@ -64,7 +64,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
             <div className="mt-6 flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50/70 p-4 text-sm text-red-900">
               <AlertCircle className="h-5 w-5" />
               <span>
-                Slug "/{slug}" was not found.{' '}
+                Slug &ldquo;/{slug}&rdquo; was not found.{' '}
                 <Link href="/login" className="font-semibold underline hover:text-red-800">
                   Return to slug finder
                 </Link>{' '}

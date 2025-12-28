@@ -285,18 +285,18 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
       <div className="flex min-h-full items-center justify-center overflow-y-auto px-3 py-6 sm:px-6">
         <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
-          <div>
-            <p className="text-sm uppercase tracking-wide text-gray-500">Tenant Overview</p>
-            <h2 className="text-2xl font-bold text-gray-900">{church?.name || "Loading tenant..."}</h2>
-            {church?.slug && <p className="text-sm text-gray-500">/{church.slug}</p>}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
-          >
-            ✕
-          </button>
+            <div>
+              <p className="text-sm uppercase tracking-wide text-gray-500">Tenant Overview</p>
+              <h2 className="text-2xl font-bold text-gray-900">{church?.name || "Loading tenant..."}</h2>
+              {church?.slug && <p className="text-sm text-gray-500">/{church.slug}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+            >
+              ✕
+            </button>
           </div>
 
           {loading ? (
@@ -308,224 +308,225 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
           ) : !church ? (
             <div className="px-6 py-8 text-center text-gray-500">No tenant data available.</div>
           ) : (
-            <div className="grid gap-6 px-4 py-6 lg:grid-cols-2">
-            <div className="space-y-6">
-              {church?.slug && <SlugShareCard slug={church.slug} />}
+            <div className="px-4 py-6 space-y-6">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-6">
+                  {church?.slug && <SlugShareCard slug={church.slug} />}
 
-              {actionMessage && (
-                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
-                  {actionMessage}
-                </div>
-              )}
-              {actionError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800">
-                  {actionError}
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Tenant Details</h3>
-                  {!editMode ? (
-                    <button
-                      type="button"
-                      onClick={() => setEditMode(true)}
-                      className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-                    >
-                      Edit
-                    </button>
-                  ) : (
-                    <div className="space-x-2">
-                      <button
-                        type="button"
-                        onClick={handleUpdateDetails}
-                        disabled={actionLoading}
-                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {actionLoading ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditMode(false)}
-                        className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200"
-                      >
-                        Cancel
-                      </button>
+                  {actionMessage && (
+                    <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
+                      {actionMessage}
                     </div>
                   )}
-                </div>
+                  {actionError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800">
+                      {actionError}
+                    </div>
+                  )}
 
-                <div className="space-y-4">
-                  {[
-                    { label: "Name", field: "name", type: "text" },
-                    { label: "Slug", field: "slug", type: "text" },
-                    { label: "Email", field: "email", type: "email" },
-                    { label: "Phone", field: "phone", type: "text" },
-                    { label: "City", field: "city", type: "text" },
-                    { label: "Country", field: "country", type: "text" },
-                    { label: "Address", field: "address", type: "text" },
-                  ].map(({ label, field, type }) => (
-                    <div key={field}>
-                      <label className="text-sm font-medium text-gray-600">{label}</label>
-                      {editMode ? (
-                        <input
-                          type={type}
-                          value={(formValues as any)[field] ?? ""}
-                          onChange={(e) => onChangeField(field as keyof typeof formValues, e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                        />
+                  <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Tenant Details</h3>
+                      {!editMode ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditMode(true)}
+                          className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                          Edit
+                        </button>
                       ) : (
-                        <p className="mt-1 text-sm text-gray-900">{(church as any)[field] || '—'}</p>
+                        <div className="space-x-2">
+                          <button
+                            type="button"
+                            onClick={handleUpdateDetails}
+                            disabled={actionLoading}
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {actionLoading ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditMode(false)}
+                            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       )}
                     </div>
-                  ))}
 
-                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                    <div>
-                      <p className="font-semibold text-gray-900">Created</p>
-                      <p>{formatDate(church.createdAt)}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">Members</p>
-                      <p>{data?.userCount ?? 0}</p>
+                    <div className="space-y-4">
+                      {[
+                        { label: "Name", field: "name", type: "text" },
+                        { label: "Slug", field: "slug", type: "text" },
+                        { label: "Email", field: "email", type: "email" },
+                        { label: "Phone", field: "phone", type: "text" },
+                        { label: "City", field: "city", type: "text" },
+                        { label: "Country", field: "country", type: "text" },
+                        { label: "Address", field: "address", type: "text" },
+                      ].map(({ label, field, type }) => (
+                        <div key={field}>
+                          <label className="text-sm font-medium text-gray-600">{label}</label>
+                          {editMode ? (
+                            <input
+                              type={type}
+                              value={(formValues as any)[field] ?? ""}
+                              onChange={(e) => onChangeField(field as keyof typeof formValues, e.target.value)}
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          ) : (
+                            <p className="mt-1 text-sm text-gray-900">{(church as any)[field] || '—'}</p>
+                          )}
+                        </div>
+                      ))}
+
+                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div>
+                          <p className="font-semibold text-gray-900">Created</p>
+                          <p>{formatDate(church.createdAt)}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">Members</p>
+                          <p>{data?.userCount ?? 0}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {planMeta && (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-inner">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Current Tier</p>
-                      <h3 className="text-xl font-bold text-gray-900">{planMeta.name}</h3>
-                      <p className="text-sm text-gray-600">{planMeta.description}</p>
-                    </div>
-                    <div className="text-right text-sm text-gray-600">
-                      <p>
-                        ${planMeta.priceMonthlyRange.min}–{planMeta.priceMonthlyRange.max}/mo
-                      </p>
-                      <p>
-                        ${planMeta.priceAnnualRange.min}–{planMeta.priceAnnualRange.max}/yr
-                      </p>
-                    </div>
-                  </div>
+                  {planMeta && (
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Current Tier</p>
+                          <h3 className="text-xl font-bold text-gray-900">{planMeta.name}</h3>
+                          <p className="text-sm text-gray-600">{planMeta.description}</p>
+                        </div>
+                        <div className="text-right text-sm text-gray-600">
+                          <p>
+                            ${planMeta.priceMonthlyRange.min}–{planMeta.priceMonthlyRange.max}/mo
+                          </p>
+                          <p>
+                            ${planMeta.priceAnnualRange.min}–{planMeta.priceAnnualRange.max}/yr
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="mt-4 grid gap-4 text-sm text-gray-700 md:grid-cols-2">
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-gray-500">Ideal For</p>
-                      <p>{planMeta.idealUseCases?.join(', ') || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-gray-500">User Limit</p>
-                      <p>
-                        {planMeta.limits?.maxUsers ? `${planMeta.limits.maxUsers} users` : 'Unlimited'}{' '}
-                        {isOverUserLimit && (
-                          <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                            Over limit
+                      <div className="mt-4 grid gap-4 text-sm text-gray-700 md:grid-cols-2">
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-gray-500">Ideal For</p>
+                          <p>{planMeta.idealUseCases?.join(', ') || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-gray-500">User Limit</p>
+                          <p>
+                            {planMeta.limits?.maxUsers ? `${planMeta.limits.maxUsers} users` : 'Unlimited'}{' '}
+                            {isOverUserLimit && (
+                              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                Over limit
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {planMeta.features.slice(0, 4).map((feature: string) => (
+                          <span
+                            key={feature}
+                            className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm"
+                          >
+                            {feature}
                           </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                        ))}
+                      </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {planMeta.features.slice(0, 4).map((feature: string) => (
-                      <span
-                        key={feature}
-                        className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm"
-                      >
-                        {feature}
-                      </span>
-                    ))}
-                  </div>
-
-                  {recommendedPlanMeta && recommendedPlanMeta.id !== planMeta.id && (
-                    <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                      <p className="font-semibold">
-                        Recommended upgrade: {recommendedPlanMeta.name}
-                      </p>
-                      <p className="mt-1 text-xs text-amber-800">
-                        Based on current size (~{data?.userCount ?? '—'} members) we recommend moving to the{' '}
-                        {recommendedPlanMeta.name} plan for optimal coverage. Use “Change Plan” in License Manager below to
-                        upgrade instantly.
-                      </p>
+                      {recommendedPlanMeta && recommendedPlanMeta.id !== planMeta.id && (
+                        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                          <p className="font-semibold">
+                            Recommended upgrade: {recommendedPlanMeta.name}
+                          </p>
+                          <p className="mt-1 text-xs text-amber-800">
+                            Based on current size (~{data?.userCount ?? '—'} members) we recommend moving to the{' '}
+                            {recommendedPlanMeta.name} plan for optimal coverage. Use “Change Plan” in License Manager below to
+                            upgrade instantly.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900">Actions</h3>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {(() => {
-                    const statusColors: Record<string, string> = {
-                      TRIAL: 'bg-blue-600 hover:bg-blue-700',
-                      ACTIVE: 'bg-red-600 hover:bg-red-700',
-                      SUSPENDED: 'bg-green-600 hover:bg-green-700',
-                    }
-                    const actionColor = statusColors[status] ?? 'bg-red-600 hover:bg-red-700'
-                    return (
+                  <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900">Actions</h3>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {(() => {
+                        const statusColors: Record<string, string> = {
+                          TRIAL: 'bg-blue-600 hover:bg-blue-700',
+                          ACTIVE: 'bg-red-600 hover:bg-red-700',
+                          SUSPENDED: 'bg-green-600 hover:bg-green-700',
+                        }
+                        const actionColor = statusColors[status] ?? 'bg-red-600 hover:bg-red-700'
+                        return (
+                          <button
+                            type="button"
+                            onClick={handleSuspend}
+                            disabled={actionLoading}
+                            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${actionColor} disabled:opacity-50`}
+                          >
+                            {status === 'SUSPENDED' ? 'Activate' : 'Suspend'}
+                          </button>
+                        )
+                      })()}
                       <button
                         type="button"
-                        onClick={handleSuspend}
+                        onClick={handleDelete}
                         disabled={actionLoading}
-                        className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${actionColor} disabled:opacity-50`}
+                        className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-50"
                       >
-                        {status === 'SUSPENDED' ? 'Activate' : 'Suspend'}
+                        Delete Tenant
                       </button>
-                    )
-                  })()}
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={actionLoading}
-                    className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-50"
-                  >
-                    Delete Tenant
-                  </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="space-y-6">
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Subscription</h3>
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                    {status}
-                  </span>
-                </div>
-                <dl className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-600">
-                  <div>
-                    <dt className="font-semibold text-gray-900">Plan</dt>
-                    <dd>{plan?.name || "Free"}</dd>
+                <div className="space-y-6">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Subscription</h3>
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                        {status}
+                      </span>
+                    </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div>
+                        <dt className="font-semibold text-gray-900">Plan</dt>
+                        <dd>{plan?.name || "Free"}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-semibold text-gray-900">Billing</dt>
+                        <dd>
+                          {plan?.price
+                            ? `$${plan.price}/${plan.billingCycle === "monthly" ? "mo" : "yr"}`
+                            : "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-semibold text-gray-900">Trial ends</dt>
+                        <dd>{formatDate(subscription?.trialEndsAt)}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-semibold text-gray-900">Renewal</dt>
+                        <dd>{formatDate(subscription?.endDate)}</dd>
+                      </div>
+                    </dl>
                   </div>
-                  <div>
-                    <dt className="font-semibold text-gray-900">Billing</dt>
-                    <dd>
-                      {plan?.price
-                        ? `$${plan.price}/${plan.billingCycle === "monthly" ? "mo" : "yr"}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-gray-900">Trial ends</dt>
-                    <dd>{formatDate(subscription?.trialEndsAt)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-gray-900">Renewal</dt>
-                    <dd>{formatDate(subscription?.endDate)}</dd>
-                  </div>
-                </dl>
-              </div>
 
-              <LicenseManagerWrapper
-                churchId={church.id}
-                initialSubscription={subscription}
-                initialPlan={plan}
-                initialPlans={planList}
-              />
+                  <LicenseManagerWrapper
+                    churchId={church.id}
+                    initialSubscription={subscription}
+                    initialPlan={plan}
+                    initialPlans={planList}
+                  />
                 </div>
               </div>
 

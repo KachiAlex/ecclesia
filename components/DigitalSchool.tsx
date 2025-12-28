@@ -1617,9 +1617,12 @@ export default function DigitalSchool() {
     )
   }
 
-  const getExamIdForSection = (sectionId: string) => {
-    return courseDraft.sections.find((section) => section.id === sectionId)?.exam.persistedId
-  }
+  const getExamIdForSection = useCallback(
+    (sectionId: string) => {
+      return courseDraft.sections.find((section) => section.id === sectionId)?.exam.persistedId
+    },
+    [courseDraft.sections],
+  )
 
   const handleExamFileChange = async (sectionId: string, file: File | null) => {
     if (!file) return
@@ -1707,13 +1710,13 @@ export default function DigitalSchool() {
     fileInputsRef.current[key]?.click()
   }
 
-  const clearPendingExamImport = (sectionId: string) => {
+  const clearPendingExamImport = useCallback((sectionId: string) => {
     setPendingExamImports((prev) => {
       const next = { ...prev }
       delete next[sectionId]
       return next
     })
-  }
+  }, [])
 
   const handleImportExamQuestions = useCallback(
     async (sectionId: string) => {
@@ -1791,11 +1794,11 @@ export default function DigitalSchool() {
         const sectionMeta = courseDraft.sections.find((section) => section.id === sectionId)
         setToast({
           message:
-            importedCount > 0
-              ? `Imported ${importedCount} question${importedCount === 1 ? '' : 's'} for “${sectionMeta?.exam.title || 'Section exam'}”.`
-              : `No questions were imported for “${sectionMeta?.exam.title || 'Section exam'}”. Check skipped rows and template formatting.`,
-          tone: importedCount > 0 ? 'success' : 'error',
-        })
+          importedCount > 0
+            ? `Imported ${importedCount} question${importedCount === 1 ? '' : 's'} for “${sectionMeta?.exam.title || 'Section exam'}”.`
+            : `No questions were imported for “${sectionMeta?.exam.title || 'Section exam'}”. Check skipped rows and template formatting.`,
+        tone: importedCount > 0 ? 'success' : 'error',
+      })
       } catch (error) {
         console.error('DigitalSchool.handleImportExamQuestions', error)
         setExamParseSummaries((prev) => ({
@@ -1812,7 +1815,7 @@ export default function DigitalSchool() {
         })
       }
     },
-    [courseDraft.sections, pendingExamImports],
+    [courseDraft.sections, pendingExamImports, getExamIdForSection, clearPendingExamImport, setToast],
   )
 
   const handleModuleFileInput =

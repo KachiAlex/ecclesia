@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type ChurchRole = {
   id: string
@@ -76,7 +76,7 @@ export default function RoleDesignationSettings() {
   const [updatingStaffLevelId, setUpdatingStaffLevelId] = useState<string | null>(null)
   const [deletingStaffLevelId, setDeletingStaffLevelId] = useState<string | null>(null)
 
-  const loadRoles = async () => {
+  const loadRoles = useCallback(async () => {
     setLoadingRoles(true)
     try {
       const response = await fetch('/api/church-roles')
@@ -89,7 +89,7 @@ export default function RoleDesignationSettings() {
     } finally {
       setLoadingRoles(false)
     }
-  }
+  }, [])
 
   const handleEditDesignation = (designation: ChurchDesignation) => {
     if (designation.isProtected) return
@@ -158,7 +158,7 @@ export default function RoleDesignationSettings() {
     }
   }
 
-  const loadDesignations = async () => {
+  const loadDesignations = useCallback(async () => {
     setLoadingDesignations(true)
     try {
       const response = await fetch('/api/designations')
@@ -171,9 +171,9 @@ export default function RoleDesignationSettings() {
     } finally {
       setLoadingDesignations(false)
     }
-  }
+  }, [])
 
-  const loadStaffLevels = async () => {
+  const loadStaffLevels = useCallback(async () => {
     setLoadingStaffLevels(true)
     try {
       const response = await fetch('/api/staff-levels')
@@ -186,13 +186,13 @@ export default function RoleDesignationSettings() {
     } finally {
       setLoadingStaffLevels(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadRoles()
     loadDesignations()
     loadStaffLevels()
-  }, [])
+  }, [loadRoles, loadDesignations, loadStaffLevels])
 
   const handleCreateRole = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -376,7 +376,7 @@ export default function RoleDesignationSettings() {
     })
   }
 
-  const handleSaveStaffLevelEdit = async () => {
+  const handleSaveStaffLevelEdit = useCallback(async () => {
     if (!editingStaffLevel) return
     if (!editingStaffLevel.name.trim()) {
       setStaffLevelError('Staff level name is required.')
@@ -416,9 +416,9 @@ export default function RoleDesignationSettings() {
     } finally {
       setUpdatingStaffLevelId(null)
     }
-  }
+  }, [editingStaffLevel, loadStaffLevels])
 
-  const handleDeleteStaffLevel = async (level: StaffLevel) => {
+  const handleDeleteStaffLevel = useCallback(async (level: StaffLevel) => {
     const confirmed = window.confirm(`Delete the staff level “${level.name}”?`)
     if (!confirmed) return
     setDeletingStaffLevelId(level.id)
@@ -440,7 +440,7 @@ export default function RoleDesignationSettings() {
     } finally {
       setDeletingStaffLevelId(null)
     }
-  }
+  }, [editingStaffLevel, loadStaffLevels])
 
   const staffLevelCards = useMemo(() => {
     if (loadingStaffLevels) {
@@ -601,6 +601,8 @@ export default function RoleDesignationSettings() {
     loadingStaffLevels,
     staffLevels,
     updatingStaffLevelId,
+    handleDeleteStaffLevel,
+    handleSaveStaffLevelEdit,
   ])
 
   return (

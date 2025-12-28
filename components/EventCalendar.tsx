@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatDate } from '@/lib/utils'
 
 interface Event {
@@ -202,7 +202,7 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
     return days
   }
 
-  const getEventsForDate = (date: Date) => {
+  const getEventsForDate = useCallback((date: Date) => {
     return events.filter((event) => {
       const eventDate = new Date(event.date)
       return (
@@ -211,13 +211,13 @@ export default function EventsCalendar({ isAdmin = false }: EventsCalendarProps)
         eventDate.getFullYear() === date.getFullYear()
       )
     })
-  }
+  }, [events])
 
   useEffect(() => {
     if (selectedDate) {
       setSelectedDayEvents(getEventsForDate(selectedDate))
     }
-  }, [events, selectedDate])
+  }, [events, selectedDate, getEventsForDate])
 
   const openDayPlanner = (date: Date) => {
     const dayEvents = getEventsForDate(date)

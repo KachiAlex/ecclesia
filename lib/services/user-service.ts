@@ -36,7 +36,6 @@ export interface User {
     currency: string
     payFrequency: PayFrequencyOption
   }
-
   parentId?: string
   spouseId?: string
   xp?: number
