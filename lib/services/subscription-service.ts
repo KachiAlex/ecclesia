@@ -79,6 +79,15 @@ export class SubscriptionPlanService {
     } as SubscriptionPlan
   }
 
+  static async ensurePlan(planId: string): Promise<SubscriptionPlan | null> {
+    const existing = await this.findById(planId)
+    if (existing) return existing
+
+    const config = LICENSING_PLANS.find((plan) => plan.id === planId)
+    if (!config) return null
+    return this.ensurePlanFromConfig(config)
+  }
+
   static async create(data: Omit<SubscriptionPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubscriptionPlan> {
     const planData = {
       ...data,

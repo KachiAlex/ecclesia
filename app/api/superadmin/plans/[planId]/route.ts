@@ -16,6 +16,11 @@ export async function PATCH(
     const body = await request.json().catch(() => ({}))
     const { price, currency, billingCycle, description, name } = body
 
+    const existingPlan = await SubscriptionPlanService.ensurePlan(planId)
+    if (!existingPlan) {
+      return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
+    }
+
     const updates: Record<string, any> = {}
 
     if (price !== undefined) {
@@ -58,9 +63,6 @@ export async function PATCH(
     }
 
     const updatedPlan = await SubscriptionPlanService.update(planId, updates)
-    if (!updatedPlan) {
-      return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
-    }
 
     return NextResponse.json({ plan: updatedPlan })
   } catch (error: any) {
