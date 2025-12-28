@@ -1,30 +1,70 @@
 
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth-options'
 import { ChurchService } from '@/lib/services/church-service'
+import { UserService } from '@/lib/services/user-service'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function GET() {
   try {
-    const snapshot = await db.collection(COLLECTIONS.churches)
-      .orderBy('name', 'asc')
-      .get()
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    const churches = snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        name: data.name,
-        slug: data.slug,
-        logo: data.logo,
-        city: data.city,
-        state: data.state,
-        country: data.country,
-      }
-    })
+    const role = (session.user as any)?.role
 
-    return NextResponse.json(churches)
+    if (role === 'SUPER_ADMIN') {
+      const snapshot = await db
+        .collection(COLLECTIONS.churches)
+        .orderBy('name', 'asc')
+        .get()
+
+      const churches = snapshot.docs.map((doc: any) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          name: data.name,
+          slug: data.slug,
+          logo: data.logo,
+          city: data.city,
+          state: data.state,
+          country: data.country,
+        }
+      })
+
+      return NextResponse.json(churches)
+    }
+
+    const userId = (session.user as any)?.id
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await UserService.findById(userId)
+    if (!user?.churchId) {
+      return NextResponse.json([])
+    }
+
+    const church = await ChurchService.findById(user.churchId)
+    if (!church) {
+      return NextResponse.json([])
+    }
+
+    return NextResponse.json([
+      {
+        id: church.id,
+        name: church.name,
+        slug: church.slug,
+        logo: (church as any).logo,
+        city: church.city,
+        state: (church as any).state,
+        country: church.country,
+      },
+    ])
   } catch (error) {
     console.error('Error fetching churches:', error)
     return NextResponse.json(
