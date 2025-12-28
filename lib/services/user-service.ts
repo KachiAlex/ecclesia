@@ -36,6 +36,7 @@ export interface User {
     currency: string
     payFrequency: PayFrequencyOption
   }
+
   parentId?: string
   spouseId?: string
   xp?: number
@@ -64,11 +65,36 @@ export class UserService {
   }
 
   /**
+   * Find user by email within a specific church (tenant)
+   */
+  static async findByEmailInChurch(email: string, churchId: string): Promise<User | null> {
+    const normalizedEmail = email.trim().toLowerCase()
+    const snapshot = await db.collection(COLLECTIONS.users)
+      .where('churchId', '==', churchId)
+      .where('email', '==', normalizedEmail)
+      .limit(1)
+      .get()
+
+    if (snapshot.empty) return null
+
+    const doc = snapshot.docs[0]
+    const data = doc.data()
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+      lastLoginAt: data.lastLoginAt ? toDate(data.lastLoginAt) : undefined,
+    } as User
+  }
+
+  /**
    * Find user by email
    */
   static async findByEmail(email: string): Promise<User | null> {
+    const normalizedEmail = email.trim().toLowerCase()
     const snapshot = await db.collection(COLLECTIONS.users)
-      .where('email', '==', email)
+      .where('email', '==', normalizedEmail)
       .limit(1)
       .get()
     
@@ -93,6 +119,7 @@ export class UserService {
 
     const userData = {
       ...data,
+      email: data.email.trim().toLowerCase(),
       password: hashedPassword,
       xp: data.xp || 0,
       level: data.level || 1,

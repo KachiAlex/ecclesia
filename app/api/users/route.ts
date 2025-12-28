@@ -160,11 +160,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if user already exists
-    const existingUser = await UserService.findByEmail(email)
+    // Check if user already exists within this church
+    const existingUser = await UserService.findByEmailInChurch(email, church.id)
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'User with this email already exists in this tenant' },
         { status: 400 }
       )
     }
