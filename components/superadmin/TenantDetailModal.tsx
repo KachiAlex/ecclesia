@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import LicenseManagerWrapper from './LicenseManagerWrapper'
+import SlugShareCard from './SlugShareCard'
 
 interface TenantDetailData {
   church: any
@@ -204,6 +205,8 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
         ) : (
           <div className="grid gap-6 px-6 py-6 lg:grid-cols-2">
             <div className="space-y-6">
+              {church?.slug && <SlugShareCard slug={church.slug} />}
+
               {actionMessage && (
                 <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
                   {actionMessage}

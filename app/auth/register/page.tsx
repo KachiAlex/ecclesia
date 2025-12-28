@@ -1,10 +1,19 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { LICENSING_PLANS, recommendPlan } from '@/lib/licensing/plans'
 import { useTenantBrand } from '@/lib/branding/useTenantBrand'
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -25,6 +34,9 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [slugInput, setSlugInput] = useState('')
+  const [slugEdited, setSlugEdited] = useState(false)
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle')
   const { brand } = useTenantBrand()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +62,52 @@ export default function RegisterPage() {
 
   const activePlanId = hasManualPlanSelection ? formData.planId || recommendedPlanId : recommendedPlanId
 
+  const slugPreview = useMemo(() => slugify(formData.churchName || 'your-church'), [formData.churchName])
+
+  useEffect(() => {
+    if (!slugEdited) {
+      setSlugInput(slugPreview)
+    }
+  }, [slugPreview, slugEdited])
+
+  useEffect(() => {
+    if (!slugInput) {
+      setSlugStatus('idle')
+      return
+    }
+
+    let cancelled = false
+    const controller = new AbortController()
+
+    setSlugStatus('checking')
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/churches/slug/${slugInput}`, {
+          signal: controller.signal,
+        })
+        if (cancelled) return
+        if (response.ok) {
+          setSlugStatus('taken')
+        } else if (response.status === 404) {
+          setSlugStatus('available')
+        } else {
+          setSlugStatus('error')
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          if (err?.name === 'AbortError') return
+          setSlugStatus('error')
+        }
+      }
+    }, 400)
+
+    return () => {
+      cancelled = true
+      controller.abort()
+      clearTimeout(timeout)
+    }
+  }, [slugInput])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -69,6 +127,18 @@ export default function RegisterPage() {
     }
 
     try {
+      if (!slugInput) {
+        setError('Please provide a slug for your church.')
+        setLoading(false)
+        return
+      }
+
+      if (slugStatus === 'taken') {
+        setError('Slug already in use. Please choose another.')
+        setLoading(false)
+        return
+      }
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -84,6 +154,7 @@ export default function RegisterPage() {
           country: formData.country || undefined,
           estimatedMembers: numericMembers,
           planId: activePlanId,
+          slug: slugInput,
         }),
       })
 
@@ -339,6 +410,64 @@ export default function RegisterPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   placeholder="Grace Community Church"
                 />
+                <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                  <p className="font-semibold text-gray-800">Your church slug will be:</p>
+                  <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <p className="font-mono text-base text-gray-900">/{slugInput}</p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span
+                        className={
+                          slugStatus === 'available'
+                            ? 'text-green-600'
+                            : slugStatus === 'taken'
+                              ? 'text-red-600'
+                              : slugStatus === 'checking'
+                                ? 'text-blue-600'
+                                : 'text-gray-500'
+                        }
+                      >
+                        {slugStatus === 'available' && 'Slug available'}
+                        {slugStatus === 'taken' && 'Slug already in use'}
+                        {slugStatus === 'checking' && 'Checking availability...'}
+                        {slugStatus === 'error' && 'Unable to verify slug'}
+                        {slugStatus === 'idle' && 'Enter your preferred slug'}
+                      </span>
+                      {slugEdited && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSlugEdited(false)
+                            setSlugInput(slugPreview)
+                          }}
+                          className="text-blue-600 hover:text-blue-700 font-semibold"
+                        >
+                          Reset suggestion
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Staff will log in at <span className="font-mono text-gray-700">ecclesia.app/login/{slugInput}</span>. You can adjust it later from the superadmin tenant settings.
+                  </p>
+                  <label htmlFor="slug" className="mt-4 block text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
+                    customize slug
+                  </label>
+                  <div className="mt-2 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2">
+                    <span className="font-mono text-xs text-gray-500">ecclesia.app/login/</span>
+                    <input
+                      id="slug"
+                      type="text"
+                      value={slugInput}
+                      onChange={(event) => {
+                        setSlugEdited(true)
+                        setSlugInput(slugify(event.target.value))
+                        setError('')
+                      }}
+                      className="w-full border-none bg-transparent text-sm font-mono text-gray-900 focus:outline-none"
+                      placeholder="your-church"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -375,10 +504,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || slugStatus === 'checking' || slugStatus === 'taken'}
             className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Account...' : 'Create Account & Start Free Trial'}
+            {loading ? 'Creating Account...' : slugStatus === 'taken' ? 'Slug Unavailable' : 'Create Account & Start Free Trial'}
           </button>
         </form>
 

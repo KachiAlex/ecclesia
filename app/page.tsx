@@ -215,7 +215,7 @@ export default function Home() {
             </div>
             <div className="flex items-center">
               <Link
-                href="/auth/login"
+                href="/login"
                 className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 text-sm md:text-base"
               >
                 Sign In
@@ -288,7 +288,7 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </Link>
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   className="px-8 py-4 bg-white text-gray-700 rounded-2xl font-semibold text-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
                 >
                   Church Login

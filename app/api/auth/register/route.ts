@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       country,
       estimatedMembers,
       planId,
+      slug: requestedSlugRaw,
     } = body
 
     // Validate required fields
@@ -38,17 +39,34 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate unique slug for church
-    let baseSlug = generateSlug(churchName)
-    let slug = baseSlug
-    let counter = 1
-    
-    // Check if slug exists and generate unique one
-    while (true) {
-      const existingChurch = await ChurchService.findBySlug(slug)
-      if (!existingChurch) break
-      slug = `${baseSlug}-${counter}`
-      counter++
+    // Generate or validate slug
+    let slug: string
+    const requestedSlug = typeof requestedSlugRaw === 'string' && requestedSlugRaw.trim().length > 0
+      ? generateSlug(requestedSlugRaw)
+      : null
+
+    if (requestedSlug) {
+      const existingChurch = await ChurchService.findBySlug(requestedSlug)
+      if (existingChurch) {
+        return NextResponse.json(
+          { error: 'Slug already in use. Please choose another.' },
+          { status: 400 }
+        )
+      }
+      slug = requestedSlug
+    } else {
+      let baseSlug = generateSlug(churchName)
+      let uniqueSlug = baseSlug
+      let counter = 1
+
+      while (true) {
+        const existingChurch = await ChurchService.findBySlug(uniqueSlug)
+        if (!existingChurch) break
+        uniqueSlug = `${baseSlug}-${counter}`
+        counter++
+      }
+
+      slug = uniqueSlug
     }
 
     // Determine plan selection

@@ -11,6 +11,7 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [churchSlug, setChurchSlug] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -32,6 +33,7 @@ function LoginForm() {
       const result = await signIn('credentials', {
         email,
         password,
+        churchSlug: churchSlug || undefined,
         redirect: false,
       })
 
@@ -115,6 +117,28 @@ function LoginForm() {
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="churchSlug" className="block text-sm font-semibold text-gray-700 mb-2">
+                Church Slug <span className="text-gray-400 font-normal">(required for tenant admins)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none font-mono text-xs text-gray-500">
+                  ecclesia.app/login/
+                </div>
+                <input
+                  id="churchSlug"
+                  type="text"
+                  value={churchSlug}
+                  onChange={(e) => setChurchSlug(e.target.value)}
+                  className="w-full pl-32 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  placeholder="your-church"
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                This slug routes you to your church tenant. Superadmins can leave this blank.
+              </p>
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
                 Email Address

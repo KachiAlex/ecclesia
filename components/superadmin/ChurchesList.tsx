@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import TenantDetailModal from './TenantDetailModal'
+import SlugShareCard from './SlugShareCard'
 
 interface Church {
   id: string
@@ -211,8 +212,10 @@ export default function ChurchesList({ churches: initialChurches }: ChurchesList
                     <td className="px-6 py-4">
                       <div>
                         <div className="font-semibold text-gray-900">{church.name}</div>
-                        {church.slug && (
-                          <div className="text-sm text-gray-500">/{church.slug}</div>
+                        {church.slug ? (
+                          <div className="text-sm text-gray-500 font-mono">/{church.slug}</div>
+                        ) : (
+                          <div className="text-sm text-amber-600">Slug not set</div>
                         )}
                       </div>
                     </td>
