@@ -736,6 +736,23 @@ export default function MemberDirectory() {
         </button>
       </div>
 
+      <div className="mb-6 rounded-2xl border border-gray-200 bg-white/90 p-5 text-sm text-gray-600">
+        <p>
+          Role titles, designation buckets, and staff levels are centralized in{' '}
+          <Link href="/settings/roles" className="font-semibold text-primary-600 hover:text-primary-700">
+            Settings → Roles &amp; designations
+          </Link>
+          . Update them there once and the directory, payroll, and invites stay consistent.
+        </p>
+        <p className="mt-2">
+          Need to rename dioceses, regions, or zones for branch filters? Adjust your hierarchy labels under{' '}
+          <Link href="/settings/hierarchy" className="font-semibold text-primary-600 hover:text-primary-700">
+            Settings → Hierarchy levels
+          </Link>
+          .
+        </p>
+      </div>
+
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden">

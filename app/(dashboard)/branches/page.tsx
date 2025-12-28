@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 
@@ -848,6 +849,22 @@ export default function BranchesPage() {
           <p className="text-gray-600 mt-1">
             Regions, states, zones, and branches with scoped reporting.
           </p>
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-600">
+            <p>
+              Need to rename levels or restructure the tree? Update your hierarchy once in{' '}
+              <Link href="/settings/hierarchy" className="font-semibold text-blue-600 hover:text-blue-700">
+                Settings → Hierarchy levels
+              </Link>{' '}
+              and every branch view will stay in sync.
+            </p>
+            <p className="mt-2">
+              Role/designation titles live in{' '}
+              <Link href="/settings/roles" className="font-semibold text-blue-600 hover:text-blue-700">
+                Settings → Roles &amp; designations
+              </Link>{' '}
+              so operators can keep this workspace focused on day-to-day branch management.
+            </p>
+          </div>
           {inactiveFilterEnabled && (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 mt-2">
               Inactive branches included
