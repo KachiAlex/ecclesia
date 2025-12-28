@@ -8,6 +8,7 @@ import { getCurrentChurch } from '@/lib/church-context'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import bcrypt from 'bcryptjs'
+import { DesignationService } from '@/lib/services/designation-service'
 
 export async function GET(
   request: Request,
@@ -117,6 +118,8 @@ export async function PUT(
       customWageAmount,
       customWageCurrency,
       customWagePayFrequency,
+      designationId,
+      isSuspended,
     } = body
 
     const updateData: any = {}
@@ -134,8 +137,29 @@ export async function PUT(
     if (profileImage !== undefined) updateData.profileImage = profileImage
 
     // Only admins can change roles
-    if (role !== undefined && ['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)) {
+    const privilegedRoles = ['ADMIN', 'SUPER_ADMIN', 'PASTOR']
+
+    if (role !== undefined && privilegedRoles.includes(userRole)) {
       updateData.role = role
+    }
+
+    let cachedChurch: Awaited<ReturnType<typeof getCurrentChurch>> | null = null
+    let cachedTargetUser: Awaited<ReturnType<typeof UserService.findById>> | null = null
+
+    const resolveChurchContext = async () => {
+      if (!cachedChurch) {
+        cachedChurch = await getCurrentChurch(currentUserId)
+      }
+      if (!cachedChurch) {
+        return { error: NextResponse.json({ error: 'No church selected' }, { status: 400 }) }
+      }
+      if (!cachedTargetUser) {
+        cachedTargetUser = await UserService.findById(userId)
+      }
+      if (!cachedTargetUser || cachedTargetUser.churchId !== cachedChurch.id) {
+        return { error: NextResponse.json({ error: 'User not found' }, { status: 404 }) }
+      }
+      return { church: cachedChurch, targetUser: cachedTargetUser }
     }
 
     const normalizeCustomWage = () => {
@@ -164,15 +188,11 @@ export async function PUT(
     }
 
     if (isStaff !== undefined || staffLevelId !== undefined || customWage !== undefined || customWageAmount !== undefined) {
-      const church = await getCurrentChurch(currentUserId)
-      if (!church) {
-        return NextResponse.json({ error: 'No church selected' }, { status: 400 })
+      const context = await resolveChurchContext()
+      if ('error' in context) {
+        return context.error
       }
-
-      const targetUser = await UserService.findById(userId)
-      if (!targetUser || targetUser.churchId !== church.id) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
-      }
+      const { church, targetUser } = context
 
       const staffFlag = isStaff !== undefined ? Boolean(isStaff) : Boolean(targetUser.isStaff)
       updateData.isStaff = staffFlag
@@ -203,6 +223,38 @@ export async function PUT(
       }
     }
 
+    if (designationId !== undefined) {
+      if (!privilegedRoles.includes(userRole)) {
+        return NextResponse.json({ error: 'Insufficient permissions to assign designations' }, { status: 403 })
+      }
+      const context = await resolveChurchContext()
+      if ('error' in context) {
+        return context.error
+      }
+      if (designationId === null || designationId === '') {
+        updateData.designationId = null
+        updateData.designationName = null
+      } else {
+        const designation = await DesignationService.get(designationId)
+        if (!designation || designation.churchId !== context.church.id) {
+          return NextResponse.json({ error: 'Invalid designation' }, { status: 400 })
+        }
+        updateData.designationId = designation.id
+        updateData.designationName = designation.name
+      }
+    }
+
+    if (typeof isSuspended === 'boolean') {
+      if (!privilegedRoles.includes(userRole)) {
+        return NextResponse.json({ error: 'Insufficient permissions to update suspension status' }, { status: 403 })
+      }
+      const context = await resolveChurchContext()
+      if ('error' in context) {
+        return context.error
+      }
+      updateData.isSuspended = isSuspended
+    }
+
     // Handle password change
     if (password) {
       if (userId !== currentUserId) {
@@ -231,6 +283,52 @@ export async function PUT(
     console.error('Error updating user:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  try {
+    const { userId } = await params
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const currentUserId = (session.user as any).id
+    const userRole = (session.user as any).role
+
+    if (!['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    if (userId === currentUserId) {
+      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+    }
+
+    const church = await getCurrentChurch(currentUserId)
+    if (!church) {
+      return NextResponse.json({ error: 'No church selected' }, { status: 400 })
+    }
+
+    const targetUser = await UserService.findById(userId)
+    if (!targetUser || targetUser.churchId !== church.id) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (targetUser.role === 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Cannot delete super admin accounts' }, { status: 403 })
+    }
+
+    await UserService.delete(userId)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

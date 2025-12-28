@@ -54,6 +54,7 @@ interface User {
     currency: string
     payFrequency: PayFrequencyOption
   }
+  isSuspended?: boolean
 }
 
 interface Pagination {
@@ -93,6 +94,8 @@ interface StaffLevelOption {
   name: string
   description?: string
 }
+
+type RowActionType = 'designation' | 'suspend' | 'delete'
 
 interface ManualFormState {
   firstName: string
@@ -210,6 +213,8 @@ export default function MemberDirectory() {
   const [savingPayroll, setSavingPayroll] = useState(false)
   const [payrollError, setPayrollError] = useState('')
   const [staffFilter, setStaffFilter] = useState('')
+  const [rowAction, setRowAction] = useState<{ userId: string; type: RowActionType } | null>(null)
+  const [rowActionError, setRowActionError] = useState('')
   const noStaffLevelsAvailable = !loadingStaffLevels && staffLevels.length === 0
   const staffToggleDisabled = loadingStaffLevels || noStaffLevelsAvailable
 
@@ -657,7 +662,6 @@ export default function MemberDirectory() {
     setPayrollPositions([])
     setAssignForm(getDefaultAssignPayrollForm())
     setPayrollError('')
-    setSavingPayroll(false)
   }
 
   const handleAssignPayroll = async () => {
@@ -714,6 +718,75 @@ export default function MemberDirectory() {
       setPayrollError(error?.message || 'Unable to save payroll assignment.')
     } finally {
       setSavingPayroll(false)
+    }
+  }
+
+  const handleUpdateDesignation = async (userId: string, nextDesignationId: string) => {
+    setRowActionError('')
+    setRowAction({ userId, type: 'designation' })
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          designationId: nextDesignationId || null,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to update designation')
+      }
+      await loadUsers()
+    } catch (error: any) {
+      setRowActionError(error?.message || 'Unable to update designation.')
+    } finally {
+      setRowAction(null)
+    }
+  }
+
+  const handleToggleSuspension = async (user: User) => {
+    setRowActionError('')
+    setRowAction({ userId: user.id, type: 'suspend' })
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isSuspended: !user.isSuspended,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to update user status')
+      }
+      await loadUsers()
+    } catch (error: any) {
+      setRowActionError(error?.message || 'Unable to update user status.')
+    } finally {
+      setRowAction(null)
+    }
+  }
+
+  const handleDeleteUser = async (user: User) => {
+    const confirmed = window.confirm(`Delete ${user.firstName} ${user.lastName}? This cannot be undone.`)
+    if (!confirmed) {
+      return
+    }
+    setRowActionError('')
+    setRowAction({ userId: user.id, type: 'delete' })
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to delete user')
+      }
+      await loadUsers()
+    } catch (error: any) {
+      setRowActionError(error?.message || 'Unable to delete user.')
+    } finally {
+      setRowAction(null)
     }
   }
 
@@ -1264,6 +1337,11 @@ export default function MemberDirectory() {
       </div>
 
       {/* Users List */}
+      {rowActionError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {rowActionError}
+        </div>
+      )}
       {loading ? (
         <div className="text-center py-8">Loading...</div>
       ) : users.length === 0 ? (
@@ -1284,7 +1362,7 @@ export default function MemberDirectory() {
                       Role & Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Position
+                      Designation
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Level
@@ -1324,6 +1402,11 @@ export default function MemberDirectory() {
                             <div className="text-sm text-gray-500">
                               {user.email}
                             </div>
+                            {user.isSuspended && (
+                              <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
+                                Suspended
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1337,8 +1420,31 @@ export default function MemberDirectory() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.salary?.position.name || '-'}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {designations.length === 0 ? (
+                          <span className="text-gray-500 text-xs">
+                            Configure designations in Settings → Roles first
+                          </span>
+                        ) : (
+                          <div className="space-y-1">
+                            <select
+                              value={user.designationId ?? ''}
+                              onChange={(e) => handleUpdateDesignation(user.id, e.target.value)}
+                              disabled={rowAction?.userId === user.id && rowAction.type === 'designation'}
+                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                            >
+                              <option value="">Unassigned</option>
+                              {designations.map((designation) => (
+                                <option key={designation.id} value={designation.id}>
+                                  {designation.name}
+                                </option>
+                              ))}
+                            </select>
+                            {rowAction?.userId === user.id && rowAction.type === 'designation' && (
+                              <p className="text-xs text-gray-500">Saving designation…</p>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="space-y-2">
@@ -1375,21 +1481,43 @@ export default function MemberDirectory() {
                         {formatDate(user.createdAt)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link
-                          href={`/users/${user.id}`}
-                          className="text-primary-600 hover:text-primary-900"
-                        >
-                          View
-                        </Link>
-                        {user.isStaff && (
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <Link
+                            href={`/users/${user.id}`}
+                            className="text-primary-600 hover:text-primary-900"
+                          >
+                            View
+                          </Link>
                           <button
                             type="button"
-                            onClick={() => openAssignPayroll(user)}
-                            className="ml-3 inline-flex items-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50 disabled:opacity-50"
+                            onClick={() => handleToggleSuspension(user)}
+                            disabled={rowAction?.userId === user.id && rowAction.type === 'suspend'}
+                            className="inline-flex items-center rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-600 hover:bg-amber-50 disabled:opacity-50"
                           >
-                            Assign to payroll
+                            {rowAction?.userId === user.id && rowAction.type === 'suspend'
+                              ? 'Updating…'
+                              : user.isSuspended
+                              ? 'Activate'
+                              : 'Suspend'}
                           </button>
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(user)}
+                            disabled={rowAction?.userId === user.id && rowAction.type === 'delete'}
+                            className="inline-flex items-center rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {rowAction?.userId === user.id && rowAction.type === 'delete' ? 'Deleting…' : 'Delete'}
+                          </button>
+                          {user.isStaff && (
+                            <button
+                              type="button"
+                              onClick={() => openAssignPayroll(user)}
+                              className="inline-flex items-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50 disabled:opacity-50"
+                            >
+                              Assign to payroll
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
