@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options'
 import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import PlanPricingManager from '@/components/superadmin/PlanPricingManager'
+import { LICENSING_PLANS } from '@/lib/licensing/plans'
 
 export default async function SubscriptionsPage() {
   const session = await getServerSession(authOptions)
@@ -41,6 +42,25 @@ export default async function SubscriptionsPage() {
     }
   })
 
+  const planMap = new Map(plans.map((plan) => [plan.id, plan]))
+
+  LICENSING_PLANS.forEach((config) => {
+    if (!planMap.has(config.id)) {
+      planMap.set(config.id, {
+        id: config.id,
+        name: config.name,
+        description: config.description,
+        price: config.priceMonthlyRange.min,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        features: config.features || [],
+        type: config.tier,
+      })
+    }
+  })
+
+  const mergedPlans = Array.from(planMap.values()).sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+
   const promosSnapshot = await db.collection(COLLECTIONS.subscriptionPromos).orderBy('createdAt', 'desc').get()
   const promos = promosSnapshot.docs.map((doc) => ({
     code: doc.id,
@@ -54,7 +74,7 @@ export default async function SubscriptionsPage() {
         <p className="text-gray-600 mt-2">Manage subscription plans and church subscriptions</p>
       </div>
 
-      <PlanPricingManager initialPlans={plans as any} initialPromos={promos as any} />
+      <PlanPricingManager initialPlans={mergedPlans as any} initialPromos={promos as any} />
 
       {/* Active Subscriptions */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
