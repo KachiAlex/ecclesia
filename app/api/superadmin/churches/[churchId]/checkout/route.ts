@@ -3,6 +3,7 @@ import { guardApi } from '@/lib/api-guard'
 import { PaymentService } from '@/lib/services/payment-service'
 import { SubscriptionPlanService, SubscriptionService } from '@/lib/services/subscription-service'
 import { SubscriptionPaymentService } from '@/lib/services/subscription-payment-service'
+import { SubscriptionPricingService } from '@/lib/services/subscription-pricing-service'
 import { db, FieldValue } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 
@@ -18,7 +19,7 @@ export async function POST(
     if (!guarded.ok) return guarded.response
 
     const body = await request.json().catch(() => ({}))
-    const { planId } = body
+    const { planId, promoCode } = body
 
     if (!planId) {
       return NextResponse.json({ error: 'Plan ID is required' }, { status: 400 })
@@ -34,7 +35,13 @@ export async function POST(
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
-    const amount = plan.price || 0
+    const pricing = await SubscriptionPricingService.calculateEffectivePrice({
+      planId,
+      churchId,
+      basePrice: plan.price || 0,
+      promoCode,
+    })
+    const amount = pricing.amount
     const currency = plan.currency || 'USD'
 
     // If plan is free, switch immediately without payment
@@ -66,6 +73,10 @@ export async function POST(
         churchId,
         planId,
         initiatedBy: guarded.ctx.userId,
+        promoCode: pricing.appliedPromo?.code || pricing.override?.promoCode,
+        basePrice: pricing.breakdown.basePrice,
+        overridePrice: pricing.breakdown.overridePrice,
+        discountAmount: pricing.breakdown.discount,
       },
       title: `${plan.name} Subscription`,
       description: `Upgrade ${churchId} to ${plan.name}`,
@@ -90,6 +101,10 @@ export async function POST(
       metadata: {
         planName: plan.name,
         currentPlanId: subscription.planId,
+        promoCode: pricing.appliedPromo?.code || pricing.override?.promoCode,
+        basePrice: pricing.breakdown.basePrice,
+        overridePrice: pricing.breakdown.overridePrice,
+        discountAmount: pricing.breakdown.discount,
       },
     })
 

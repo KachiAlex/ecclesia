@@ -10,6 +10,7 @@ import Link from 'next/link'
 import LicenseManagerWrapper from '@/components/superadmin/LicenseManagerWrapper'
 import UsageStats from '@/components/superadmin/UsageStats'
 import { getChurchUsage, getPlanLimits } from '@/lib/subscription'
+import { SubscriptionPricingService } from '@/lib/services/subscription-pricing-service'
 
 const serializeDate = (value: any) => {
   if (!value) return value
@@ -121,6 +122,14 @@ export default async function ChurchDetailPage({
     ...p,
     createdAt: serializeDate(p.createdAt),
     updatedAt: serializeDate(p.updatedAt),
+  }))
+
+  const planOverrides = await SubscriptionPricingService.listOverridesForChurch(church.id)
+  const planOverridesForClient = planOverrides.map((override) => ({
+    ...override,
+    createdAt: serializeDate(override.createdAt),
+    updatedAt: serializeDate(override.updatedAt),
+    expiresAt: serializeDate(override.expiresAt),
   }))
 
   return (
@@ -247,6 +256,7 @@ export default async function ChurchDetailPage({
         initialSubscription={subscriptionForClient}
         initialPlan={planForClient}
         initialPlans={plansForClient}
+        initialPlanOverrides={planOverridesForClient}
       />
     </div>
   )

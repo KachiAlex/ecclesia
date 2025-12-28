@@ -6,6 +6,7 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 import { guardApi } from '@/lib/api-guard'
 import { getPlanConfig, recommendPlan } from '@/lib/licensing/plans'
 import { UserService } from '@/lib/services/user-service'
+import { SubscriptionPricingService } from '@/lib/services/subscription-pricing-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +60,8 @@ export async function GET(
       })
       .filter((user: any) => adminRoles.includes(user.role))
 
+    const planOverrides = await SubscriptionPricingService.listOverridesForChurch(churchId)
+
     const churchForClient = {
       ...church,
       createdAt: serializeDate(church.createdAt),
@@ -90,6 +93,13 @@ export async function GET(
       updatedAt: serializeDate(p.updatedAt),
     }))
 
+    const planOverridesForClient = planOverrides.map((override) => ({
+      ...override,
+      createdAt: serializeDate(override.createdAt),
+      updatedAt: serializeDate(override.updatedAt),
+      expiresAt: serializeDate(override.expiresAt),
+    }))
+
     const planMeta = planForClient
       ? getPlanConfig(planForClient.id)
       : getPlanConfig(church.preferredPlanId)
@@ -104,6 +114,7 @@ export async function GET(
       planMeta,
       recommendedPlanMeta,
       tenantAdmins,
+      planOverrides: planOverridesForClient,
     })
   } catch (error) {
     console.error('Error fetching church:', error)

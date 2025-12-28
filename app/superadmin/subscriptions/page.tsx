@@ -41,6 +41,12 @@ export default async function SubscriptionsPage() {
     }
   })
 
+  const promosSnapshot = await db.collection(COLLECTIONS.subscriptionPromos).orderBy('createdAt', 'desc').get()
+  const promos = promosSnapshot.docs.map((doc) => ({
+    code: doc.id,
+    ...doc.data(),
+  }))
+
   return (
     <div className="space-y-6">
       <div>
@@ -48,7 +54,7 @@ export default async function SubscriptionsPage() {
         <p className="text-gray-600 mt-2">Manage subscription plans and church subscriptions</p>
       </div>
 
-      <PlanPricingManager initialPlans={plans as any} />
+      <PlanPricingManager initialPlans={plans as any} initialPromos={promos as any} />
 
       {/* Active Subscriptions */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">

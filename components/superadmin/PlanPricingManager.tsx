@@ -14,6 +14,21 @@ type Plan = {
   type?: string
 }
 
+type Promo = {
+  code: string
+  type: 'percentage' | 'flat'
+  value: number
+  appliesTo: 'plan' | 'church' | 'global'
+  planIds?: string[]
+  churchIds?: string[]
+  status?: 'active' | 'inactive'
+  validFrom?: string
+  validTo?: string
+  maxRedemptions?: number
+  redeemedCount?: number
+  notes?: string
+}
+
 const currencyOptions = ["USD", "NGN", "EUR", "GBP"]
 
 const formatPrice = (value: number, currency: string) => {
@@ -31,9 +46,10 @@ const formatPrice = (value: number, currency: string) => {
 
 interface PlanPricingManagerProps {
   initialPlans: Plan[]
+  initialPromos?: Promo[]
 }
 
-export default function PlanPricingManager({ initialPlans }: PlanPricingManagerProps) {
+export default function PlanPricingManager({ initialPlans, initialPromos }: PlanPricingManagerProps) {
   const router = useRouter()
   const [plans, setPlans] = useState<Plan[]>(initialPlans)
   const [drafts, setDrafts] = useState(() =>
@@ -50,6 +66,21 @@ export default function PlanPricingManager({ initialPlans }: PlanPricingManagerP
   )
   const [savingPlanId, setSavingPlanId] = useState<string | null>(null)
   const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [promos, setPromos] = useState<Promo[]>(initialPromos || [])
+  const [promoStatus, setPromoStatus] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [savingPromo, setSavingPromo] = useState(false)
+  const [promoForm, setPromoForm] = useState({
+    code: '',
+    type: 'percentage',
+    value: 10,
+    appliesTo: 'plan',
+    planIds: [] as string[],
+    churchIds: '',
+    maxRedemptions: '',
+    validFrom: '',
+    validTo: '',
+    notes: '',
+  })
 
   const sortedPlans = useMemo(() => {
     return [...plans].sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
@@ -113,6 +144,105 @@ export default function PlanPricingManager({ initialPlans }: PlanPricingManagerP
     } finally {
       setSavingPlanId(null)
     }
+  }
+
+  const handlePromoInput = (field: string, value: string | number | string[]) => {
+    setPromoForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const handleCreatePromo = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!promoForm.code.trim()) {
+      setPromoStatus({ type: "error", text: "Promo code is required." })
+      return
+    }
+    const payload: Record<string, any> = {
+      code: promoForm.code.trim().toUpperCase(),
+      type: promoForm.type,
+      value: Number(promoForm.value),
+      appliesTo: promoForm.appliesTo,
+      notes: promoForm.notes?.trim() || undefined,
+    }
+    if (promoForm.appliesTo === 'plan') {
+      payload.planIds = promoForm.planIds
+    } else if (promoForm.appliesTo === 'church') {
+      payload.churchIds = promoForm.churchIds
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+    }
+    if (promoForm.maxRedemptions) {
+      payload.maxRedemptions = Number(promoForm.maxRedemptions)
+    }
+    if (promoForm.validFrom) payload.validFrom = promoForm.validFrom
+    if (promoForm.validTo) payload.validTo = promoForm.validTo
+
+    if (!Number.isFinite(payload.value) || payload.value <= 0) {
+      setPromoStatus({ type: "error", text: "Discount value must be greater than 0." })
+      return
+    }
+
+    setSavingPromo(true)
+    setPromoStatus(null)
+    try {
+      const response = await fetch('/api/superadmin/promos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create promo')
+      }
+      setPromos((prev) => [result.promo, ...prev])
+      setPromoStatus({ type: 'success', text: `Promo ${result.promo.code} created.` })
+      setPromoForm({
+        code: '',
+        type: 'percentage',
+        value: 10,
+        appliesTo: 'plan',
+        planIds: [],
+        churchIds: '',
+        maxRedemptions: '',
+        validFrom: '',
+        validTo: '',
+        notes: '',
+      })
+      router.refresh()
+    } catch (error: any) {
+      setPromoStatus({ type: 'error', text: error.message || 'Unable to create promo.' })
+    } finally {
+      setSavingPromo(false)
+    }
+  }
+
+  const handleTogglePromoStatus = async (promo: Promo) => {
+    const nextStatus = promo.status === 'inactive' ? 'active' : 'inactive'
+    try {
+      const response = await fetch(`/api/superadmin/promos/${promo.code}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update promo status')
+      }
+      setPromos((prev) => prev.map((item) => (item.code === promo.code ? result.promo : item)))
+      setPromoStatus({ type: 'success', text: `Promo ${promo.code} ${nextStatus === 'active' ? 'activated' : 'paused'}.` })
+      router.refresh()
+    } catch (error: any) {
+      setPromoStatus({ type: 'error', text: error.message || 'Unable to update promo.' })
+    }
+  }
+
+  const formatDateBadge = (value?: string) => {
+    if (!value) return '—'
+    const date = new Date(value)
+    return date.toLocaleDateString()
   }
 
   return (
@@ -223,6 +353,238 @@ export default function PlanPricingManager({ initialPlans }: PlanPricingManagerP
             </div>
           )
         })}
+      </div>
+
+      <div className="border border-gray-200 rounded-2xl p-5 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Promo Codes & Discounts</h3>
+            <p className="text-sm text-gray-600">Create campaigns for plan upgrades, custom deals, or temporary promotions.</p>
+          </div>
+          {promoStatus && (
+            <div
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                promoStatus.type === "success"
+                  ? "bg-green-50 text-green-800 border border-green-200"
+                  : "bg-red-50 text-red-800 border border-red-200"
+              }`}
+            >
+              {promoStatus.text}
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleCreatePromo} className="grid gap-4 md:grid-cols-2">
+          <label className="text-sm font-medium text-gray-700 flex flex-col">
+            Promo Code
+            <input
+              type="text"
+              value={promoForm.code}
+              onChange={(e) => handlePromoInput('code', e.target.value.toUpperCase())}
+              className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 uppercase"
+              placeholder="E.g. EASTER25"
+              required
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm font-medium text-gray-700 flex flex-col">
+              Type
+              <select
+                value={promoForm.type}
+                onChange={(e) => handlePromoInput('type', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+              >
+                <option value="percentage">Percentage</option>
+                <option value="flat">Flat Amount</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium text-gray-700 flex flex-col">
+              Value
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={promoForm.value}
+                onChange={(e) => handlePromoInput('value', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+              />
+            </label>
+          </div>
+
+          <label className="text-sm font-medium text-gray-700 flex flex-col">
+            Applies To
+            <select
+              value={promoForm.appliesTo}
+              onChange={(e) => handlePromoInput('appliesTo', e.target.value)}
+              className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+            >
+              <option value="plan">Specific Plans</option>
+              <option value="church">Specific Churches</option>
+              <option value="global">Global</option>
+            </select>
+          </label>
+
+ 		
+          {promoForm.appliesTo === 'plan' && (
+            <label className="text-sm font-medium text-gray-700 flex flex-col md:col-span-2">
+              Select Plans
+              <select
+                multiple
+                value={promoForm.planIds}
+                onChange={(e) =>
+                  handlePromoInput(
+                    'planIds',
+                    Array.from(e.target.selectedOptions).map((option) => option.value),
+                  )
+                }
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 h-32"
+              >
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple plans.</span>
+            </label>
+          )}
+
+          {promoForm.appliesTo === 'church' && (
+            <label className="text-sm font-medium text-gray-700 flex flex-col md:col-span-2">
+              Church IDs (comma separated)
+              <textarea
+                value={promoForm.churchIds}
+                onChange={(e) => handlePromoInput('churchIds', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                rows={2}
+                placeholder="churchId-1, churchId-2"
+              />
+            </label>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 md:col-span-2">
+            <label className="text-sm font-medium text-gray-700 flex flex-col">
+              Valid From
+              <input
+                type="date"
+                value={promoForm.validFrom}
+                onChange={(e) => handlePromoInput('validFrom', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-medium text-gray-700 flex flex-col">
+              Valid To
+              <input
+                type="date"
+                value={promoForm.validTo}
+                onChange={(e) => handlePromoInput('validTo', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 md:col-span-2">
+            <label className="text-sm font-medium text-gray-700 flex flex-col">
+              Max Redemptions (optional)
+              <input
+                type="number"
+                min="1"
+                value={promoForm.maxRedemptions}
+                onChange={(e) => handlePromoInput('maxRedemptions', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-medium text-gray-700 flex flex-col">
+              Notes
+              <input
+                type="text"
+                value={promoForm.notes}
+                onChange={(e) => handlePromoInput('notes', e.target.value)}
+                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                placeholder="Internal notes"
+              />
+            </label>
+          </div>
+
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={savingPromo}
+              className="rounded-lg bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 hover:bg-emerald-700 transition disabled:opacity-50"
+            >
+              {savingPromo ? 'Saving promo...' : 'Create Promo'}
+            </button>
+          </div>
+        </form>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Code</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Scope</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Validity</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Usage</th>
+                <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {promos.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500">
+                    No promo codes yet.
+                  </td>
+                </tr>
+              ) : (
+                promos.map((promo) => (
+                  <tr key={promo.code}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900">{promo.code}</span>
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            promo.status === 'inactive'
+                              ? 'bg-gray-100 text-gray-600'
+                              : 'bg-green-100 text-green-700'
+                          }`}
+                        >
+                          {promo.status === 'inactive' ? 'Paused' : 'Active'}
+                        </span>
+                      </div>
+                      {promo.notes && <p className="text-xs text-gray-500 mt-1">{promo.notes}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {promo.type === 'percentage' ? `${promo.value}% off` : `-${promo.value}`}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 capitalize">
+                      {promo.appliesTo}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <div className="flex flex-col">
+                        <span>From: {formatDateBadge(promo.validFrom)}</span>
+                        <span>To: {formatDateBadge(promo.validTo)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {promo.redeemedCount ?? 0}
+                      {promo.maxRedemptions ? ` / ${promo.maxRedemptions}` : ''}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePromoStatus(promo)}
+                        className="text-sm font-semibold text-blue-600 hover:text-blue-700 mr-3"
+                      >
+                        {promo.status === 'inactive' ? 'Activate' : 'Pause'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

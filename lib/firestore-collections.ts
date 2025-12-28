@@ -16,6 +16,8 @@ export const COLLECTIONS = {
   // Subscription collections
   subscriptions: 'subscriptions',
   subscriptionPlans: 'subscription_plans',
+  subscriptionPlanOverrides: 'subscription_plan_overrides',
+  subscriptionPromos: 'subscription_promos',
   usageMetrics: 'usage_metrics',
   subscriptionPayments: 'subscription_payments',
   
