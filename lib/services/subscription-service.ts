@@ -1,7 +1,7 @@
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
-import { LicensingPlanConfig } from '@/lib/licensing/plans'
+import { LicensingPlanConfig, LICENSING_PLANS } from '@/lib/licensing/plans'
 
 export interface SubscriptionPlan {
   id: string
@@ -47,6 +47,8 @@ export interface UsageMetric {
 
 export class SubscriptionPlanService {
   static async findAll(): Promise<SubscriptionPlan[]> {
+    await Promise.all(LICENSING_PLANS.map((plan) => this.ensurePlanFromConfig(plan)))
+
     const snapshot = await db.collection(COLLECTIONS.subscriptionPlans)
       .orderBy('price', 'asc')
       .get()
