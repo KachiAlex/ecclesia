@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState } from "react"
 import LicenseManagerWrapper from './LicenseManagerWrapper'
 import SlugShareCard from './SlugShareCard'
 
+interface TenantAdmin {
+  id: string
+  firstName?: string
+  lastName?: string
+  email: string
+  role: string
+  phone?: string
+  lastLoginAt?: string
+}
+
 interface TenantDetailData {
   church: any
   subscription: any
@@ -12,6 +22,7 @@ interface TenantDetailData {
   userCount: number
   planMeta?: any
   recommendedPlanMeta?: any
+  tenantAdmins?: TenantAdmin[]
 }
 
 interface TenantDetailModalProps {
@@ -44,6 +55,17 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState("")
   const [actionMessage, setActionMessage] = useState("")
+  const [adminEditingId, setAdminEditingId] = useState<string | null>(null)
+  const [adminFormValues, setAdminFormValues] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    role: "ADMIN",
+  })
+  const [passwordPanelId, setPasswordPanelId] = useState<string | null>(null)
+  const [passwordDraft, setPasswordDraft] = useState("")
+  const [adminActionLoading, setAdminActionLoading] = useState(false)
 
   const church = data?.church
   const subscription = data?.subscription
@@ -76,6 +98,11 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
       setActionLoading(false)
       setActionError("")
       setActionMessage("")
+    }
+    if (!open) {
+      setAdminEditingId(null)
+      setPasswordPanelId(null)
+      setPasswordDraft("")
     }
   }, [open])
 
@@ -174,12 +201,90 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
     callActionEndpoint(`/api/superadmin/churches/${church.id}`, "DELETE")
   }
 
+  const startAdminEdit = (admin: TenantAdmin) => {
+    setAdminEditingId(admin.id)
+    setPasswordPanelId(null)
+    setAdminFormValues({
+      firstName: admin.firstName || "",
+      lastName: admin.lastName || "",
+      email: admin.email,
+      phone: admin.phone || "",
+      role: admin.role || "ADMIN",
+    })
+  }
+
+  const cancelAdminEdit = () => {
+    setAdminEditingId(null)
+  }
+
+  const handleSaveAdmin = async () => {
+    if (!church || !adminEditingId) return
+    setAdminActionLoading(true)
+    showMessage("success", "")
+    try {
+      const response = await fetch(`/api/superadmin/churches/${church.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_admin",
+          adminId: adminEditingId,
+          ...adminFormValues,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to update admin")
+      }
+      showMessage("success", payload.message || "Admin updated")
+      setAdminEditingId(null)
+      onRefresh()
+    } catch (err: any) {
+      showMessage("error", err.message || "Update failed")
+    } finally {
+      setAdminActionLoading(false)
+    }
+  }
+
+  const openPasswordPanel = (adminId: string) => {
+    setPasswordPanelId((current) => (current === adminId ? null : adminId))
+    setPasswordDraft("")
+  }
+
+  const handleResetPassword = async (adminId: string) => {
+    if (!church || !passwordDraft) return
+    setAdminActionLoading(true)
+    showMessage("success", "")
+    try {
+      const response = await fetch(`/api/superadmin/churches/${church.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reset_admin_password",
+          adminId,
+          password: passwordDraft,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to reset password")
+      }
+      showMessage("success", payload.message || "Password updated")
+      setPasswordDraft("")
+      setPasswordPanelId(null)
+    } catch (err: any) {
+      showMessage("error", err.message || "Password reset failed")
+    } finally {
+      setAdminActionLoading(false)
+    }
+  }
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
-      <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
+    <div className="fixed inset-0 z-50 bg-black/50">
+      <div className="flex min-h-full items-center justify-center overflow-y-auto px-3 py-6 sm:px-6">
+        <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
           <div>
             <p className="text-sm uppercase tracking-wide text-gray-500">Tenant Overview</p>
             <h2 className="text-2xl font-bold text-gray-900">{church?.name || "Loading tenant..."}</h2>
@@ -192,18 +297,18 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
           >
             ✕
           </button>
-        </div>
-
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
           </div>
-        ) : error ? (
-          <div className="px-6 py-8 text-center text-red-600">{error}</div>
-        ) : !church ? (
-          <div className="px-6 py-8 text-center text-gray-500">No tenant data available.</div>
-        ) : (
-          <div className="grid gap-6 px-6 py-6 lg:grid-cols-2">
+
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+            </div>
+          ) : error ? (
+            <div className="px-6 py-8 text-center text-red-600">{error}</div>
+          ) : !church ? (
+            <div className="px-6 py-8 text-center text-gray-500">No tenant data available.</div>
+          ) : (
+            <div className="grid gap-6 px-4 py-6 lg:grid-cols-2">
             <div className="space-y-6">
               {church?.slug && <SlugShareCard slug={church.slug} />}
 
@@ -421,9 +526,174 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                 initialPlan={plan}
                 initialPlans={planList}
               />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Tenant Admins</h3>
+                    <p className="text-sm text-gray-500">Edit admin roles or reset passwords. They can personalize it later in Settings → Account.</p>
+                  </div>
+                </div>
+                {data?.tenantAdmins && data.tenantAdmins.length > 0 ? (
+                  <div className="space-y-4">
+                    {data.tenantAdmins.map((admin) => {
+                      const isEditing = adminEditingId === admin.id
+                      const isPasswordOpen = passwordPanelId === admin.id
+                      return (
+                        <div key={admin.id} className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-base font-semibold text-gray-900">
+                                {admin.firstName || admin.lastName
+                                  ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+                                  : admin.email}
+                              </p>
+                              <p className="text-sm text-gray-600">{admin.email}</p>
+                              <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                                <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 shadow-sm">
+                                  {admin.role}
+                                </span>
+                                {admin.phone && <span>📞 {admin.phone}</span>}
+                                {admin.lastLoginAt && <span>Last login: {formatDate(admin.lastLoginAt)}</span>}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startAdminEdit(admin)}
+                                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openPasswordPanel(admin.id)}
+                                className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50"
+                              >
+                                Reset Password
+                              </button>
+                            </div>
+                          </div>
+
+                          {isEditing && (
+                            <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <label className="text-xs font-semibold uppercase text-gray-500">First Name</label>
+                                  <input
+                                    type="text"
+                                    value={adminFormValues.firstName}
+                                    onChange={(e) => setAdminFormValues((prev) => ({ ...prev, firstName: e.target.value }))}
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-semibold uppercase text-gray-500">Last Name</label>
+                                  <input
+                                    type="text"
+                                    value={adminFormValues.lastName}
+                                    onChange={(e) => setAdminFormValues((prev) => ({ ...prev, lastName: e.target.value }))}
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <label className="text-xs font-semibold uppercase text-gray-500">Email</label>
+                                  <input
+                                    type="email"
+                                    value={adminFormValues.email}
+                                    onChange={(e) => setAdminFormValues((prev) => ({ ...prev, email: e.target.value }))}
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-semibold uppercase text-gray-500">Phone</label>
+                                  <input
+                                    type="text"
+                                    value={adminFormValues.phone}
+                                    onChange={(e) => setAdminFormValues((prev) => ({ ...prev, phone: e.target.value }))}
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold uppercase text-gray-500">Role</label>
+                                <select
+                                  value={adminFormValues.role}
+                                  onChange={(e) => setAdminFormValues((prev) => ({ ...prev, role: e.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                >
+                                  <option value="ADMIN">Admin</option>
+                                  <option value="PASTOR">Pastor</option>
+                                </select>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleSaveAdmin}
+                                  disabled={adminActionLoading}
+                                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {adminActionLoading ? "Saving..." : "Save Admin"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelAdminEdit}
+                                  className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {isPasswordOpen && (
+                            <div className="mt-4 space-y-3 rounded-lg border border-blue-100 bg-white p-4">
+                              <label className="text-xs font-semibold uppercase text-blue-600">New Password</label>
+                              <input
+                                type="password"
+                                value={passwordDraft}
+                                minLength={8}
+                                onChange={(e) => setPasswordDraft(e.target.value)}
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                placeholder="At least 8 characters"
+                              />
+                              <p className="text-xs text-gray-500">
+                                Share this with the admin securely. They can change it themselves from Settings → Account after login.
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetPassword(admin.id)}
+                                  disabled={adminActionLoading || passwordDraft.length < 8}
+                                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {adminActionLoading ? "Updating..." : "Reset Password"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openPasswordPanel(admin.id)}
+                                  className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No tenant admins detected yet.</p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

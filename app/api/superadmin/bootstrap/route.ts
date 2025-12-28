@@ -14,7 +14,7 @@ function getBearerToken(req: Request): string | null {
 
 export async function POST(request: Request) {
   try {
-    const expected = process.env.SUPERADMIN_BOOTSTRAP_TOKEN
+    const expected = (process.env.SUPERADMIN_BOOTSTRAP_TOKEN || '').trim()
     if (!expected) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }

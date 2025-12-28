@@ -11,6 +11,14 @@ import LicenseManagerWrapper from '@/components/superadmin/LicenseManagerWrapper
 import UsageStats from '@/components/superadmin/UsageStats'
 import { getChurchUsage, getPlanLimits } from '@/lib/subscription'
 
+const serializeDate = (value: any) => {
+  if (!value) return value
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value?.toDate === 'function') return value.toDate().toISOString()
+  if (typeof value === 'string') return value
+  return value
+}
+
 export default async function ChurchDetailPage({
   params,
 }: {
@@ -47,10 +55,12 @@ export default async function ChurchDetailPage({
     .where('churchId', '==', church.id)
     .limit(1)
     .get()
-  const subscription = subscriptionSnapshot.empty ? null : {
-    ...subscriptionSnapshot.docs[0].data(),
-    id: subscriptionSnapshot.docs[0].id,
-  } as Subscription | null
+  const subscription = subscriptionSnapshot.empty
+    ? null
+    : ({
+        ...subscriptionSnapshot.docs[0].data(),
+        id: subscriptionSnapshot.docs[0].id,
+      } as Subscription | null)
 
   // Get plan if subscription exists
   let plan = null
@@ -91,26 +101,26 @@ export default async function ChurchDetailPage({
   const subscriptionForClient = subscription
     ? {
         ...subscription,
-        startDate: subscription.startDate?.toISOString(),
-        endDate: subscription.endDate?.toISOString(),
-        trialEndsAt: subscription.trialEndsAt?.toISOString(),
-        createdAt: subscription.createdAt?.toISOString(),
-        updatedAt: subscription.updatedAt?.toISOString(),
+        startDate: serializeDate(subscription.startDate),
+        endDate: serializeDate(subscription.endDate),
+        trialEndsAt: serializeDate(subscription.trialEndsAt),
+        createdAt: serializeDate(subscription.createdAt),
+        updatedAt: serializeDate(subscription.updatedAt),
       }
     : null
 
   const planForClient = plan
     ? {
         ...plan,
-        createdAt: plan.createdAt?.toISOString(),
-        updatedAt: plan.updatedAt?.toISOString(),
+        createdAt: serializeDate(plan.createdAt),
+        updatedAt: serializeDate(plan.updatedAt),
       }
     : null
 
   const plansForClient = availablePlans.map((p) => ({
     ...p,
-    createdAt: p.createdAt?.toISOString(),
-    updatedAt: p.updatedAt?.toISOString(),
+    createdAt: serializeDate(p.createdAt),
+    updatedAt: serializeDate(p.updatedAt),
   }))
 
   return (

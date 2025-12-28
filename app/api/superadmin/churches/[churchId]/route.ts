@@ -5,6 +5,7 @@ import { db, FieldValue } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { guardApi } from '@/lib/api-guard'
 import { getPlanConfig, recommendPlan } from '@/lib/licensing/plans'
+import { UserService } from '@/lib/services/user-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +38,20 @@ export async function GET(
       .where('churchId', '==', churchId)
       .get()
     const userCount = usersSnapshot.size
+    const adminRoles = ['ADMIN', 'PASTOR']
+    const tenantAdmins = usersSnapshot.docs
+      .map((doc) => {
+        const data = doc.data()
+        const { password: _password, ...rest } = data
+        return {
+          id: doc.id,
+          ...rest,
+          createdAt: serializeDate(data.createdAt),
+          updatedAt: serializeDate(data.updatedAt),
+          lastLoginAt: serializeDate(data.lastLoginAt),
+        }
+      })
+      .filter((user: any) => adminRoles.includes(user.role))
 
     const serializeDate = (value: any) => {
       if (!value) return value
@@ -89,6 +104,7 @@ export async function GET(
       userCount,
       planMeta,
       recommendedPlanMeta,
+      tenantAdmins,
     })
   } catch (error) {
     console.error('Error fetching church:', error)
@@ -214,6 +230,62 @@ export async function PUT(
           subscription: updated,
           message: `Subscription status updated to ${status}`,
         })
+
+      case 'update_admin': {
+        const { adminId, firstName, lastName, email, phone, role } = data
+        if (!adminId) {
+          return NextResponse.json({ error: 'adminId is required' }, { status: 400 })
+        }
+
+        const admin = await UserService.findById(adminId)
+        if (!admin || admin.churchId !== churchId) {
+          return NextResponse.json({ error: 'Admin not found for this church' }, { status: 404 })
+        }
+
+        const updatePayload: any = {}
+        if (firstName !== undefined) updatePayload.firstName = firstName
+        if (lastName !== undefined) updatePayload.lastName = lastName
+        if (email !== undefined) updatePayload.email = email
+        if (phone !== undefined) updatePayload.phone = phone
+        if (role !== undefined) updatePayload.role = role
+
+        const updatedAdmin = await UserService.update(adminId, updatePayload)
+        const { password, ...adminWithoutPassword } = updatedAdmin
+
+        return NextResponse.json({
+          admin: {
+            ...adminWithoutPassword,
+            createdAt: adminWithoutPassword.createdAt?.toISOString?.() ?? adminWithoutPassword.createdAt,
+            updatedAt: adminWithoutPassword.updatedAt?.toISOString?.() ?? adminWithoutPassword.updatedAt,
+            lastLoginAt: adminWithoutPassword.lastLoginAt?.toISOString?.() ?? adminWithoutPassword.lastLoginAt,
+          },
+          message: 'Admin profile updated',
+        })
+      }
+
+      case 'reset_admin_password': {
+        const { adminId, password: newPassword } = data
+        if (!adminId || !newPassword) {
+          return NextResponse.json({ error: 'adminId and password are required' }, { status: 400 })
+        }
+        if (typeof newPassword !== 'string' || newPassword.length < 8) {
+          return NextResponse.json(
+            { error: 'Password must be at least 8 characters long' },
+            { status: 400 }
+          )
+        }
+
+        const admin = await UserService.findById(adminId)
+        if (!admin || admin.churchId !== churchId) {
+          return NextResponse.json({ error: 'Admin not found for this church' }, { status: 404 })
+        }
+
+        await UserService.update(adminId, { password: newPassword })
+        return NextResponse.json({
+          message:
+            'Password updated. Let the tenant admin know they can personalize it later from Settings → Account.',
+        })
+      }
 
       default:
         return NextResponse.json(

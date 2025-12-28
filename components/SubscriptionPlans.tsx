@@ -127,11 +127,16 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
   }
 
   return (
-    <div id="plan-comparison" className="grid md:grid-cols-3 gap-6 scroll-mt-24">
+    <div
+      id="plan-comparison"
+      className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 scroll-mt-24"
+      aria-live="polite"
+      aria-label="Plan comparison grid"
+    >
       {plans.map((plan) => (
         <div
           key={plan.id}
-          className={`border rounded-2xl p-6 hover:shadow-lg transition-shadow ${
+          className={`flex h-full flex-col border rounded-2xl p-6 hover:shadow-lg transition-shadow ${
             plan.id === currentPlanId ? 'border-primary-200 shadow-primary-100/40 bg-white' : 'border-gray-200 bg-white/80'
           }`}
         >
@@ -150,21 +155,21 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
             )}
           </div>
 
-          <div className="mb-4">
+          <div className="mb-4 space-y-2">
             <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
-            <p className="text-3xl font-bold text-primary-600 mt-1">
+            <p className="text-3xl font-bold text-primary-600">
               {monthlyPriceLabel(plan)}
               {plan.price > 0 && plan.billingCycle === 'annual' && (
                 <span className="block text-sm font-normal text-gray-500">Billed annually</span>
               )}
             </p>
-            {plan.description && <p className="text-gray-600 text-sm mt-2">{plan.description}</p>}
-            <p className="text-xs text-gray-500 mt-2">
+            {plan.description && <p className="text-gray-600 text-sm">{plan.description}</p>}
+            <p className="text-xs text-gray-500">
               {plan.trialDays > 0 ? `Includes ${plan.trialDays}-day guided onboarding` : 'Activation in under 2 minutes'}
             </p>
           </div>
 
-          <div className="mb-6 space-y-3">
+          <div className="mb-6 space-y-3 grow">
             {limitsList(plan).length > 0 && (
               <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
                 <p className="text-xs font-semibold uppercase text-gray-500 tracking-wide mb-2">Included capacity</p>
@@ -201,27 +206,39 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
             )}
           </div>
 
-          {error && subscribing === plan.id && (
-            <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>
-          )}
+          <div className="space-y-3">
+            {error && subscribing === plan.id && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>
+            )}
 
-          <button
-            onClick={() => handlePlanAction(plan.id)}
-            disabled={subscribing === plan.id || plan.id === currentPlanId}
-            className={`w-full py-2 rounded-lg transition-colors text-sm font-semibold ${
-              plan.id === currentPlanId
-                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default'
-                : 'bg-primary-600 text-white hover:bg-primary-700 border border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed'
-            }`}
-          >
-            {plan.id === currentPlanId
-              ? 'Your current plan'
-              : subscribing === plan.id
-              ? 'Applying...'
-              : currentPlanId
-              ? 'Switch to this plan'
-              : 'Start trial'}
-          </button>
+            <button
+              onClick={() => handlePlanAction(plan.id)}
+              disabled={subscribing === plan.id || plan.id === currentPlanId}
+              className={`w-full py-3 rounded-xl transition-colors text-sm font-semibold ${
+                plan.id === currentPlanId
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default'
+                  : 'bg-primary-600 text-white hover:bg-primary-700 border border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed'
+              }`}
+            >
+              {plan.id === currentPlanId
+                ? 'Your current plan'
+                : subscribing === plan.id
+                ? 'Applying...'
+                : currentPlanId
+                ? 'Switch to this plan'
+                : 'Start trial'}
+            </button>
+
+            {plan.id === currentPlanId ? (
+              <p className="text-center text-xs text-gray-500">
+                You’ll be notified before any renewal. Need more capacity? Compare recommended upgrades above.
+              </p>
+            ) : (
+              <p className="text-center text-xs text-gray-500">
+                Secure checkout powered by Flutterwave. Switching plans preserves your setup and data.
+              </p>
+            )}
+          </div>
         </div>
       ))}
     </div>

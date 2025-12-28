@@ -21,10 +21,14 @@ export function initFirebase() {
     if (getApps().length === 0) {
       // Try to get service account from environment variable (for Vercel/Railway/etc)
       let serviceAccount: any = undefined
-      
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+
+      const envServiceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
+        ? Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
+        : process.env.FIREBASE_SERVICE_ACCOUNT
+
+      if (envServiceAccountRaw) {
         try {
-          serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+          serviceAccount = JSON.parse(envServiceAccountRaw)
         } catch (e) {
           console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e)
         }
