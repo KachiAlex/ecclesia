@@ -29,6 +29,7 @@ export interface User {
   spiritualMaturity?: string
   employmentStatus?: string
   isStaff?: boolean
+  isSuspended?: boolean
   staffLevelId?: string
   staffLevelName?: string
   customWage?: {
@@ -123,6 +124,7 @@ export class UserService {
       xp: data.xp || 0,
       level: data.level || 1,
       isStaff: Boolean(data.isStaff),
+      isSuspended: typeof data.isSuspended === 'boolean' ? data.isSuspended : false,
       staffLevelId: data.staffLevelId || null,
       staffLevelName: data.staffLevelName || null,
       customWage: data.customWage || null,
@@ -160,6 +162,13 @@ export class UserService {
 
     await db.collection(COLLECTIONS.users).doc(id).update(updateData)
     return this.findById(id) as Promise<User>
+  }
+
+  /**
+   * Delete user
+   */
+  static async delete(id: string): Promise<void> {
+    await db.collection(COLLECTIONS.users).doc(id).delete()
   }
 
   /**

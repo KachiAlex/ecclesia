@@ -275,11 +275,20 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
         {sortedPlans.map((plan) => {
           const draft = drafts[plan.id]
           const isSaving = savingPlanId === plan.id
+          const isLifetimePlan = plan.id === 'lifetime' || plan.billingCycle === 'lifetime'
           return (
             <div key={plan.id} className="border border-gray-200 rounded-2xl p-5 flex flex-col gap-4">
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900">{plan.name}</h3>
+                  <div className="flex flex-col">
+                    <h3 className="font-semibold text-gray-900">{plan.name}</h3>
+                    {plan.targetMembers && (
+                      <span className="text-xs text-gray-500">
+                        {plan.targetMembers.min.toLocaleString()}–
+                        {plan.targetMembers.max ? plan.targetMembers.max.toLocaleString() : '+'} members
+                      </span>
+                    )}
+                  </div>
                   {plan.type && (
                     <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                       {plan.type}
@@ -289,10 +298,19 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 <p className="text-3xl font-bold text-gray-900 mt-2">
                   {formatPrice(plan.price, plan.currency)}
                   <span className="text-base text-gray-500 font-normal">
-                    {plan.billingCycle === "annual" ? "/year" : "/month"}
+                    {plan.billingCycle === "annual"
+                      ? "/year"
+                      : plan.billingCycle === "lifetime"
+                        ? "one-time"
+                        : "/month"}
                   </span>
                 </p>
                 {plan.description && <p className="text-sm text-gray-600 mt-1">{plan.description}</p>}
+                {isLifetimePlan && (
+                  <p className="text-xs text-emerald-700 font-medium mt-1">
+                    Lifetime license • charge a single upfront payment
+                  </p>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -321,18 +339,26 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                     ))}
                   </select>
                 </label>
-                <label className="text-sm font-medium text-gray-700 flex flex-col">
-                  Billing Cycle
-                  <select
-                    value={draft?.billingCycle ?? "monthly"}
-                    onChange={(e) => handleDraftChange(plan.id, "billingCycle", e.target.value)}
-                    className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="annual">Annual</option>
-                    <option value="lifetime">Lifetime</option>
-                  </select>
-                </label>
+                {isLifetimePlan ? (
+                  <div className="text-sm font-medium text-gray-700 flex flex-col">
+                    Billing Cycle
+                    <div className="mt-1 rounded-lg border border-gray-200 bg-gray-50 text-gray-600 text-sm px-3 py-2">
+                      Lifetime (one-time)
+                    </div>
+                  </div>
+                ) : (
+                  <label className="text-sm font-medium text-gray-700 flex flex-col">
+                    Billing Cycle
+                    <select
+                      value={draft?.billingCycle ?? "monthly"}
+                      onChange={(e) => handleDraftChange(plan.id, "billingCycle", e.target.value)}
+                      className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="annual">Annual</option>
+                    </select>
+                  </label>
+                )}
               </div>
 
               <button
