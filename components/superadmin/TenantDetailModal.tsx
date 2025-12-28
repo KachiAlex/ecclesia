@@ -281,10 +281,10 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50">
-      <div className="flex min-h-full items-center justify-center overflow-y-auto px-3 py-6 sm:px-6">
-        <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm px-3 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto flex w-full max-w-5xl items-stretch justify-center">
+        <div className="relative flex w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[92vh]">
+          <div className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 bg-white/95 px-4 py-4 sm:px-6">
             <div>
               <p className="text-sm uppercase tracking-wide text-gray-500">Tenant Overview</p>
               <h2 className="text-2xl font-bold text-gray-900">{church?.name || "Loading tenant..."}</h2>
@@ -299,17 +299,18 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
             </button>
           </div>
 
-          {loading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-            </div>
-          ) : error ? (
-            <div className="px-6 py-8 text-center text-red-600">{error}</div>
-          ) : !church ? (
-            <div className="px-6 py-8 text-center text-gray-500">No tenant data available.</div>
-          ) : (
-            <div className="px-4 py-6 space-y-6">
-              <div className="grid gap-6 lg:grid-cols-2">
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="flex h-64 items-center justify-center">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+              </div>
+            ) : error ? (
+              <div className="px-6 py-8 text-center text-red-600">{error}</div>
+            ) : !church ? (
+              <div className="px-6 py-8 text-center text-gray-500">No tenant data available.</div>
+            ) : (
+              <div className="px-4 py-6 space-y-6 sm:px-6">
+                <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-6">
                   {church?.slug && <SlugShareCard slug={church.slug} />}
 
@@ -692,8 +693,9 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                   <p className="text-sm text-gray-500">No tenant admins detected yet.</p>
                 )}
               </div>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
