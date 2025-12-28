@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { formatCurrency } from '@/lib/utils'
 
 interface Plan {
@@ -49,8 +49,30 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
   }
 
   const monthlyPriceLabel = (plan: Plan) => {
-    return plan.billingCycle === 'annual' ? `${formatCurrency(plan.price)}/year` : `${formatCurrency(plan.price)}/month`
+    if (plan.price === 0) return 'Free forever'
+    const cadence = plan.billingCycle === 'annual' ? 'year' : 'month'
+    return `${formatCurrency(plan.price)}/${cadence}`
   }
+
+  const tierRank = (plan?: Plan) => {
+    if (!plan) return Number.MAX_SAFE_INTEGER
+    const order = ['FREE', 'STARTER', 'GROWTH', 'PRO', 'BUSINESS', 'ENTERPRISE']
+    const type = (plan.type || '').toUpperCase()
+    const index = order.indexOf(type)
+    return index === -1 ? order.length : index
+  }
+
+  const recommendedUpgradeId = useMemo(() => {
+    if (!plans.length || !currentPlanId) return null
+    const currentPlan = plans.find((plan) => plan.id === currentPlanId)
+    const currentRank = tierRank(currentPlan)
+    return (
+      plans
+        .filter((plan) => plan.id !== currentPlanId)
+        .filter((plan) => tierRank(plan) > currentRank)
+        .sort((a, b) => tierRank(a) - tierRank(b))[0]?.id ?? null
+    )
+  }, [currentPlanId, plans])
 
   const handlePlanAction = async (planId: string) => {
     if (planId === currentPlanId) return
@@ -105,7 +127,7 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
   }
 
   return (
-    <div className="grid md:grid-cols-3 gap-6">
+    <div id="plan-comparison" className="grid md:grid-cols-3 gap-6 scroll-mt-24">
       {plans.map((plan) => (
         <div
           key={plan.id}
@@ -119,6 +141,10 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
                 Current plan
               </span>
+            ) : plan.id === recommendedUpgradeId ? (
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-100">
+                Recommended upgrade
+              </span>
             ) : (
               <span className="text-xs text-gray-400">{plan.trialDays > 0 ? `${plan.trialDays}-day trial` : 'Upgrade available'}</span>
             )}
@@ -128,9 +154,14 @@ export default function SubscriptionPlans({ churchId, currentPlanId }: Subscript
             <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
             <p className="text-3xl font-bold text-primary-600 mt-1">
               {monthlyPriceLabel(plan)}
-              {plan.billingCycle === 'annual' && <span className="block text-sm font-normal text-gray-500">Billed annually</span>}
+              {plan.price > 0 && plan.billingCycle === 'annual' && (
+                <span className="block text-sm font-normal text-gray-500">Billed annually</span>
+              )}
             </p>
             {plan.description && <p className="text-gray-600 text-sm mt-2">{plan.description}</p>}
+            <p className="text-xs text-gray-500 mt-2">
+              {plan.trialDays > 0 ? `Includes ${plan.trialDays}-day guided onboarding` : 'Activation in under 2 minutes'}
+            </p>
           </div>
 
           <div className="mb-6 space-y-3">

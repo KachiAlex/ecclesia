@@ -29,7 +29,8 @@ const AnalyticsBadge = ({ label, value, tone }: AnalyticsBadgeProps) => {
 }
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import { createPortal } from 'react-dom'
+import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -261,6 +262,34 @@ type CertificateThemeDraft = {
   signatureText: string
   sealText: string
   issuedBy: string
+}
+
+type ModalProps = {
+  isOpen: boolean
+  onClose: () => void
+  labelledBy: string
+  children: ReactNode
+}
+
+const Modal = ({ isOpen, onClose, labelledBy, children }: ModalProps) => {
+  if (!isOpen || typeof document === 'undefined') return null
+
+  const handleContentClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby={labelledBy} onClick={onClose}>
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" />
+      <div
+        className="relative z-10 flex min-h-full w-full items-center justify-center px-4 py-8"
+        onClick={handleContentClick}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body,
+  )
 }
 
 const DEFAULT_CERTIFICATE_THEME: CertificateThemeDraft = {
@@ -814,6 +843,7 @@ export default function DigitalSchool() {
   const [attemptsError, setAttemptsError] = useState<string | null>(null)
   const [selectedExamAttempt, setSelectedExamAttempt] = useState<ExamAttemptRow | null>(null)
   const [questionFilter, setQuestionFilter] = useState<QuestionFilter>('all')
+  const [isExamReviewOpen, setIsExamReviewOpen] = useState(false)
   const examUploadInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({})
   const [uploadingTargets, setUploadingTargets] = useState<Record<string, boolean>>({})
@@ -1312,7 +1342,7 @@ export default function DigitalSchool() {
   }, [reviewableCourses, reviewCourseId])
 
   useEffect(() => {
-    if (!reviewCourseId) {
+    if (!reviewCourseId || !isExamReviewOpen) {
       setExamAttempts([])
       setSelectedExamAttempt(null)
       return
@@ -1346,7 +1376,7 @@ export default function DigitalSchool() {
     return () => {
       cancelled = true
     }
-  }, [reviewCourseId])
+  }, [isExamReviewOpen, reviewCourseId])
 
   useEffect(() => {
     setQuestionFilter('all')
