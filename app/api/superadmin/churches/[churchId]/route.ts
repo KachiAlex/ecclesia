@@ -9,18 +9,24 @@ import { UserService } from '@/lib/services/user-service'
 
 export const dynamic = 'force-dynamic'
 
+const serializeDate = (value: any) => {
+  if (!value) return value
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value?.toDate === 'function') return value.toDate().toISOString()
+  return value
+}
+
 // GET - Get church details with subscription info
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ churchId: string }> }
+  { params }: { params: { churchId: string } }
 ) {
   try {
-    const { churchId } = await params
+    const { churchId } = params
     const guarded = await guardApi({ allowedRoles: ['SUPER_ADMIN'] })
     if (!guarded.ok) return guarded.response
 
     const church = await ChurchService.findById(churchId)
-
     if (!church) {
       return NextResponse.json({ error: 'Church not found' }, { status: 404 })
     }
@@ -53,20 +59,11 @@ export async function GET(
       })
       .filter((user: any) => adminRoles.includes(user.role))
 
-    const serializeDate = (value: any) => {
-      if (!value) return value
-      if (value instanceof Date) return value.toISOString()
-      if (typeof value.toDate === 'function') return value.toDate().toISOString()
-      return value
+    const churchForClient = {
+      ...church,
+      createdAt: serializeDate(church.createdAt),
+      updatedAt: serializeDate(church.updatedAt),
     }
-
-    const churchForClient = church
-      ? {
-          ...church,
-          createdAt: serializeDate(church.createdAt),
-          updatedAt: serializeDate(church.updatedAt),
-        }
-      : null
 
     const subscriptionForClient = subscription
       ? {
@@ -93,7 +90,9 @@ export async function GET(
       updatedAt: serializeDate(p.updatedAt),
     }))
 
-    const planMeta = planForClient ? getPlanConfig(planForClient.id) : getPlanConfig(church.preferredPlanId)
+    const planMeta = planForClient
+      ? getPlanConfig(planForClient.id)
+      : getPlanConfig(church.preferredPlanId)
     const recommendedPlanMeta = recommendPlan({ memberCount: church.estimatedMembers })
 
     return NextResponse.json({
