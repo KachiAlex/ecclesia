@@ -14,6 +14,8 @@ export interface PlanLimits {
   maxGroups?: number
 }
 
+export type BillingCycle = 'monthly' | 'annual' | 'lifetime'
+
 export interface LicensingPlanConfig {
   id: string
   tier: LicensingTier
@@ -29,6 +31,7 @@ export interface LicensingPlanConfig {
   multiCampusSupport?: boolean
   prioritySupport?: boolean
   limits?: PlanLimits
+  billingCycle?: BillingCycle
 }
 
 export const LICENSING_PLANS: LicensingPlanConfig[] = [
@@ -93,6 +96,28 @@ export const LICENSING_PLANS: LicensingPlanConfig[] = [
     idealUseCases: ['Mega churches', 'Regional hubs', 'International ministries'],
     multiCampusSupport: true,
     prioritySupport: true,
+  },
+  {
+    id: 'lifetime',
+    tier: 'ENTERPRISE',
+    name: 'Lifetime',
+    description: 'One-time license with lifetime updates and white-glove onboarding.',
+    targetMembers: { min: 50 },
+    priceMonthlyRange: { min: 6999, max: 8999 },
+    priceAnnualRange: { min: 6999, max: 8999 },
+    setupFeeRange: { min: 0, max: 0 },
+    features: [
+      'All Enterprise capabilities',
+      'Dedicated success manager',
+      'Priority roadmap access',
+      'Unlimited campuses & admins',
+      'Lifetime feature updates',
+    ],
+    includes: ['Concierge migration', 'Lifetime support'],
+    idealUseCases: ['Founding partners', 'Denominations securing perpetual license'],
+    multiCampusSupport: true,
+    prioritySupport: true,
+    billingCycle: 'lifetime',
   },
 ]
 

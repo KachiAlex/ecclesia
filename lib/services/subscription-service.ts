@@ -147,7 +147,7 @@ export class SubscriptionPlanService {
         maxDepartments: config.limits?.maxDepartments,
         maxGroups: config.limits?.maxGroups,
         features: config.features,
-        billingCycle: 'monthly',
+        billingCycle: config.billingCycle ?? 'monthly',
         trialDays: 30,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),

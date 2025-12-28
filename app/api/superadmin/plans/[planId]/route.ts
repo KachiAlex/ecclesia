@@ -14,7 +14,7 @@ export async function PATCH(
   try {
     const { planId } = params
     const body = await request.json().catch(() => ({}))
-    const { price, currency, billingCycle, description } = body
+    const { price, currency, billingCycle, description, name } = body
 
     const updates: Record<string, any> = {}
 
@@ -33,8 +33,8 @@ export async function PATCH(
     }
 
     if (billingCycle !== undefined) {
-      if (!['monthly', 'annual'].includes(billingCycle)) {
-        return NextResponse.json({ error: 'Billing cycle must be "monthly" or "annual"' }, { status: 400 })
+      if (!['monthly', 'annual', 'lifetime'].includes(billingCycle)) {
+        return NextResponse.json({ error: 'Billing cycle must be "monthly", "annual", or "lifetime"' }, { status: 400 })
       }
       updates.billingCycle = billingCycle
     }
@@ -44,6 +44,13 @@ export async function PATCH(
         return NextResponse.json({ error: 'Description must be a string' }, { status: 400 })
       }
       updates.description = description
+    }
+
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        return NextResponse.json({ error: 'Name must be a non-empty string' }, { status: 400 })
+      }
+      updates.name = name.trim()
     }
 
     if (Object.keys(updates).length === 0) {

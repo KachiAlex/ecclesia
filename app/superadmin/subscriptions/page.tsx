@@ -26,19 +26,23 @@ export default async function SubscriptionsPage() {
   }))
 
   // Get all plans
+  const configById = new Map(LICENSING_PLANS.map((plan) => [plan.id, plan]))
+
   const plansSnapshot = await db.collection(COLLECTIONS.subscriptionPlans).get()
   const plans = plansSnapshot.docs.map((doc) => {
     const data = doc.data()
     const rawPrice = typeof data.price === 'number' ? data.price : Number(data.price) || 0
+    const config = configById.get(doc.id)
     return {
       id: doc.id,
-      name: data.name,
-      description: data.description || '',
-      price: rawPrice,
+      name: data.name || config?.name || doc.id,
+      description: data.description || config?.description || '',
+      price: rawPrice || config?.priceMonthlyRange.min || 0,
       currency: (data.currency || 'USD') as string,
-      billingCycle: (data.billingCycle || 'monthly') as string,
-      features: Array.isArray(data.features) ? data.features : [],
-      type: data.type || data.tier || '',
+      billingCycle: (data.billingCycle || config?.billingCycle || 'monthly') as string,
+      features: Array.isArray(data.features) && data.features.length > 0 ? data.features : config?.features || [],
+      type: data.type || data.tier || config?.tier || '',
+      targetMembers: config?.targetMembers,
     }
   })
 
@@ -52,9 +56,10 @@ export default async function SubscriptionsPage() {
         description: config.description,
         price: config.priceMonthlyRange.min,
         currency: 'USD',
-        billingCycle: 'monthly',
+        billingCycle: config.billingCycle ?? 'monthly',
         features: config.features || [],
         type: config.tier,
+        targetMembers: config.targetMembers,
       })
     }
   })

@@ -12,6 +12,7 @@ type Plan = {
   billingCycle: string
   features: string[]
   type?: string
+  targetMembers?: { min: number; max?: number }
 }
 
 type Promo = {
@@ -57,6 +58,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
       initialPlans.map((plan) => [
         plan.id,
         {
+          name: plan.name,
           price: plan.price,
           currency: plan.currency || "USD",
           billingCycle: plan.billingCycle || "monthly",
@@ -107,6 +109,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
     }
 
     const payload = {
+      name: draft.name?.trim(),
       price: parsedPrice,
       currency: draft.currency || "USD",
       billingCycle: draft.billingCycle || "monthly",
@@ -132,6 +135,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
       setDrafts((prev) => ({
         ...prev,
         [planId]: {
+          name: updatedPlan.name,
           price: updatedPlan.price,
           currency: updatedPlan.currency,
           billingCycle: updatedPlan.billingCycle,
@@ -250,7 +254,9 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Subscription Plans</h2>
-          <p className="text-sm text-gray-600">Edit pricing, currency, and billing cadence for each plan.</p>
+          <p className="text-sm text-gray-600">
+            Edit pricing, names, currency, and billing cadence for each plan. Member ranges come from our recommended tiers.
+          </p>
         </div>
         {status && (
           <div
@@ -324,6 +330,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                   >
                     <option value="monthly">Monthly</option>
                     <option value="annual">Annual</option>
+                    <option value="lifetime">Lifetime</option>
                   </select>
                 </label>
               </div>
