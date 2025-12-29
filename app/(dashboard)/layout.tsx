@@ -97,20 +97,7 @@ export default async function DashboardLayout({
 
         {/* User Section */}
         <div className="border-t border-gray-200/50 p-4 bg-gradient-to-br from-gray-50/50 to-blue-50/30">
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full blur opacity-40"></div>
-              <div className="relative w-11 h-11 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white font-semibold text-sm">
-                  {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || 'U'}
-                </span>
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{session.user?.name || 'User'}</p>
-              <p className="text-xs text-gray-600 truncate">{session.user?.email}</p>
-            </div>
-          </div>
+          <BranchSwitcher />
 
           <div className="space-y-3 w-full">
             <div className="grid grid-cols-2 gap-2 pt-2 px-2">
@@ -193,9 +180,6 @@ export default async function DashboardLayout({
                     </div>
                   </div>
                 </details>
-                <div className="w-full min-w-[220px] max-w-xs sm:flex-1">
-                  <BranchSwitcher />
-                </div>
               </div>
             </div>
           </div>
