@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "node scripts/ensure-rollup-native.js && vitest run",
+    "test:watch": "node scripts/ensure-rollup-native.js && vitest",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
@@ -69,7 +69,6 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.54.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.10.6",
     "@types/papaparse": "^5.5.2",

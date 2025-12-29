@@ -12,6 +12,7 @@ import { GivingConfigService } from '@/lib/services/giving-config-service'
 import { getCurrentChurch } from '@/lib/church-context'
 import { SubscriptionPaymentService } from '@/lib/services/subscription-payment-service'
 import { COLLECTIONS } from '@/lib/firestore-collections'
+import { LandingPaymentService } from '@/lib/services/landing-payment-service'
 
 export async function POST(request: Request) {
   const correlationId = getCorrelationIdFromRequest(request)
@@ -104,6 +105,30 @@ export async function POST(request: Request) {
       })
 
       if (verification.success && verification.transactionId) {
+        if (meta.kind === 'landing_subscription') {
+          const reference = data?.tx_ref || verification.transactionId
+          if (!reference) {
+            logger.error('webhook.flutterwave.landing_missing_reference', { correlationId, transactionId })
+            return NextResponse.json({ received: true })
+          }
+
+          try {
+            await LandingPaymentService.markPaid(reference, {
+              transactionId: verification.transactionId,
+              rawEvent: data,
+            })
+            return NextResponse.json({ received: true, landingPayment: true })
+          } catch (error: any) {
+            logger.error('webhook.flutterwave.landing_payment_error', {
+              correlationId,
+              transactionId,
+              reference,
+              message: error?.message,
+            })
+            return NextResponse.json({ received: true })
+          }
+        }
+
         // Handle subscription upgrades initiated from superadmin
         if (meta.kind === 'subscription_upgrade') {
           const reference = data?.tx_ref || verification.transactionId

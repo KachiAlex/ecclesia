@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react'
 import {
   Bot,
   Users2,
@@ -17,16 +17,286 @@ import {
   Building2,
   type LucideIcon,
 } from 'lucide-react'
-import { plans } from '@/lib/plans-data'
+import { LICENSING_PLANS } from '@/lib/licensing/plans'
+
+type PublicPromo = {
+  code: string
+  type: 'percentage' | 'flat'
+  value: number
+  appliesTo: 'plan' | 'church' | 'global'
+  planIds?: string[]
+  churchIds?: string[]
+  notes?: string
+}
+
+type PricingApiPlan = {
+  id: string
+  name: string
+  description?: string
+  price: number
+  currency?: string
+  billingCycle?: string
+  features?: string[]
+  trialDays?: number
+  type?: string
+  promoCode?: string
+}
+
+type MarketingPlan = PricingApiPlan & {
+  features: string[]
+  currency: string
+  billingCycle: string
+  cta?: string
+  popular?: boolean
+  discountedPrice?: number
+  promoLabel?: string
+  promoCode?: string
+}
+
+type CheckoutFormState = {
+  fullName: string
+  email: string
+  churchName: string
+  phone: string
+  promoCode: string
+  notes: string
+}
+
+const emptyCheckoutForm = (): CheckoutFormState => ({
+  fullName: '',
+  email: '',
+  churchName: '',
+  phone: '',
+  promoCode: '',
+  notes: '',
+})
+
+const FALLBACK_PLANS: MarketingPlan[] = LICENSING_PLANS.filter((plan) =>
+  ['starter', 'growth', 'enterprise', 'lifetime'].includes(plan.id)
+).map((plan) => ({
+  id: plan.id,
+  name: plan.name,
+  description: plan.description,
+  price: plan.priceMonthlyRange.min,
+  currency: 'USD',
+  billingCycle: plan.billingCycle ?? 'monthly',
+  features: plan.features || [],
+  trialDays: 30,
+  type: plan.tier,
+  cta:
+    plan.id === 'enterprise' || plan.id === 'lifetime'
+      ? 'Talk to Sales'
+      : 'Start Free Trial',
+  popular: plan.id === 'growth',
+}))
+
+const currencyFormatter = (currency: string) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  })
+
+const mapPlanFromApi = (plan: PricingApiPlan): MarketingPlan => {
+  const price =
+    typeof plan.price === 'number' ? plan.price : Number(plan.price) || 0
+  const currency = plan.currency || 'USD'
+  const billingCycle = plan.billingCycle || 'monthly'
+  const normalizedFeatures = Array.isArray(plan.features) ? plan.features : []
+
+  return {
+    ...plan,
+    price,
+    currency,
+    billingCycle,
+    features: normalizedFeatures,
+    trialDays: plan.trialDays ?? 0,
+    cta:
+      price <= 0
+        ? 'Start Free Trial'
+        : billingCycle === 'lifetime'
+          ? 'Get Lifetime Access'
+          : 'Get Started',
+    popular: plan.type?.toUpperCase() === 'GROWTH',
+  }
+}
+
+const findPromoForPlan = (planId: string, promos: PublicPromo[]) =>
+  promos.find((promo) => {
+    if (promo.appliesTo === 'global') return true
+    if (promo.appliesTo === 'plan') {
+      return promo.planIds?.includes(planId)
+    }
+    return false
+  })
+
+const formatPromoLabel = (
+  promo: PublicPromo,
+  currency: string,
+  basePrice: number
+) => {
+  if (promo.type === 'percentage') {
+    return `${promo.value}% off`
+  }
+
+  const formatter = currencyFormatter(currency)
+  return `${formatter.format(promo.value)} off`
+}
+
+const calculateDiscountedPrice = (basePrice: number, promo: PublicPromo) => {
+  if (promo.type === 'percentage') {
+    const pct = Math.min(100, Math.max(0, promo.value))
+    return Math.max(0, basePrice - (basePrice * pct) / 100)
+  }
+
+  return Math.max(0, basePrice - promo.value)
+}
+
+const applyPromoToPlan = (plan: MarketingPlan, promos: PublicPromo[]): MarketingPlan => {
+  const promo = findPromoForPlan(plan.id, promos)
+  if (!promo) {
+    return { ...plan, promoLabel: undefined, discountedPrice: undefined }
+  }
+
+  return {
+    ...plan,
+    discountedPrice: calculateDiscountedPrice(plan.price, promo),
+    promoLabel: formatPromoLabel(promo, plan.currency, plan.price),
+  }
+}
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
   const [activeFeature, setActiveFeature] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
+  const [marketingPlans, setMarketingPlans] = useState<MarketingPlan[]>(FALLBACK_PLANS)
+  const [promos, setPromos] = useState<PublicPromo[]>([])
+  const [pricingError, setPricingError] = useState<string | null>(null)
+  const decoratedPlans = useMemo(
+    () => marketingPlans.map((plan) => applyPromoToPlan(plan, promos)),
+    [marketingPlans, promos]
+  )
+  const [selectedPlan, setSelectedPlan] = useState<MarketingPlan | null>(null)
+  const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>(emptyCheckoutForm())
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null)
+  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
+  const isCheckoutOpen = Boolean(selectedPlan)
+
+  const openCheckout = (plan: MarketingPlan) => {
+    const effectivePrice = plan.discountedPrice ?? plan.price
+    if (effectivePrice <= 0) {
+      window.location.href = `/auth/register?plan=${plan.id}`
+      return
+    }
+
+    setSelectedPlan(plan)
+    setCheckoutForm({
+      ...emptyCheckoutForm(),
+      promoCode: plan.promoCode || '',
+    })
+    setCheckoutError(null)
+    setCheckoutMessage(null)
+    setCheckoutStatus('idle')
+  }
+
+  const closeCheckout = () => {
+    if (checkoutStatus === 'submitting') return
+    setSelectedPlan(null)
+    setCheckoutForm(emptyCheckoutForm())
+    setCheckoutError(null)
+    setCheckoutMessage(null)
+    setCheckoutStatus('idle')
+  }
+
+  const handleCheckoutFieldChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target
+    setCheckoutForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleCheckoutSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedPlan) return
+    if (!checkoutForm.fullName.trim() || !checkoutForm.email.trim()) {
+      setCheckoutError('Please provide your full name and email address.')
+      return
+    }
+
+    setCheckoutStatus('submitting')
+    setCheckoutError(null)
+    setCheckoutMessage(null)
+
+    try {
+      const response = await fetch('/api/public/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: selectedPlan.id,
+          ...checkoutForm,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start checkout')
+      }
+
+      setCheckoutStatus('success')
+      if (data.authorizationUrl) {
+        setCheckoutMessage('Redirecting you to our secure payment partner…')
+        window.location.href = data.authorizationUrl
+        return
+      }
+
+      if (data.signupUrl) {
+        setCheckoutMessage('This plan starts free. Redirecting you to registration…')
+        window.location.href = data.signupUrl
+        return
+      }
+
+      setCheckoutMessage(
+        data.message || 'Checkout initialized. Please check your email for next steps.'
+      )
+    } catch (error: any) {
+      setCheckoutStatus('idle')
+      setCheckoutError(error?.message || 'Unable to start checkout. Please try again.')
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
+    let cancelled = false
+    async function loadPricing() {
+      try {
+        const response = await fetch('/api/public/pricing', { cache: 'no-store' })
+        if (!response.ok) {
+          throw new Error('Failed to load pricing')
+        }
+        const data = await response.json()
+        if (cancelled) return
+
+        const fetchedPlans = Array.isArray(data?.plans) ? data.plans.map(mapPlanFromApi) : []
+        const fetchedPromos = Array.isArray(data?.promos) ? data.promos : []
+
+        setMarketingPlans(fetchedPlans.length ? fetchedPlans : FALLBACK_PLANS)
+        setPromos(fetchedPromos)
+        setPricingError(null)
+      } catch (error) {
+        console.error('Failed to fetch live pricing:', error)
+        if (!cancelled) {
+          setMarketingPlans(FALLBACK_PLANS)
+          setPricingError('Unable to fetch live pricing right now. Showing defaults.')
+        }
+      }
+    }
+
+    loadPricing()
     
     // Scroll detection for navbar
     const handleScroll = () => {
@@ -47,6 +317,7 @@ export default function Home() {
     )
 
     return () => {
+      cancelled = true
       window.removeEventListener('scroll', handleScroll)
       observerRef.current?.disconnect()
     }
@@ -541,10 +812,43 @@ export default function Home() {
               </p>
             </div>
 
+            {pricingError && (
+              <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {pricingError}
+              </div>
+            )}
+
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-              {plans.map((plan, index) => (
+              {decoratedPlans.map((plan, index) => {
+                const formatter = currencyFormatter(plan.currency)
+                const planPrice = plan.discountedPrice ?? plan.price
+                const displayedPrice = formatter.format(planPrice)
+                const hasDiscount =
+                  plan.discountedPrice !== undefined && plan.discountedPrice < plan.price
+                const cadenceLabel =
+                  plan.billingCycle === 'annual'
+                    ? '/year'
+                    : plan.billingCycle === 'lifetime'
+                      ? 'one-time'
+                      : '/month'
+                const secondaryLabel =
+                  plan.billingCycle === 'lifetime'
+                    ? 'Lifetime license'
+                    : plan.billingCycle === 'annual'
+                      ? 'Billed annually'
+                      : 'Billed monthly'
+                const ctaLabel =
+                  plan.cta ||
+                  (plan.billingCycle === 'lifetime'
+                    ? 'Get Lifetime Access'
+                    : planPrice <= 0
+                      ? 'Start Free'
+                      : 'Get Started')
+                const isFreePlan = planPrice <= 0
+
+                return (
                 <div
-                  key={index}
+                  key={plan.id || index}
                   className={`relative bg-white rounded-3xl p-6 md:p-8 border-2 transition-all duration-500 transform hover:-translate-y-2 ${
                     plan.popular
                       ? 'border-blue-500 shadow-2xl scale-105'
@@ -559,11 +863,20 @@ export default function Home() {
                   )}
                   <div className="mb-6">
                     <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-4xl md:text-5xl font-extrabold text-gray-900">{plan.price}</span>
-                      {plan.period && <span className="text-gray-600">{plan.period}</span>}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-4xl md:text-5xl font-extrabold text-gray-900">{displayedPrice}</span>
+                      <span className="text-gray-600 font-semibold">
+                        {cadenceLabel}
+                      </span>
                     </div>
+                    {hasDiscount && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                        <span className="line-through">{formatter.format(plan.price)}</span>
+                        <span className="font-semibold text-emerald-600">{plan.promoLabel}</span>
+                      </div>
+                    )}
                     <p className="text-gray-600 text-sm md:text-base">{plan.description}</p>
+                    <p className="text-xs text-gray-500 mt-1">{secondaryLabel}</p>
                   </div>
                   <ul className="space-y-3 mb-8">
                     {plan.features.map((feature, idx) => (
@@ -575,19 +888,213 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
-                  <div className={`block w-full text-center py-3 md:py-4 rounded-xl font-semibold transition-all duration-300 ${
-                    plan.popular
-                      ? 'bg-gray-200 text-gray-500'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {plan.cta} (Coming Soon)
-                  </div>
+                  {isFreePlan ? (
+                    <Link
+                      href={`/auth/register?plan=${plan.id}`}
+                      className={`block w-full text-center py-3 md:py-4 rounded-xl font-semibold transition-all duration-300 ${
+                        plan.popular
+                          ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'
+                          : 'bg-gray-900 text-white hover:bg-black/90'
+                      }`}
+                    >
+                      {ctaLabel}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openCheckout(plan)}
+                      className={`w-full text-center py-3 md:py-4 rounded-xl font-semibold transition-all duration-300 ${
+                        plan.popular
+                          ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'
+                          : 'bg-gray-900 text-white hover:bg-black/90'
+                      }`}
+                    >
+                      {ctaLabel}
+                    </button>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         </div>
       </section>
+
+      {isCheckoutOpen && selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeCheckout} />
+          <div className="relative max-w-2xl w-full bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-gray-500 mb-1">Secure Checkout</p>
+                <h3 className="text-2xl font-bold text-gray-900">{selectedPlan.name}</h3>
+              </div>
+              <button
+                type="button"
+                className="text-gray-500 hover:text-gray-800 transition-colors"
+                onClick={closeCheckout}
+                aria-label="Close checkout"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-6 pt-6 pb-2 bg-gradient-to-br from-gray-50 via-white to-gray-50 border-b border-gray-100">
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  <p className="text-xs uppercase text-gray-500">Amount</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {currencyFormatter(selectedPlan.currency).format(selectedPlan.discountedPrice ?? selectedPlan.price)}
+                  </p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs uppercase text-gray-500">Billing</p>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {selectedPlan.billingCycle === 'annual'
+                      ? 'Billed annually'
+                      : selectedPlan.billingCycle === 'lifetime'
+                        ? 'One-time payment'
+                        : 'Billed monthly'}
+                  </p>
+                </div>
+                {selectedPlan.promoLabel && (
+                  <div className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold">
+                    {selectedPlan.promoLabel}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <form onSubmit={handleCheckoutSubmit} className="px-6 py-6 space-y-5">
+              {checkoutError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {checkoutError}
+                </div>
+              )}
+              {checkoutMessage && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  {checkoutMessage}
+                </div>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="fullName" className="text-sm font-semibold text-gray-700">
+                    Full name *
+                  </label>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    placeholder="Pastor Daniel Obasi"
+                    value={checkoutForm.fullName}
+                    onChange={handleCheckoutFieldChange}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-sm font-semibold text-gray-700">
+                    Email *
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@church.org"
+                    value={checkoutForm.email}
+                    onChange={handleCheckoutFieldChange}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  />
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="churchName" className="text-sm font-semibold text-gray-700">
+                    Church name
+                  </label>
+                  <input
+                    id="churchName"
+                    name="churchName"
+                    type="text"
+                    placeholder="City of Light Church"
+                    value={checkoutForm.churchName}
+                    onChange={handleCheckoutFieldChange}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="text-sm font-semibold text-gray-700">
+                    Phone (optional)
+                  </label>
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      placeholder="+234 801 234 5678"
+                      value={checkoutForm.phone}
+                      onChange={handleCheckoutFieldChange}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                    />
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="promoCode" className="text-sm font-semibold text-gray-700">
+                    Promo code
+                  </label>
+                  <input
+                    id="promoCode"
+                    name="promoCode"
+                    type="text"
+                    placeholder="EASTER25"
+                    value={checkoutForm.promoCode}
+                    onChange={handleCheckoutFieldChange}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow uppercase tracking-widest text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="notes" className="text-sm font-semibold text-gray-700">
+                    Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    placeholder="Key context for our team…"
+                    value={checkoutForm.notes}
+                    onChange={handleCheckoutFieldChange}
+                    rows={3}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={checkoutStatus === 'submitting'}
+                  className="inline-flex justify-center items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300"
+                >
+                  {checkoutStatus === 'submitting' ? 'Initializing payment…' : 'Continue to payment'}
+                </button>
+                <button
+                  type="button"
+                  className="text-gray-600 hover:text-gray-900 font-semibold"
+                  onClick={closeCheckout}
+                  disabled={checkoutStatus === 'submitting'}
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                By continuing you agree to Ecclesia’s terms of service and authorize us to redirect you to our
+                secure payment partner.
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Final CTA Section */}
       <section className="relative z-10 py-20 md:py-24 lg:py-32">

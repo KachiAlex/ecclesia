@@ -20,6 +20,7 @@ export const COLLECTIONS = {
   subscriptionPromos: 'subscription_promos',
   usageMetrics: 'usage_metrics',
   subscriptionPayments: 'subscription_payments',
+  landingPlanPayments: 'landing_plan_payments',
   
   // Event collections
   events: 'events',

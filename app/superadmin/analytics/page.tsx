@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
-import { getPlatformAnalytics, type AnalyticsPeriod } from '@/lib/analytics/platform-analytics'
+import { getPlatformAnalytics, getLandingCheckoutAnalytics, type AnalyticsPeriod } from '@/lib/analytics/platform-analytics'
 import clsx from 'clsx'
 
 type AnalyticsPageProps = {
@@ -22,6 +22,18 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 })
 
+function getPeriodRange(period: AnalyticsPeriod) {
+  const now = new Date()
+  if (period === 'month') {
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now }
+  }
+  if (period === 'quarter') {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+    return { start: new Date(now.getFullYear(), quarterStartMonth, 1), end: now }
+  }
+  return { start: new Date(now.getFullYear(), 0, 1), end: now }
+}
+
 export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
   const session = await getServerSession(authOptions)
 
@@ -36,6 +48,18 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
 
   const period = (searchParams?.period || 'month') satisfies AnalyticsPeriod
   const analytics = await getPlatformAnalytics(period)
+  const { start: periodStart, end: periodEnd } = getPeriodRange(period)
+  const landingAnalytics = await getLandingCheckoutAnalytics({
+    startDate: periodStart,
+    endDate: periodEnd,
+  })
+  const landingTotals = landingAnalytics.totals
+  const landingAttemptCount = landingTotals.count
+  const landingPaidCount = landingTotals.byStatus.PAID || 0
+  const landingFailedCount =
+    landingTotals.byStatus.FAILED || landingTotals.byStatus.ERROR || landingTotals.byStatus.CANCELLED || 0
+  const landingRevenueBreakdown = Object.entries(landingTotals.amountByCurrency)
+  const landingPrimaryRevenue = landingRevenueBreakdown[0] || ['USD', 0]
 
   const formatNumber = (value: number, digits = 0) =>
     new Intl.NumberFormat('en-US', {
@@ -253,6 +277,112 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           </div>
         </div>
       </section>
+
+      <section className="grid gap-6 lg:grid-cols-3">
+        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.4em] text-gray-400">Landing funnel</p>
+              <h2 className="text-xl font-semibold text-gray-900">Website CTAs</h2>
+            </div>
+            <span className="text-xs text-gray-500">Checkout</span>
+          </div>
+          <dl className="mt-6 space-y-5 text-sm text-gray-600">
+            <LandingMetric label="Attempts" value={landingAttemptCount} helper="Collected lead info" />
+            <LandingMetric label="Paid" value={landingPaidCount} helper="Marked PAID via webhook" tone="success" />
+            <LandingMetric
+              label="Failed"
+              value={landingFailedCount}
+              helper="Initialize errors / abandons"
+              tone="warning"
+            />
+            <LandingMetric
+              label="Conversion"
+              value={`${landingAnalytics.conversionRate}%`}
+              helper="Paid / Attempt"
+              emphasize
+            />
+          </dl>
+          <div className="mt-6 rounded-2xl bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">Revenue captured</p>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
+              {landingRevenueBreakdown.length > 0 ? (
+                landingRevenueBreakdown.map(([currency, amount]) => (
+                  <li key={currency} className="flex items-center justify-between">
+                    <span>{currency}</span>
+                    <span className="font-semibold">
+                      {formatCurrency(amount, currency as Intl.NumberFormatOptions['currency'])}
+                    </span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-sm text-gray-500">No paid transactions yet.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.4em] text-gray-400">Recent activity</p>
+              <h2 className="text-xl font-semibold text-gray-900">Landing checkout log</h2>
+            </div>
+            <span className="text-xs text-gray-500">
+              {periodStart.toLocaleDateString()} – {periodEnd.toLocaleDateString()}
+            </span>
+          </div>
+          <table className="mt-6 w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="pb-3 font-semibold">Plan</th>
+                <th className="pb-3 font-semibold">Status</th>
+                <th className="pb-3 font-semibold">Amount</th>
+                <th className="pb-3 font-semibold">Promo</th>
+                <th className="pb-3 font-semibold">Created</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {landingAnalytics.entries.slice(0, 6).map((entry) => (
+                <tr key={entry.id}>
+                  <td className="py-3">
+                    <div className="font-medium text-gray-900">{entry.planName || entry.planId}</div>
+                    <div className="text-xs text-gray-500">{entry.fullName}</div>
+                  </td>
+                  <td className="py-3">
+                    <span
+                      className={clsx(
+                        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold',
+                        entry.status === 'PAID' && 'bg-emerald-50 text-emerald-700',
+                        entry.status === 'FAILED' && 'bg-rose-50 text-rose-600',
+                        entry.status === 'INITIATED' && 'bg-gray-100 text-gray-700'
+                      )}
+                    >
+                      {entry.status}
+                    </span>
+                  </td>
+                  <td className="py-3 font-semibold text-gray-900">
+                    {formatCurrency(entry.amount, entry.currency || landingPrimaryRevenue[0])}
+                  </td>
+                  <td className="py-3 text-gray-600">{entry.promoCode || '—'}</td>
+                  <td className="py-3 text-gray-600 text-xs">
+                    {entry.createdAt instanceof Date
+                      ? entry.createdAt.toLocaleDateString()
+                      : new Date(entry.createdAt).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+              {landingAnalytics.entries.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-sm text-gray-500">
+                    No landing checkout attempts in this period.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   )
 }
@@ -336,6 +466,35 @@ function Bar({
         <div className={clsx('w-full rounded-lg', color)} style={{ height: `${height}%` }} />
       </div>
       <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</span>
+    </div>
+  )
+}
+
+function LandingMetric({
+  label,
+  value,
+  helper,
+  tone = 'default',
+  emphasize = false,
+}: {
+  label: string
+  value: number | string
+  helper?: string
+  tone?: 'default' | 'success' | 'warning'
+  emphasize?: boolean
+}) {
+  const toneClasses =
+    tone === 'success'
+      ? 'text-emerald-600 bg-emerald-50 border-emerald-100'
+      : tone === 'warning'
+      ? 'text-amber-600 bg-amber-50 border-amber-100'
+      : 'text-gray-900 bg-gray-50 border-gray-100'
+
+  return (
+    <div className={clsx('rounded-2xl border px-4 py-3', emphasize && 'ring-1 ring-blue-200', toneClasses)}>
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">{label}</p>
+      <p className="text-2xl font-semibold">{value}</p>
+      {helper && <p className="text-xs text-gray-500">{helper}</p>}
     </div>
   )
 }

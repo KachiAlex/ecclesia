@@ -1,6 +1,7 @@
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import { SubscriptionPlanService } from '@/lib/services/subscription-service'
+import type { LandingPlanPaymentStatus, LandingPlanPayment } from '@/lib/services/landing-payment-service'
 
 export type AnalyticsPeriod = 'month' | 'quarter' | 'year'
 
@@ -184,6 +185,74 @@ export async function getPlatformAnalytics(period: AnalyticsPeriod = 'month'): P
     },
     newChurches: newChurchesList,
     atRiskChurches,
+  }
+}
+
+export async function getLandingCheckoutAnalytics(params?: {
+  startDate?: Date
+  endDate?: Date
+  planIds?: string[]
+  status?: LandingPlanPaymentStatus[]
+}) {
+  const { startDate, endDate, planIds, status } = params || {}
+  let query: FirebaseFirestore.Query = db.collection(COLLECTIONS.landingPlanPayments)
+
+  if (startDate) {
+    query = query.where('createdAt', '>=', startDate)
+  }
+  if (endDate) {
+    query = query.where('createdAt', '<=', endDate)
+  }
+  if (planIds && planIds.length > 0) {
+    query = query.where('planId', 'in', planIds.slice(0, 10))
+  }
+
+  type LandingCheckoutRecord = LandingPlanPayment & {
+    id: string
+  }
+
+  const snapshot = await query.get()
+  const documents: LandingCheckoutRecord[] = snapshot.docs.map((doc) => {
+    const data = doc.data() as LandingPlanPayment
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+      paidAt: data.paidAt ? toDate(data.paidAt) : undefined,
+    }
+  })
+  documents.sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0))
+
+  const filtered = status ? documents.filter((doc) => status.includes(doc.status)) : documents
+
+  const totals = filtered.reduce(
+    (acc, doc) => {
+      acc.count += 1
+      const amount = typeof doc.amount === 'number' ? doc.amount : Number(doc.amount) || 0
+      const currency = doc.currency || 'USD'
+      acc.amountByCurrency[currency] = (acc.amountByCurrency[currency] || 0) + amount
+      acc.byStatus[doc.status] = (acc.byStatus[doc.status] || 0) + 1
+      acc.byPlan[doc.planId] = (acc.byPlan[doc.planId] || 0) + 1
+      return acc
+    },
+    {
+      count: 0,
+      amountByCurrency: {} as Record<string, number>,
+      byStatus: {} as Record<string, number>,
+      byPlan: {} as Record<string, number>,
+    }
+  )
+
+  const conversionRate =
+    totals.count > 0 && totals.byStatus.PAID
+      ? Number(((totals.byStatus.PAID / totals.count) * 100).toFixed(1))
+      : 0
+
+  return {
+    totals,
+    conversionRate,
+    entries: filtered,
   }
 }
 

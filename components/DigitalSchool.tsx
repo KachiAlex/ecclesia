@@ -3504,7 +3504,9 @@ export default function DigitalSchool() {
                   ? 'Request access'
                   : 'Invitation only'}
             </span>
-            <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
+            {course.modules > 0 && (
+              <span className="text-xs text-gray-400 uppercase tracking-wide">{course.modules} modules</span>
+            )}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>

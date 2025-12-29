@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit'
+import path from 'path'
 import { StorageService } from '@/lib/services/storage-service'
 import {
   CertificateTheme,
@@ -50,6 +51,7 @@ export class CertificateService {
   }
 
   static async generateCertificatePdf(input: CertificatePdfInput): Promise<Buffer> {
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'noto-sans-v27-latin-regular.ttf')
     const theme = { ...DEFAULT_THEME, ...(input.theme || {}) }
     const doc = new PDFDocument({ size: 'A4', margin: 60 })
     const chunks: Buffer[] = []
@@ -85,7 +87,7 @@ export class CertificateService {
     }
 
     doc
-      .font('Helvetica-Bold')
+      .font(fontPath)
       .fontSize(28)
       .fillColor(theme.secondaryColor)
       .text(theme.sealText || DEFAULT_THEME.sealText, { align: 'center', lineGap: 6 })
@@ -98,7 +100,7 @@ export class CertificateService {
     doc.moveDown(2)
 
     doc
-      .font('Helvetica')
+      .font(fontPath)
       .fontSize(12)
       .fillColor(theme.secondaryColor)
       .text('This certifies that', { align: 'center' })
@@ -106,25 +108,25 @@ export class CertificateService {
     doc
       .moveDown(0.5)
       .fontSize(24)
-      .font('Helvetica-Bold')
+      .font(fontPath)
       .text(input.studentName, { align: 'center' })
 
     doc
       .moveDown(0.5)
       .fontSize(12)
-      .font('Helvetica')
+      .font(fontPath)
       .text('has successfully completed', { align: 'center' })
 
     doc
       .moveDown(0.5)
       .fontSize(18)
-      .font('Helvetica-Bold')
+      .font(fontPath)
       .text(input.courseTitle, { align: 'center' })
 
     doc
       .moveDown(1.5)
       .fontSize(11)
-      .font('Helvetica')
+      .font(fontPath)
       .text(
         `Awarded on ${input.issuedDate.toLocaleDateString()} by ${theme.issuedBy || input.churchName || 'Ecclesia'}.`,
         { align: 'center' },
@@ -141,14 +143,14 @@ export class CertificateService {
 
     doc
       .fontSize(12)
-      .font('Helvetica-Bold')
+      .font(fontPath)
       .text(theme.signatureText || DEFAULT_THEME.signatureText, pageWidth / 2 - 120, doc.y + 5, {
         width: 240,
         align: 'center',
       })
 
     doc
-      .font('Helvetica')
+      .font(fontPath)
       .fontSize(10)
       .text(theme.issuedBy || input.churchName || DEFAULT_THEME.issuedBy, pageWidth / 2 - 120, doc.y, {
         width: 240,
