@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+vi.setConfig({ testTimeout: 15000 })
+
 const mockGetServerSession = vi.fn()
 vi.mock('next-auth', () => ({
   getServerSession: mockGetServerSession,

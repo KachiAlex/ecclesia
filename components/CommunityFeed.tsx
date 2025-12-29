@@ -680,15 +680,9 @@ export default function CommunityFeed() {
             {filter.label}
           </button>
         ))}
-        <label className="ml-auto flex items-center gap-2 text-xs text-gray-600">
-          <input
-            type="checkbox"
-            checked={showShareOnly}
-            onChange={(e) => setShowShareOnly(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          Highlight shared posts
-        </label>
+        <div className="ml-auto text-xs text-gray-500">
+          Filter applied: <span className="font-semibold text-gray-700">{feedFilters.find((f) => f.key === activeFeedFilter)?.label}</span>
+        </div>
       </div>
 
       {/* Create Post Box */}
@@ -961,24 +955,13 @@ export default function CommunityFeed() {
                         ) : (
                           (() => {
                             const all = commentsByPostId[post.id] || []
+                            const roots = all.filter((c) => !c.parentCommentId)
                             const repliesByParentId = all.reduce((acc: Record<string, Comment[]>, c) => {
                               if (!c.parentCommentId) return acc
                               acc[c.parentCommentId] = acc[c.parentCommentId] || []
                               acc[c.parentCommentId].push(c)
                               return acc
                             }, {})
-                            return (
-                              <div>
-                                {all.map((c) => (
-                                  <div key={c.id} className="space-y-2">
-                                    <div className="flex gap-3">
-                                      <div className="flex-shrink-0">
-                                        {c.user?.profileImage ? (
-                                          <img src={c.user.profileImage} className="w-8 h-8 rounded-full object-cover" alt="" />
-                                        ) : (
-                                          <div className="w-8 h-8 rounded-full bg-gray-200" />
-                                        )}
-
                             return roots.map((c) => (
                               <div key={c.id} className="space-y-2">
                                 <div className="flex gap-3">

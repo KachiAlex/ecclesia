@@ -213,6 +213,12 @@ export class UnitMessageService {
 }
 
 export class UnitPollService {
+  static async findById(id: string): Promise<UnitPoll | null> {
+    const snapshot = await db.collection(COLLECTIONS.unitPolls).doc(id).get()
+    if (!snapshot.exists) return null
+    return this.toUnitPoll(snapshot)
+  }
+
   static async create(input: CreateUnitPollInput): Promise<UnitPoll> {
     const payload = {
       unitId: input.unitId,
@@ -265,8 +271,13 @@ export class UnitPollService {
       throw new Error('Invalid option selection')
     }
 
-    // record vote
     const voteRef = db.collection(COLLECTIONS.unitPollVotes).doc(`${pollId}-${userId}`)
+    const existingVote = await voteRef.get()
+    if (existingVote.exists) {
+      throw new Error('You have already voted on this poll')
+    }
+
+    // record vote
     await voteRef.set({
       pollId,
       unitId: poll.unitId,
