@@ -149,10 +149,9 @@ export class SubscriptionPricingService {
     const snapshot = await db
       .collection(COLLECTIONS.subscriptionPlanOverrides)
       .where('churchId', '==', churchId)
-      .orderBy('updatedAt', 'desc')
       .get()
 
-    return snapshot.docs.map((doc) => {
+    const overrides = snapshot.docs.map((doc) => {
       const data = doc.data()
       return {
         id: doc.id,
@@ -162,6 +161,8 @@ export class SubscriptionPricingService {
         updatedAt: toDate(data.updatedAt),
       } as PlanOverride
     })
+
+    return overrides.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
   }
 
   static isPromoActive(promo: SubscriptionPromo): boolean {
