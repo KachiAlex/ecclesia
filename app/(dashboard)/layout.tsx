@@ -5,7 +5,6 @@ import { UserService } from '@/lib/services/user-service'
 import { getCurrentChurch, getCurrentChurchId } from '@/lib/church-context'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
-import ChurchSwitcher from '@/components/ChurchSwitcher'
 import BranchSwitcher from '@/components/BranchSwitcher'
 import OnboardingBanner from '@/components/OnboardingBanner'
 import DashboardNav from '@/components/DashboardNav'
@@ -157,54 +156,45 @@ export default async function DashboardLayout({
                   })}
                 </p>
               </div>
-                <div className="flex w-full flex-col gap-3 lg:max-w-sm">
-                <div className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm">
-                  <div className="flex items-start gap-3">
+              <div className="flex w-full flex-wrap items-center justify-end gap-4 lg:max-w-lg">
+                <details className="relative [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="cursor-pointer list-none">
                     {profileImage ? (
                       <img
                         src={profileImage}
-                        alt={profileName}
-                        className="h-12 w-12 rounded-full object-cover ring-2 ring-primary-100"
+                        alt="Open profile menu"
+                        className="h-12 w-12 rounded-full object-cover ring-2 ring-primary-100 transition hover:ring-primary-300"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 ring-2 ring-primary-50">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 ring-2 ring-primary-50 transition hover:ring-primary-300">
                         {profileInitials}
                       </div>
                     )}
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{profileName}</p>
-                          <p className="text-xs text-gray-500">{profileEmail}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/users/${userId}`}
-                            className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                          >
-                            View
-                          </Link>
-                          <Link
-                            href={`/users/${userId}/edit`}
-                            className="rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50"
-                          >
-                            Edit
-                          </Link>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-xs text-gray-500">Update your profile details and avatar.</p>
+                  </summary>
+                  <div className="absolute right-0 mt-3 w-64 rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-xl">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-gray-900">{profileName}</p>
+                      <p className="text-xs text-gray-500">Administrator</p>
+                      <p className="text-xs text-gray-400">{profileEmail}</p>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <Link
+                        href={`/users/${userId}`}
+                        className="flex items-center justify-center rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        View profile
+                      </Link>
+                      <Link
+                        href={`/users/${userId}/edit`}
+                        className="flex items-center justify-center rounded-xl bg-primary-600 px-3 py-2 text-xs font-semibold text-white hover:bg-primary-700"
+                      >
+                        Edit profile
+                      </Link>
                     </div>
                   </div>
-                </div>
-                <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm">
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Church</div>
-                    <ChurchSwitcher />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Branch</div>
-                    <BranchSwitcher />
-                  </div>
+                </details>
+                <div className="w-full min-w-[220px] max-w-xs sm:flex-1">
+                  <BranchSwitcher />
                 </div>
               </div>
             </div>
