@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, FormEvent, useMemo } from 'react'
 import { formatDate } from '@/lib/utils'
 
 interface Post {
@@ -27,6 +27,7 @@ interface User {
   firstName: string
   lastName: string
   profileImage?: string
+  role?: string
 }
 
 interface Comment {
@@ -55,10 +56,22 @@ interface ShareUnit {
   myRole?: string
 }
 
+type ChannelShortcut = {
+  id: string
+  label: string
+  description: string
+  href: string
+  accent: string
+}
+
 export default function CommunityFeed() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const isAdmin = useMemo(() => {
+    if (!currentUser?.role) return false
+    return ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN'].includes(currentUser.role)
+  }, [currentUser])
 
   const [shareOpen, setShareOpen] = useState(false)
   const [sharePostId, setSharePostId] = useState<string | null>(null)
@@ -68,6 +81,18 @@ export default function CommunityFeed() {
   const [shareLoadingUnits, setShareLoadingUnits] = useState(false)
   const [shareSubmitting, setShareSubmitting] = useState(false)
   const [shareError, setShareError] = useState('')
+  const [shareSuccess, setShareSuccess] = useState('')
+
+  const feedFilters: { key: 'all' | 'Update' | 'Testimony' | 'Announcement' | 'Prayer Request'; label: string }[] = [
+    { key: 'all', label: 'All updates' },
+    { key: 'Update', label: 'Team updates' },
+    { key: 'Testimony', label: 'Testimonies' },
+    { key: 'Announcement', label: 'Announcements' },
+    { key: 'Prayer Request', label: 'Prayer requests' },
+  ]
+  const [activeFeedFilter, setActiveFeedFilter] = useState<'all' | 'Update' | 'Testimony' | 'Announcement' | 'Prayer Request'>('all')
+  const [feedRefreshing, setFeedRefreshing] = useState(false)
+  const [hasLoadedPosts, setHasLoadedPosts] = useState(false)
 
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null)
   const [commentsByPostId, setCommentsByPostId] = useState<Record<string, Comment[]>>({})
@@ -243,15 +268,58 @@ export default function CommunityFeed() {
   const [isPosting, setIsPosting] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [charCount, setCharCount] = useState(0)
+
+  const [broadcastContent, setBroadcastContent] = useState('')
+  const availableRoles = ['MEMBER', 'HEAD', 'BRANCH_ADMIN', 'ADMIN', 'SUPER_ADMIN']
+  const [broadcastTargetRole, setBroadcastTargetRole] = useState('')
+  const [broadcastTargetDepartmentId, setBroadcastTargetDepartmentId] = useState('')
+  const [broadcastTargetGroupId, setBroadcastTargetGroupId] = useState('')
+  const [broadcastSubmitting, setBroadcastSubmitting] = useState(false)
+  const [broadcastError, setBroadcastError] = useState('')
+  const [broadcastSuccess, setBroadcastSuccess] = useState('')
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => {
-    loadCurrentUser()
-    loadPosts()
-  }, [])
+  const loadPosts = useCallback(async () => {
+    setLoading(true)
+    setFeedRefreshing(true)
+    try {
+      const params = new URLSearchParams()
+      if (activeFeedFilter !== 'all') {
+        params.append('type', activeFeedFilter)
+      }
+      const response = await fetch(`/api/posts?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        const rawPosts = Array.isArray(data?.posts) ? data.posts : []
+        const normalized = rawPosts.map((p: any) => {
+          const images = Array.isArray(p?.images) ? p.images : []
+          const count = p?._count || {}
+          return {
+            ...p,
+            images,
+            isLiked: Boolean(p?.isLiked),
+            _count: {
+              likes: Number(count.likes || 0),
+              comments: Number(count.comments || 0),
+            },
+          } as Post
+        })
+        setPosts(normalized)
+        setHasLoadedPosts(true)
+      } else {
+        setPosts([])
+      }
+    } catch (error) {
+      console.error('Error loading posts:', error)
+      setPosts([])
+    } finally {
+      setLoading(false)
+      setFeedRefreshing(false)
+    }
+  }, [activeFeedFilter])
 
-  const loadMyUnits = async () => {
+  const loadMyUnits = useCallback(async () => {
     setShareLoadingUnits(true)
     setShareError('')
     try {
@@ -267,7 +335,7 @@ export default function CommunityFeed() {
     } finally {
       setShareLoadingUnits(false)
     }
-  }
+  }, [])
 
   const openShare = async (postId: string) => {
     setSharePostId(postId)
@@ -283,6 +351,7 @@ export default function CommunityFeed() {
     if (shareSelectedUnitIds.length === 0) return
     setShareSubmitting(true)
     setShareError('')
+    setShareSuccess('')
     try {
       const res = await fetch(`/api/posts/${sharePostId}/share`, {
         method: 'POST',
@@ -293,6 +362,7 @@ export default function CommunityFeed() {
       if (!res.ok) throw new Error(data?.error || 'Failed to share')
       setShareOpen(false)
       setSharePostId(null)
+      setShareSuccess('Shared with selected units')
     } catch (e: any) {
       setShareError(e?.message || 'Failed to share')
     } finally {
@@ -321,36 +391,13 @@ export default function CommunityFeed() {
     }
   }
 
-  const loadPosts = async () => {
-    try {
-      const response = await fetch('/api/posts')
-      if (response.ok) {
-        const data = await response.json()
-        const rawPosts = Array.isArray(data?.posts) ? data.posts : []
-        const normalized = rawPosts.map((p: any) => {
-          const images = Array.isArray(p?.images) ? p.images : []
-          const count = p?._count || {}
-          return {
-            ...p,
-            images,
-            isLiked: Boolean(p?.isLiked),
-            _count: {
-              likes: Number(count.likes || 0),
-              comments: Number(count.comments || 0),
-            },
-          } as Post
-        })
-        setPosts(normalized)
-      } else {
-        setPosts([])
-      }
-    } catch (error) {
-      console.error('Error loading posts:', error)
-      setPosts([])
-    } finally {
-      setLoading(false)
-    }
-  }
+  useEffect(() => {
+    loadCurrentUser()
+  }, [])
+
+  useEffect(() => {
+    loadPosts()
+  }, [loadPosts])
 
   const handleCreatePost = async () => {
     if (!postContent.trim()) return
@@ -427,24 +474,225 @@ export default function CommunityFeed() {
   }
 
   const postTypes = [
-    { value: 'Update', icon: '', color: 'bg-blue-50 text-blue-700' },
-    { value: 'Testimony', icon: '', color: 'bg-purple-50 text-purple-700' },
-    { value: 'Announcement', icon: '', color: 'bg-orange-50 text-orange-700' },
-    { value: 'Prayer Request', icon: '', color: 'bg-green-50 text-green-700' },
+    { value: 'Update', icon: '🗂️', color: 'bg-blue-50 text-blue-700' },
+    { value: 'Testimony', icon: '✨', color: 'bg-purple-50 text-purple-700' },
+    { value: 'Announcement', icon: '📣', color: 'bg-orange-50 text-orange-700' },
+    { value: 'Prayer Request', icon: '🙏', color: 'bg-green-50 text-green-700' },
   ]
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">Loading community feed...</div>
-      </div>
-    )
-  }
+  const shortcuts: ChannelShortcut[] = [
+    {
+      id: 'groups',
+      label: 'My Groups',
+      description: 'Jump to your active group hub to continue conversations.',
+      href: '/groups',
+      accent: 'from-cyan-500/80 via-teal-400/80 to-sky-500/80',
+    },
+    {
+      id: 'broadcasts',
+      label: 'Broadcast Center',
+      description: 'Review sent announcements and engagement metrics.',
+      href: '#broadcast',
+      accent: 'from-amber-500/80 via-orange-400/80 to-orange-600/80',
+    },
+    {
+      id: 'messages',
+      label: 'Direct Messages',
+      description: 'Coordinate privately with leaders and members.',
+      href: '/dashboard/messages',
+      accent: 'from-purple-500/80 via-indigo-500/80 to-blue-500/80',
+    },
+  ]
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-3xl">
+    <div className="container mx-auto px-4 py-6 max-w-5xl space-y-8">
+      {/* Summary strip */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Inter-group channels</p>
+          <p className="text-lg font-semibold text-gray-900">Community Broadcasts</p>
+          <p className="text-sm text-gray-600">Share announcements to all units or target roles.</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Feed filter</p>
+          <p className="text-lg font-semibold text-gray-900">{feedFilters.find((f) => f.key === activeFeedFilter)?.label}</p>
+          <p className="text-sm text-gray-600">{feedRefreshing ? 'Refreshing…' : hasLoadedPosts ? 'Up to date' : 'Fetching posts'}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Shared to groups</p>
+          <p className="text-lg font-semibold text-gray-900">{shareUnits.length || '—'}</p>
+          <p className="text-sm text-gray-600">Units you’re currently a part of.</p>
+        </div>
+      </div>
+
+      {/* Channel shortcuts */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {shortcuts.map((shortcut) => (
+          <a
+            key={shortcut.id}
+            href={shortcut.href}
+            className="group relative overflow-hidden rounded-xl shadow bg-white hover:-translate-y-0.5 transition"
+          >
+            <div className="absolute inset-0 opacity-70 bg-gradient-to-br" style={{ backgroundImage: `linear-gradient(to bottom right, rgb(var(--tw-color-${shortcut.accent}))` }} />
+            <div className="relative p-5 space-y-2">
+              <p className="text-xs uppercase tracking-wide text-gray-200">{shortcut.label}</p>
+              <p className="text-sm text-gray-100">{shortcut.description}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {/* Admin Broadcast Composer */}
+      {isAdmin && (
+        <div id="broadcast" className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Broadcast to Community</h2>
+              <p className="text-sm text-gray-600">Push an announcement across roles, departments, or a specific unit.</p>
+            </div>
+            {broadcastSuccess && <span className="text-xs font-medium text-green-600">{broadcastSuccess}</span>}
+          </div>
+
+          {broadcastError && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{broadcastError}</div>
+          )}
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (!broadcastContent.trim()) {
+                setBroadcastError('Message content is required')
+                return
+              }
+              setBroadcastSubmitting(true)
+              setBroadcastError('')
+              setBroadcastSuccess('')
+              try {
+                const res = await fetch('/api/messages/broadcast', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    content: broadcastContent.trim(),
+                    targetRole: broadcastTargetRole || undefined,
+                    targetDepartmentId: broadcastTargetDepartmentId || undefined,
+                    targetGroupId: broadcastTargetGroupId || undefined,
+                  }),
+                })
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) throw new Error(data?.error || 'Failed to send broadcast')
+                setBroadcastContent('')
+                setBroadcastTargetRole('')
+                setBroadcastTargetDepartmentId('')
+                setBroadcastTargetGroupId('')
+                setBroadcastSuccess(`Sent to ${data?.sentTo ?? data?.messages ?? 'community'} recipients`)
+              } catch (error: any) {
+                setBroadcastError(error?.message || 'Failed to send broadcast')
+              } finally {
+                setBroadcastSubmitting(false)
+              }
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <textarea
+                value={broadcastContent}
+                onChange={(e) => setBroadcastContent(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                rows={3}
+                placeholder="Share a church-wide update..."
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role Filter</label>
+                <select
+                  value={broadcastTargetRole}
+                  onChange={(e) => setBroadcastTargetRole(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                >
+                  <option value="">Everyone</option>
+                  {availableRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department ID (optional)</label>
+                <input
+                  value={broadcastTargetDepartmentId}
+                  onChange={(e) => setBroadcastTargetDepartmentId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                  placeholder="dept_123"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Group ID (optional)</label>
+                <input
+                  value={broadcastTargetGroupId}
+                  onChange={(e) => setBroadcastTargetGroupId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                  placeholder="group_456"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setBroadcastContent('')
+                  setBroadcastTargetRole('')
+                  setBroadcastTargetDepartmentId('')
+                  setBroadcastTargetGroupId('')
+                  setBroadcastError('')
+                  setBroadcastSuccess('')
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                disabled={broadcastSubmitting}
+              >
+                Clear
+              </button>
+              <button
+                type="submit"
+                disabled={broadcastSubmitting || !broadcastContent.trim()}
+                className="px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium disabled:opacity-60"
+              >
+                {broadcastSubmitting ? 'Sending...' : 'Send Broadcast'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Feed filter bar */}
+      <div className="bg-white rounded-xl shadow-md p-4 flex flex-wrap gap-2 items-center">
+        <div className="text-sm font-semibold text-gray-700 pr-2">Community Feed</div>
+        {feedFilters.map((filter) => (
+          <button
+            key={filter.key}
+            onClick={() => setActiveFeedFilter(filter.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+              activeFeedFilter === filter.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+        <label className="ml-auto flex items-center gap-2 text-xs text-gray-600">
+          <input
+            type="checkbox"
+            checked={showShareOnly}
+            onChange={(e) => setShowShareOnly(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Highlight shared posts
+        </label>
+      </div>
+
       {/* Create Post Box */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex gap-4">
           {/* User Avatar */}
           <div className="flex-shrink-0">
@@ -713,13 +961,23 @@ export default function CommunityFeed() {
                         ) : (
                           (() => {
                             const all = commentsByPostId[post.id] || []
-                            const roots = all.filter((c) => !c.parentCommentId)
                             const repliesByParentId = all.reduce((acc: Record<string, Comment[]>, c) => {
                               if (!c.parentCommentId) return acc
                               acc[c.parentCommentId] = acc[c.parentCommentId] || []
                               acc[c.parentCommentId].push(c)
                               return acc
                             }, {})
+                            return (
+                              <div>
+                                {all.map((c) => (
+                                  <div key={c.id} className="space-y-2">
+                                    <div className="flex gap-3">
+                                      <div className="flex-shrink-0">
+                                        {c.user?.profileImage ? (
+                                          <img src={c.user.profileImage} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-gray-200" />
+                                        )}
 
                             return roots.map((c) => (
                               <div key={c.id} className="space-y-2">
