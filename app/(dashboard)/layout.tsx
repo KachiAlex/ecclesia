@@ -56,6 +56,16 @@ export default async function DashboardLayout({
   const brandTagline = activeChurch?.tagline ?? 'Church Management'
   const brandLogo = activeChurch?.logo ?? '/ecclesia%20logo.svg'
   const brandInitial = brandName?.[0]?.toUpperCase() ?? 'E'
+  const profileName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ') || session.user?.name || 'Admin user'
+  const profileEmail = session.user?.email || user?.email || ''
+  const profileImage = (user as any)?.profileImage || (session.user as any)?.image || ''
+  const profileInitials =
+    profileName
+      .split(' ')
+      .map((part) => part.trim().charAt(0).toUpperCase())
+      .join('')
+      .slice(0, 2) || profileEmail.charAt(0).toUpperCase() || 'A'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
@@ -104,8 +114,6 @@ export default async function DashboardLayout({
           </div>
 
           <div className="space-y-3 w-full">
-            <ChurchSwitcher />
-            <BranchSwitcher />
             <div className="grid grid-cols-2 gap-2 pt-2 px-2">
               <Link
                 href="/subscription"
@@ -149,22 +157,55 @@ export default async function DashboardLayout({
                   })}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                {/* Quick action buttons */}
-                <Link
-                  href="/prayer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl font-medium text-sm text-gray-700 hover:shadow-md transition-all border border-gray-200/50"
-                >
-                  <span>🙏</span>
-                  <span>Prayer</span>
-                </Link>
-                <Link
-                  href="/ai/coaching"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-blue-500/30 transition-all"
-                >
-                  <span>🤖</span>
-                  <span>AI Coach</span>
-                </Link>
+                <div className="flex w-full flex-col gap-3 lg:max-w-sm">
+                <div className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    {profileImage ? (
+                      <img
+                        src={profileImage}
+                        alt={profileName}
+                        className="h-12 w-12 rounded-full object-cover ring-2 ring-primary-100"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 ring-2 ring-primary-50">
+                        {profileInitials}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{profileName}</p>
+                          <p className="text-xs text-gray-500">{profileEmail}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/users/${userId}`}
+                            className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                          >
+                            View
+                          </Link>
+                          <Link
+                            href={`/users/${userId}/edit`}
+                            className="rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50"
+                          >
+                            Edit
+                          </Link>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">Update your profile details and avatar.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm">
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Church</div>
+                    <ChurchSwitcher />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Branch</div>
+                    <BranchSwitcher />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
