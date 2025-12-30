@@ -15,7 +15,7 @@ export async function GET() {
 
     console.log('Certificate generated successfully, size:', pdfBuffer.length)
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'inline; filename="test-certificate.pdf"'
