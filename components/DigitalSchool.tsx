@@ -2918,28 +2918,70 @@ export default function DigitalSchool() {
     ) : null
 
   const openCertificate = useCallback((url: string) => {
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.target = '_blank'
-    anchor.rel = 'noopener noreferrer'
-    anchor.click()
+    console.log('🎓 Attempting to open certificate:', url)
+    
+    if (typeof window !== 'undefined') {
+      const popup = window.open(url, '_blank', 'noopener,noreferrer')
+      if (popup) {
+        console.log('✅ Certificate opened in popup')
+        return
+      }
+      console.log('⚠️ Popup blocked, trying fallback')
+    }
+
+    try {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.target = '_blank'
+      anchor.rel = 'noopener noreferrer'
+      anchor.click()
+      console.log('✅ Certificate opened via anchor click')
+    } catch (error) {
+      console.error('❌ Failed to open certificate:', error)
+      // Show user-friendly error message
+      setToast({
+        message: 'Unable to open certificate. Please check your popup blocker settings.',
+        tone: 'error'
+      })
+    }
   }, [])
 
   const handleGenerateCertificate = async (enrollmentId: string) => {
+    console.log('🔄 Starting certificate generation for:', enrollmentId)
     setCertificateMessage(null)
     setCertificateLoadingState(enrollmentId, true)
+    const previewWindow =
+      typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
+    if (previewWindow) {
+      previewWindow.document.write('<p style="font-family:sans-serif;padding:16px;">Preparing certificate…</p>')
+      previewWindow.document.close()
+      console.log('📱 Preview window opened')
+    } else {
+      console.log('⚠️ Could not open preview window (popup blocked?)')
+    }
     try {
+      console.log('🌐 Calling certificate API...')
       const response = await requestJson<{ url: string; path: string }>(
         `/api/digital-school/enrollments/${enrollmentId}/certificate`,
         {
           method: 'POST',
         },
       )
+      console.log('✅ Certificate API response:', response)
       setCertificateMessage('Certificate ready — opening in a new tab.')
-      openCertificate(response.url)
+      if (previewWindow) {
+        console.log('📱 Redirecting preview window to certificate')
+        previewWindow.location.replace(response.url)
+      } else {
+        console.log('🔗 Opening certificate via openCertificate function')
+        openCertificate(response.url)
+      }
       await loadEnrollments()
     } catch (error) {
-      console.error('DigitalSchool.handleGenerateCertificate', error)
+      console.error('❌ DigitalSchool.handleGenerateCertificate', error)
+      if (previewWindow) {
+        previewWindow.close()
+      }
       setCertificateMessage(
         error instanceof Error ? `Unable to load certificate: ${error.message}` : 'Unable to load certificate.',
       )
@@ -2956,8 +2998,13 @@ export default function DigitalSchool() {
       certificateUrl?: string
     },
   ) => {
+    console.log('🎯 handleEnrollAction called:', { courseId, options })
+    
     const course = courses.find((item) => item.id === courseId)
-    if (!course) return
+    if (!course) {
+      console.log('❌ Course not found:', courseId)
+      return
+    }
 
     const enrollment =
       (options?.enrollmentId && enrollmentRecords.find((record) => record.id === options.enrollmentId)) ||
@@ -2968,15 +3015,27 @@ export default function DigitalSchool() {
     const isCompleted = options?.isCompleted ?? snapshot.isCompleted
     const certificateUrl = options?.certificateUrl ?? enrollment?.certificateUrl
 
+    console.log('📊 Enrollment data:', {
+      enrollment: enrollment?.id,
+      enrollmentId,
+      isCompleted,
+      certificateUrl,
+      courseStatus: course.status
+    })
+
     if (course.status === 'completed' || isCompleted) {
+      console.log('✅ Course is completed, checking certificate...')
       if (certificateUrl) {
+        console.log('📜 Opening existing certificate:', certificateUrl)
         openCertificate(certificateUrl)
         return
       }
       if (enrollmentId) {
+        console.log('🔄 Generating new certificate for enrollment:', enrollmentId)
         void handleGenerateCertificate(enrollmentId)
         return
       }
+      console.log('⚠️ No certificate URL or enrollment ID found')
       const row = progressRows.find((progress) => progress.course === course.title)
       if (row) setSelectedProgress(row)
       return
