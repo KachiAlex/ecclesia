@@ -202,11 +202,6 @@ model Church {
   website               String?
   description           String?
   
-  // Certificate signature settings
-  certificateSignatureUrl String?
-  certificateSignatureTitle String? // e.g., "Lead Pastor", "Senior Pastor", "Pastor"
-  certificateSignatureName String? // e.g., "John Smith"
-  
   // Custom domain support
   customDomain          String?
   domainVerified        Boolean               @default(false)
