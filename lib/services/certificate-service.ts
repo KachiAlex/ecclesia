@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit'
+import { jsPDF } from 'jspdf'
 import { StorageService } from '@/lib/services/storage-service'
 import {
   CertificateTheme,
@@ -35,113 +35,96 @@ const DEFAULT_THEME: Required<CertificateTheme> = {
   issuedBy: 'Ecclesia',
 }
 
-// Simple certificate generation using only built-in fonts
+// Convert hex color to RGB values for jsPDF
+const hexToRgb = (hex: string): [number, number, number] => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [67, 56, 202] // Default blue
+}
+
+// Generate certificate using jsPDF (more reliable in serverless)
 const generateCertificatePdf = (input: CertificatePdfInput): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     try {
       const theme = { ...DEFAULT_THEME, ...(input.theme || {}) }
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 60,
-        fontLayoutCache: false,
+      
+      // Create PDF document
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
       })
 
-      const chunks: Buffer[] = []
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      
+      // Background color
+      doc.setFillColor(253, 250, 247) // #fdfaf7
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
 
-      doc.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
+      // Border
+      const [accentR, accentG, accentB] = hexToRgb(theme.accentColor)
+      doc.setDrawColor(accentR, accentG, accentB)
+      doc.setLineWidth(2)
+      doc.rect(10, 10, pageWidth - 20, pageHeight - 20)
 
-      const pageWidth = doc.page.width
-      const pageHeight = doc.page.height
+      // Colors
+      const [secondaryR, secondaryG, secondaryB] = hexToRgb(theme.secondaryColor)
 
-      // Background
-      doc.save()
-      doc.rect(0, 0, pageWidth, pageHeight).fill('#fdfaf7')
-      doc.restore()
+      // Header - Seal Text
+      doc.setTextColor(secondaryR, secondaryG, secondaryB)
+      doc.setFontSize(24)
+      doc.setFont('helvetica', 'bold')
+      const sealText = theme.sealText || DEFAULT_THEME.sealText
+      doc.text(sealText, pageWidth / 2, 40, { align: 'center' })
 
-      // Accent border
-      doc
-        .save()
-        .lineWidth(6)
-        .strokeColor(theme.accentColor)
-        .rect(20, 20, pageWidth - 40, pageHeight - 40)
-        .stroke()
-        .restore()
+      // Certificate Title
+      doc.setTextColor(accentR, accentG, accentB)
+      doc.setFontSize(18)
+      doc.text('Certificate of Completion', pageWidth / 2, 55, { align: 'center' })
 
-      // Header with seal text
-      doc.font('Helvetica-Bold')
-      doc
-        .fontSize(28)
-        .fillColor(theme.secondaryColor)
-        .text(theme.sealText || DEFAULT_THEME.sealText, { align: 'center', lineGap: 6 })
+      // Certificate Body
+      doc.setTextColor(secondaryR, secondaryG, secondaryB)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(12)
+      doc.text('This certifies that', pageWidth / 2, 80, { align: 'center' })
 
-      doc
-        .fontSize(18)
-        .fillColor(theme.accentColor)
-        .text('Certificate of Completion', { align: 'center', lineGap: 10 })
+      // Student Name
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(20)
+      doc.text(input.studentName, pageWidth / 2, 95, { align: 'center' })
 
-      doc.moveDown(2)
+      // Completion Text
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(12)
+      doc.text('has successfully completed', pageWidth / 2, 110, { align: 'center' })
 
-      // Certificate body
-      doc.font('Helvetica')
-      doc
-        .fontSize(12)
-        .fillColor(theme.secondaryColor)
-        .text('This certifies that', { align: 'center' })
+      // Course Title
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text(input.courseTitle, pageWidth / 2, 125, { align: 'center' })
 
-      doc
-        .moveDown(0.5)
-        .font('Helvetica-Bold')
-        .fontSize(24)
-        .text(input.studentName, { align: 'center' })
+      // Date and Issuer
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      const dateText = `Awarded on ${input.issuedDate.toLocaleDateString()} by ${theme.issuedBy || input.churchName || 'Ecclesia'}.`
+      doc.text(dateText, pageWidth / 2, 145, { align: 'center' })
 
-      doc
-        .moveDown(0.5)
-        .font('Helvetica')
-        .fontSize(12)
-        .text('has successfully completed', { align: 'center' })
+      // Signature Line
+      const signatureY = 170
+      doc.setDrawColor(secondaryR, secondaryG, secondaryB)
+      doc.setLineWidth(0.5)
+      doc.line(pageWidth / 2 - 40, signatureY, pageWidth / 2 + 40, signatureY)
 
-      doc
-        .moveDown(0.5)
-        .font('Helvetica-Bold')
-        .fontSize(18)
-        .text(input.courseTitle, { align: 'center' })
+      // Signature Text
+      doc.setFontSize(10)
+      doc.text(theme.signatureText || DEFAULT_THEME.signatureText, pageWidth / 2, signatureY + 8, { align: 'center' })
+      doc.text(theme.issuedBy || input.churchName || DEFAULT_THEME.issuedBy, pageWidth / 2, signatureY + 15, { align: 'center' })
 
-      doc
-        .moveDown(1.5)
-        .font('Helvetica')
-        .fontSize(11)
-        .text(
-          `Awarded on ${input.issuedDate.toLocaleDateString()} by ${theme.issuedBy || input.churchName || 'Ecclesia'}.`,
-          { align: 'center' },
-        )
-
-      // Signature area
-      doc.moveDown(3)
-      const signatureY = doc.y
-      doc
-        .moveTo(pageWidth / 2 - 120, signatureY)
-        .lineTo(pageWidth / 2 + 120, signatureY)
-        .strokeColor(theme.secondaryColor)
-        .lineWidth(1)
-        .stroke()
-
-      doc
-        .fontSize(12)
-        .text(theme.signatureText || DEFAULT_THEME.signatureText, pageWidth / 2 - 120, signatureY + 10, {
-          width: 240,
-          align: 'center',
-        })
-
-      doc
-        .fontSize(10)
-        .text(theme.issuedBy || input.churchName || DEFAULT_THEME.issuedBy, pageWidth / 2 - 120, doc.y + 5, {
-          width: 240,
-          align: 'center',
-        })
-
-      doc.end()
+      // Convert to buffer
+      const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
+      resolve(pdfBuffer)
     } catch (error) {
       reject(error)
     }
