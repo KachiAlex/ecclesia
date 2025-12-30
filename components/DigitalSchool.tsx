@@ -2917,34 +2917,107 @@ export default function DigitalSchool() {
       </div>
     ) : null
 
-  const openCertificate = useCallback((url: string) => {
-    console.log('🎓 Attempting to open certificate:', url)
+  const downloadCertificate = useCallback((url: string, fileName?: string) => {
+    console.log('📥 Attempting to download certificate:', url)
     
-    if (typeof window !== 'undefined') {
-      const popup = window.open(url, '_blank', 'noopener,noreferrer')
-      if (popup) {
-        console.log('✅ Certificate opened in popup')
-        return
-      }
-      console.log('⚠️ Popup blocked, trying fallback')
-    }
-
     try {
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.target = '_blank'
-      anchor.rel = 'noopener noreferrer'
+      anchor.download = fileName || 'certificate.pdf'
+      anchor.style.display = 'none'
+      document.body.appendChild(anchor)
       anchor.click()
-      console.log('✅ Certificate opened via anchor click')
-    } catch (error) {
-      console.error('❌ Failed to open certificate:', error)
-      // Show user-friendly error message
+      document.body.removeChild(anchor)
+      console.log('✅ Certificate download initiated')
+      
       setToast({
-        message: 'Unable to open certificate. Please check your popup blocker settings.',
+        message: 'Certificate download started!',
+        tone: 'success'
+      })
+    } catch (error) {
+      console.error('❌ Failed to download certificate:', error)
+      setToast({
+        message: 'Download failed. Please try opening the certificate link manually.',
+        tone: 'error'
+      })
+    }
+  }, [])st downloadCertificate = useCallback((url: string, fileName?: string) => {
+    console.log('📥 Attempting to download certificate:', url)
+    
+    try {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName || 'certificate.pdf'
+      anchor.style.display = 'none'
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      console.log('✅ Certificate download initiated')
+      
+      setToast({
+        message: 'Certificate download started!',
+        tone: 'success'
+      })
+    } catch (error) {
+      console.error('❌ Failed to download certificate:', error)
+      setToast({
+        message: 'Download failed. Please try opening the certificate link manually.',
         tone: 'error'
       })
     }
   }, [])
+
+  const openCertificate = useCallback((url: string) => {
+    console.log('🎓 Attempting to open certificate:', url)
+    
+    if (typeof window !== 'undefined') {
+      // Try multiple methods to open the certificate
+      
+      // Method 1: Direct window.open
+      try {
+        const popup = window.open(url, '_blank', 'noopener,noreferrer')
+        if (popup && !popup.closed) {
+          console.log('✅ Certificate opened in popup')
+          return
+        }
+        console.log('⚠️ Popup blocked or failed, trying method 2')
+      } catch (error) {
+        console.log('⚠️ Method 1 failed:', error)
+      }
+
+      // Method 2: Create and click anchor with user interaction
+      try {
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.target = '_blank'
+        anchor.rel = 'noopener noreferrer'
+        anchor.style.display = 'none'
+        document.body.appendChild(anchor)
+        anchor.click()
+        document.body.removeChild(anchor)
+        console.log('✅ Certificate opened via enhanced anchor click')
+        return
+      } catch (error) {
+        console.log('⚠️ Method 2 failed:', error)
+      }
+
+      // Method 3: Direct navigation (last resort)
+      try {
+        window.location.href = url
+        console.log('✅ Certificate opened via direct navigation')
+        return
+      } catch (error) {
+        console.log('⚠️ Method 3 failed:', error)
+      }
+    }
+
+    // If all methods fail, show error with download option
+    console.error('❌ All certificate opening methods failed')
+    
+    // Try download as final fallback
+    console.log('🔄 Trying download as final fallback')
+    downloadCertificate(url, `certificate-${Date.now()}.pdf`)
+  }, [downloadCertificate])
 
   const handleGenerateCertificate = async (enrollmentId: string) => {
     console.log('🔄 Starting certificate generation for:', enrollmentId)
