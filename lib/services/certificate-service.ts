@@ -96,6 +96,12 @@ export class CertificateService {
   static async generateCertificatePdf(input: CertificatePdfInput): Promise<Buffer> {
     const theme = { ...DEFAULT_THEME, ...(input.theme || {}) }
     const doc = new PDFDocument({ size: 'A4', margin: 60 })
+    
+    // Load and set custom font as default BEFORE any operations
+    const fontBuffer = await this.getFontBuffer()
+    doc.registerFont(CERTIFICATE_FONT_NAME, fontBuffer)
+    doc.font(CERTIFICATE_FONT_NAME)
+
     const chunks: Buffer[] = []
 
     doc.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
@@ -107,9 +113,6 @@ export class CertificateService {
 
     const pageWidth = doc.page.width
     const pageHeight = doc.page.height
-
-    const fontBuffer = await this.getFontBuffer()
-    doc.registerFont(CERTIFICATE_FONT_NAME, fontBuffer)
 
     // Background
     doc.save()
@@ -132,7 +135,6 @@ export class CertificateService {
     }
 
     doc
-      .font(CERTIFICATE_FONT_NAME)
       .fontSize(28)
       .fillColor(theme.secondaryColor)
       .text(theme.sealText || DEFAULT_THEME.sealText, { align: 'center', lineGap: 6 })
@@ -145,7 +147,6 @@ export class CertificateService {
     doc.moveDown(2)
 
     doc
-      .font(CERTIFICATE_FONT_NAME)
       .fontSize(12)
       .fillColor(theme.secondaryColor)
       .text('This certifies that', { align: 'center' })
@@ -153,25 +154,21 @@ export class CertificateService {
     doc
       .moveDown(0.5)
       .fontSize(24)
-      .font(CERTIFICATE_FONT_NAME)
       .text(input.studentName, { align: 'center' })
 
     doc
       .moveDown(0.5)
       .fontSize(12)
-      .font(CERTIFICATE_FONT_NAME)
       .text('has successfully completed', { align: 'center' })
 
     doc
       .moveDown(0.5)
       .fontSize(18)
-      .font(CERTIFICATE_FONT_NAME)
       .text(input.courseTitle, { align: 'center' })
 
     doc
       .moveDown(1.5)
       .fontSize(11)
-      .font(CERTIFICATE_FONT_NAME)
       .text(
         `Awarded on ${input.issuedDate.toLocaleDateString()} by ${theme.issuedBy || input.churchName || 'Ecclesia'}.`,
         { align: 'center' },
@@ -188,14 +185,12 @@ export class CertificateService {
 
     doc
       .fontSize(12)
-      .font(CERTIFICATE_FONT_NAME)
       .text(theme.signatureText || DEFAULT_THEME.signatureText, pageWidth / 2 - 120, doc.y + 5, {
         width: 240,
         align: 'center',
       })
 
     doc
-      .font(CERTIFICATE_FONT_NAME)
       .fontSize(10)
       .text(theme.issuedBy || input.churchName || DEFAULT_THEME.issuedBy, pageWidth / 2 - 120, doc.y, {
         width: 240,
