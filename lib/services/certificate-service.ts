@@ -95,8 +95,17 @@ export class CertificateService {
 
   static async generateCertificatePdf(input: CertificatePdfInput): Promise<Buffer> {
     const theme = { ...DEFAULT_THEME, ...(input.theme || {}) }
-    const doc = new PDFDocument({ size: 'A4', margin: 60 })
-    
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 60,
+      fontLayoutCache: true,
+      metrics: {
+        Helvetica: {
+          data: PDFDocument.metrics.helvetica,
+        },
+      },
+    })
+
     // Load and set custom font as default BEFORE any operations
     const fontBuffer = await this.getFontBuffer()
     doc.registerFont(CERTIFICATE_FONT_NAME, fontBuffer)

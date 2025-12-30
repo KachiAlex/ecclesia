@@ -25,7 +25,22 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  webpack: (config, { isServer }) => {
+    // Existing webpack configuration if any
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        stream: false,
+      };
+    }
+
+    // Remove the rule for .afm files
+    // We don't need it anymore
+
+    return config;
+  },
 }
 
 module.exports = nextConfig
-
