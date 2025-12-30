@@ -46,15 +46,20 @@ export async function POST(_: Request, { params }: RouteParams) {
     }
 
     // Get church signature settings
-    const church = await prisma.church.findUnique({
-      where: { id: guarded.ctx.church.id },
-      select: {
-        name: true,
-        certificateSignatureUrl: true,
-        certificateSignatureTitle: true,
-        certificateSignatureName: true,
-      },
-    })
+    let church = null
+    try {
+      church = await prisma.church.findUnique({
+        where: { id: guarded.ctx.church.id },
+        select: {
+          name: true,
+          certificateSignatureUrl: true,
+          certificateSignatureTitle: true,
+          certificateSignatureName: true,
+        },
+      })
+    } catch (error) {
+      console.warn('Could not fetch church signature settings:', error)
+    }
 
     if (enrollment.certificateUrl) {
       return NextResponse.json({
