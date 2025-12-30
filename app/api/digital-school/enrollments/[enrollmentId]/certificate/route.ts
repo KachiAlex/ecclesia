@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
+import { prisma } from '@/lib/prisma'
 import {
   DigitalCourseEnrollmentService,
   DigitalCourseService,
@@ -44,6 +45,17 @@ export async function POST(_: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
+    // Get church signature settings
+    const church = await prisma.church.findUnique({
+      where: { id: guarded.ctx.church.id },
+      select: {
+        name: true,
+        certificateSignatureUrl: true,
+        certificateSignatureTitle: true,
+        certificateSignatureName: true,
+      },
+    })
+
     if (enrollment.certificateUrl) {
       return NextResponse.json({
         url: enrollment.certificateUrl,
@@ -63,6 +75,9 @@ export async function POST(_: Request, { params }: RouteParams) {
       churchName: guarded.ctx.church?.name,
       theme: course.certificateTheme,
       badgeIssuedAt: enrollment.badgeIssuedAt ?? new Date(),
+      signatureUrl: church?.certificateSignatureUrl || undefined,
+      signatureTitle: church?.certificateSignatureTitle || undefined,
+      signatureName: church?.certificateSignatureName || undefined,
     })
 
     return NextResponse.json({

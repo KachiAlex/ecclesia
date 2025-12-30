@@ -55,6 +55,14 @@ export default async function SettingsPage() {
           <div className="text-lg font-semibold">Branding</div>
           <div className="text-sm text-gray-600 mt-1">Logo, colors, and custom domain.</div>
         </Link>
+
+        <Link
+          href="/settings/certificates"
+          className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow"
+        >
+          <div className="text-lg font-semibold">Certificates</div>
+          <div className="text-sm text-gray-600 mt-1">Pastor signature and certificate customization.</div>
+        </Link>
       </div>
     </div>
   )

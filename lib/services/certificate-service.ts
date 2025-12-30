@@ -11,6 +11,9 @@ type CertificatePdfInput = {
   issuedDate: Date
   churchName?: string
   theme?: CertificateTheme | null
+  signatureUrl?: string
+  signatureTitle?: string
+  signatureName?: string
 }
 
 type CertificateUploadInput = {
@@ -22,6 +25,9 @@ type CertificateUploadInput = {
   churchName?: string
   theme?: CertificateTheme | null
   badgeIssuedAt?: Date
+  signatureUrl?: string
+  signatureTitle?: string
+  signatureName?: string
 }
 
 const DEFAULT_THEME: Required<CertificateTheme> = {
@@ -43,9 +49,28 @@ const hexToRgb = (hex: string): [number, number, number] => {
     : [67, 56, 202] // Default blue
 }
 
+// Load image from URL for jsPDF
+const loadImageFromUrl = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return null
+    
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    
+    // Convert to base64 data URL
+    const contentType = response.headers.get('content-type') || 'image/png'
+    const base64 = buffer.toString('base64')
+    return `data:${contentType};base64,${base64}`
+  } catch (error) {
+    console.warn('Failed to load image from URL:', url, error)
+    return null
+  }
+}
+
 // Generate certificate using jsPDF (more reliable in serverless)
-const generateCertificatePdf = (input: CertificatePdfInput): Promise<Buffer> => {
-  return new Promise((resolve, reject) => {
+const generateCertificatePdf = async (input: CertificatePdfInput): Promise<Buffer> => {
+  return new Promise(async (resolve, reject) => {
     try {
       const theme = { ...DEFAULT_THEME, ...(input.theme || {}) }
       
@@ -111,16 +136,36 @@ const generateCertificatePdf = (input: CertificatePdfInput): Promise<Buffer> => 
       const dateText = `Awarded on ${input.issuedDate.toLocaleDateString()} by ${theme.issuedBy || input.churchName || 'Ecclesia'}.`
       doc.text(dateText, pageWidth / 2, 145, { align: 'center' })
 
-      // Signature Line
+      // Signature Area
       const signatureY = 170
+      
+      // Load and add signature image if available
+      if (input.signatureUrl) {
+        try {
+          const signatureImage = await loadImageFromUrl(input.signatureUrl)
+          if (signatureImage) {
+            // Add signature image above the line
+            doc.addImage(signatureImage, 'PNG', pageWidth / 2 - 20, signatureY - 15, 40, 12)
+          }
+        } catch (error) {
+          console.warn('Failed to add signature image:', error)
+        }
+      }
+
+      // Signature Line
       doc.setDrawColor(secondaryR, secondaryG, secondaryB)
       doc.setLineWidth(0.5)
       doc.line(pageWidth / 2 - 40, signatureY, pageWidth / 2 + 40, signatureY)
 
       // Signature Text
       doc.setFontSize(10)
-      doc.text(theme.signatureText || DEFAULT_THEME.signatureText, pageWidth / 2, signatureY + 8, { align: 'center' })
-      doc.text(theme.issuedBy || input.churchName || DEFAULT_THEME.issuedBy, pageWidth / 2, signatureY + 15, { align: 'center' })
+      const signatureTitle = input.signatureTitle || theme.signatureText || DEFAULT_THEME.signatureText
+      const signatureName = input.signatureName || theme.issuedBy || input.churchName || DEFAULT_THEME.issuedBy
+      
+      doc.text(signatureTitle, pageWidth / 2, signatureY + 8, { align: 'center' })
+      if (signatureName && signatureName !== signatureTitle) {
+        doc.text(signatureName, pageWidth / 2, signatureY + 15, { align: 'center' })
+      }
 
       // Convert to buffer
       const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
@@ -152,6 +197,9 @@ export class CertificateService {
         issuedDate: new Date(),
         churchName: input.churchName,
         theme: input.theme,
+        signatureUrl: input.signatureUrl,
+        signatureTitle: input.signatureTitle,
+        signatureName: input.signatureName,
       })
 
       console.log('PDF generated successfully, size:', pdfBuffer.length)
