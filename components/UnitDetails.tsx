@@ -11,11 +11,20 @@ type Unit = {
   branchId?: string
 }
 
+type UnitMemberUser = {
+  id: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  profileImage?: string | null
+}
+
 type UnitMembership = {
   id: string
   userId: string
   role: 'HEAD' | 'MEMBER'
   createdAt: string
+  user?: UnitMemberUser | null
 }
 
 type UnitPayload = {
@@ -100,6 +109,15 @@ const formatUserName = (user?: { firstName?: string; lastName?: string; id?: str
   if (!user) return 'Unknown member'
   const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
   return name || user.id || 'Member'
+}
+
+const formatMemberName = (member: UnitMembership) => {
+  if (member.user) {
+    const name = [member.user.firstName, member.user.lastName].filter(Boolean).join(' ').trim()
+    if (name) return name
+    if (member.user.email) return member.user.email
+  }
+  return member.userId
 }
 
 const createOptionId = () => Math.random().toString(36).slice(2)

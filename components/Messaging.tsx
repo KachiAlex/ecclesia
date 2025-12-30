@@ -23,6 +23,7 @@ interface Message {
   content: string
   createdAt: string
   read?: boolean
+  senderId?: string
   attachments?: {
     url: string
     name?: string

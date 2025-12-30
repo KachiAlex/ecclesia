@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import { UnitService, UnitMembershipService } from '@/lib/services/unit-service'
+import { UserService } from '@/lib/services/user-service'
 
 export async function GET(_: Request, { params }: { params: { unitId: string } }) {
   const guarded = await guardApi({ requireChurch: true })
@@ -15,8 +16,26 @@ export async function GET(_: Request, { params }: { params: { unitId: string } }
   }
 
   const members = await UnitMembershipService.findByUnit(unit.id)
+  const uniqueUserIds = Array.from(new Set(members.map((member) => member.userId))).slice(0, 200)
+  const users = await Promise.all(uniqueUserIds.map((id) => UserService.findById(id)))
+  const userMap = users.reduce<Record<string, any>>((map, user) => {
+    if (user) map[user.id] = user
+    return map
+  }, {})
+  const membersWithUsers = members.map((member) => ({
+    ...member,
+    user: userMap[member.userId]
+      ? {
+          id: userMap[member.userId].id,
+          firstName: userMap[member.userId].firstName,
+          lastName: userMap[member.userId].lastName,
+          profileImage: userMap[member.userId].profileImage || null,
+          email: userMap[member.userId].email,
+        }
+      : null,
+  }))
   const myMembership = await UnitMembershipService.findByUserAndUnit(userId, unit.id)
-  return NextResponse.json({ unit, members, myMembership })
+  return NextResponse.json({ unit, members: membersWithUsers, myMembership })
 }
 
 export async function PATCH(request: Request, { params }: { params: { unitId: string } }) {
