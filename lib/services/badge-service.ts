@@ -81,19 +81,25 @@ export class BadgeService {
 
 export class UserBadgeService {
   static async findByUser(userId: string): Promise<UserBadge[]> {
-    const snapshot = await db.collection(COLLECTIONS.userBadges)
+    const snapshot = await db
+      .collection(COLLECTIONS.userBadges)
       .where('userId', '==', userId)
-      .orderBy('earnedAt', 'desc')
       .get()
 
-    return snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        earnedAt: toDate(data.earnedAt),
-      } as UserBadge
-    })
+    return snapshot.docs
+      .map((doc: any) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          earnedAt: toDate(data.earnedAt),
+        } as UserBadge
+      })
+      .sort((a, b) => {
+        const aTime = a.earnedAt?.getTime?.() ?? 0
+        const bTime = b.earnedAt?.getTime?.() ?? 0
+        return bTime - aTime
+      })
   }
 
   static async findByUserAndBadge(userId: string, badgeId: string): Promise<UserBadge | null> {
