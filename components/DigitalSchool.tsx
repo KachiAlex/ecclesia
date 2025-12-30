@@ -2941,30 +2941,6 @@ export default function DigitalSchool() {
         tone: 'error'
       })
     }
-  }, [])st downloadCertificate = useCallback((url: string, fileName?: string) => {
-    console.log('📥 Attempting to download certificate:', url)
-    
-    try {
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = fileName || 'certificate.pdf'
-      anchor.style.display = 'none'
-      document.body.appendChild(anchor)
-      anchor.click()
-      document.body.removeChild(anchor)
-      console.log('✅ Certificate download initiated')
-      
-      setToast({
-        message: 'Certificate download started!',
-        tone: 'success'
-      })
-    } catch (error) {
-      console.error('❌ Failed to download certificate:', error)
-      setToast({
-        message: 'Download failed. Please try opening the certificate link manually.',
-        tone: 'error'
-      })
-    }
   }, [])
 
   const openCertificate = useCallback((url: string) => {
