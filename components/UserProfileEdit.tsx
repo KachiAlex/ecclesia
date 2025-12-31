@@ -44,6 +44,8 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [canEditRole, setCanEditRole] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [availableRoles, setAvailableRoles] = useState<string[]>([])
   const [staffLevels, setStaffLevels] = useState<
     { id: string; name: string; description?: string }[]
   >([])
@@ -64,6 +66,36 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
   const isStaffSelected = watch('isStaff')
   const useCustomWage = watch('useCustomWage')
 
+  const getAvailableRoles = (userRole: string): string[] => {
+    switch (userRole) {
+      case 'SUPER_ADMIN':
+        return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'STAFF', 'BRANCH_ADMIN', 'PASTOR', 'ADMIN', 'SUPER_ADMIN']
+      case 'ADMIN':
+        return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'STAFF', 'BRANCH_ADMIN', 'PASTOR', 'ADMIN']
+      case 'PASTOR':
+        return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'STAFF', 'BRANCH_ADMIN']
+      case 'BRANCH_ADMIN':
+        return ['VISITOR', 'MEMBER', 'VOLUNTEER', 'LEADER', 'STAFF']
+      default:
+        return []
+    }
+  }
+
+  const getRoleDisplayName = (role: string): string => {
+    switch (role) {
+      case 'VISITOR': return 'Visitor'
+      case 'MEMBER': return 'Member'
+      case 'VOLUNTEER': return 'Volunteer'
+      case 'LEADER': return 'Leader'
+      case 'STAFF': return 'Staff'
+      case 'BRANCH_ADMIN': return 'Branch Admin'
+      case 'PASTOR': return 'Pastor'
+      case 'ADMIN': return 'Admin'
+      case 'SUPER_ADMIN': return 'Super Admin'
+      default: return role
+    }
+  }
+
   const loadUser = useCallback(async () => {
     try {
       const response = await fetch(`/api/users/${userId}`)
@@ -77,7 +109,12 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
       if (currentUserResponse.ok) {
         const currentUser = await currentUserResponse.json()
         const userRole = currentUser.role
-        setCanEditRole(['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(userRole))
+        setCurrentUserRole(userRole)
+        const canEdit = ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN'].includes(userRole)
+        setCanEditRole(canEdit)
+        if (canEdit) {
+          setAvailableRoles(getAvailableRoles(userRole))
+        }
       }
 
       reset({
@@ -407,12 +444,15 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
                   id="role"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  <option value="VISITOR">Visitor</option>
-                  <option value="MEMBER">Member</option>
-                  <option value="LEADER">Leader</option>
-                  <option value="PASTOR">Pastor</option>
-                  <option value="ADMIN">Admin</option>
+                  {availableRoles.map((roleOption) => (
+                    <option key={roleOption} value={roleOption}>
+                      {getRoleDisplayName(roleOption)}
+                    </option>
+                  ))}
                 </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  You can assign roles based on your current permissions.
+                </p>
               </div>
             )}
           </div>

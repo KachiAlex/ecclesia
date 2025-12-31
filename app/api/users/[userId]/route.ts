@@ -9,6 +9,7 @@ import { db } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import bcrypt from 'bcryptjs'
 import { DesignationService } from '@/lib/services/designation-service'
+import { canManageUser } from '@/lib/permissions'
 
 export async function GET(
   request: Request,
@@ -136,10 +137,17 @@ export async function PUT(
     if (spiritualMaturity !== undefined) updateData.spiritualMaturity = spiritualMaturity
     if (profileImage !== undefined) updateData.profileImage = profileImage
 
-    // Only admins can change roles
-    const privilegedRoles = ['ADMIN', 'SUPER_ADMIN', 'PASTOR']
+    // Only privileged users can change roles, and must respect hierarchy
+    const privilegedRoles = ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN']
 
     if (role !== undefined && privilegedRoles.includes(userRole)) {
+      // Validate that the current user can assign this role
+      if (!canManageUser(userRole as any, role as any)) {
+        return NextResponse.json(
+          { error: `You don't have permission to assign the ${role} role` },
+          { status: 403 }
+        )
+      }
       updateData.role = role
     }
 
