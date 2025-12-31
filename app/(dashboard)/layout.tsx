@@ -92,7 +92,7 @@ export default async function DashboardLayout({
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto">
-          <DashboardNav userRole={(session.user as any).role} />
+          <DashboardNav userRole={(session.user as any).role} isStaff={user?.isStaff || false} />
         </div>
 
         {/* User Section */}
@@ -101,16 +101,18 @@ export default async function DashboardLayout({
 
           <div className="space-y-3 w-full">
             <div className="grid grid-cols-2 gap-2 pt-2 px-2">
-              <Link
-                href="/subscription"
-                className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50"
-              >
-                <span>💳</span>
-                <span>Plan</span>
-              </Link>
+              {user?.role !== 'MEMBER' && (
+                <Link
+                  href="/subscription"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50"
+                >
+                  <span>💳</span>
+                  <span>Plan</span>
+                </Link>
+              )}
               <Link
                 href="/settings"
-                className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50"
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50 ${user?.role === 'MEMBER' ? 'col-span-2' : ''}`}
               >
                 <span>⚙️</span>
                 <span>Settings</span>

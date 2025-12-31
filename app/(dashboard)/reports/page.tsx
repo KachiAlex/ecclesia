@@ -13,9 +13,7 @@ export default async function ReportsPage() {
   }
 
   const role = (session.user as any)?.role as string | undefined
-  if (!role || !MANAGER_ROLES.includes(role)) {
-    redirect('/dashboard')
-  }
+  const isManager = Boolean(role && MANAGER_ROLES.includes(role))
 
-  return <ReportsHub />
+  return <ReportsHub isManager={isManager} />
 }

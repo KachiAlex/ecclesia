@@ -33,6 +33,8 @@ import { createPortal } from 'react-dom'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { ImageUpload } from './ImageUpload'
+import { SignatureUpload } from './SignatureUpload'
 
 type AccessType = 'open' | 'request' | 'invite'
 type ProgressState = 'not-started' | 'in-progress' | 'completed'
@@ -930,7 +932,11 @@ export default function DigitalSchool() {
     try {
       const apiCourses = await requestJson<ApiCourseResponse[]>('/api/digital-school/courses')
       if (Array.isArray(apiCourses) && apiCourses.length) {
-        setCourses(apiCourses.map(mapApiCourseToUi))
+        // For course managers, show all courses. For members, show only published courses
+        const allCourses = apiCourses.map(mapApiCourseToUi)
+        const publishedCourses = allCourses.filter(course => course.rawStatus === 'published')
+        
+        setCourses(isCourseManager ? allCourses : publishedCourses)
         setDraftCourses(apiCourses.filter((course) => course.status === 'draft'))
       } else {
         setDraftCourses([])
@@ -940,7 +946,7 @@ export default function DigitalSchool() {
     } finally {
       setIsLoadingCourses(false)
     }
-  }, [])
+  }, [isCourseManager])
 
   const loadEnrollments = useCallback(async () => {
     setIsLoadingEnrollments(true)
@@ -2431,27 +2437,33 @@ export default function DigitalSchool() {
                           />
                         </label>
                         <label className="text-sm text-gray-600 flex flex-col gap-1">
-                          Background image URL
-                          <input
-                            type="url"
+                          Background image
+                          <ImageUpload
+                            label=""
                             value={courseDraft.certificateTheme.backgroundImageUrl}
-                            onChange={(event) => handleCertificateThemeChange('backgroundImageUrl', event.target.value)}
-                            placeholder="https://..."
-                            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                            onChange={(url) => handleCertificateThemeChange('backgroundImageUrl', url)}
+                            placeholder="Upload background image or enter URL"
                           />
                         </label>
                       </div>
                       <label className="text-sm text-gray-600 flex flex-col gap-1">
-                        Logo URL
-                        <input
-                          type="url"
+                        Logo
+                        <ImageUpload
+                          label=""
                           value={courseDraft.certificateTheme.logoUrl}
-                          onChange={(event) => handleCertificateThemeChange('logoUrl', event.target.value)}
-                          placeholder="https://..."
-                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          onChange={(url) => handleCertificateThemeChange('logoUrl', url)}
+                          placeholder="Upload logo or enter URL"
                         />
                       </label>
                     </div>
+
+                    {/* Church Signature Settings */}
+                    <SignatureUpload 
+                      onSignatureChange={(signature) => {
+                        // Update the course draft with signature info if needed
+                        console.log('Signature updated:', signature)
+                      }}
+                    />
 
                     <div className="flex items-center justify-between">
                       <p className="text-xs uppercase tracking-wide text-gray-400">Sections, modules & exams</p>
@@ -3548,7 +3560,10 @@ export default function DigitalSchool() {
       return (
         <div className="col-span-full rounded-3xl border border-dashed border-gray-200 p-6 text-center">
           <p className="text-sm text-gray-600">
-            No courses published yet. Start a builder draft to seed the catalog for your campus.
+            {isCourseManager 
+              ? "No courses published yet. Start a builder draft to seed the catalog for your campus."
+              : "No courses are available at the moment. Please check back later or contact your church administrator."
+            }
           </p>
           {isCourseManager && (
             <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -3735,10 +3750,32 @@ export default function DigitalSchool() {
           </div>
         </div>
       ) : (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
-          <div className="max-w-md rounded-2xl bg-white p-6 text-center shadow">
-            <h2 className="text-lg font-semibold text-gray-900">Access restricted</h2>
-            <p className="text-sm text-gray-600 mt-2">You need an administrator role to manage Digital School courses.</p>
+        // Member View - Course catalog for regular users
+        <div className="px-6 py-12">
+          <div className="max-w-6xl mx-auto space-y-10">
+            <div className="rounded-3xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-12 shadow-xl">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.4em] text-blue-100">Digital School</p>
+                <h1 className="text-3xl font-semibold mt-3">Discipleship & Training Courses</h1>
+                <p className="text-sm text-blue-100 mt-3 max-w-2xl mx-auto">
+                  Grow in your faith through our comprehensive discipleship tracks. Enroll in courses, complete modules, and earn certificates.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-gray-900">Available Courses</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {courses.length > 0 
+                    ? `${courses.length} course${courses.length === 1 ? '' : 's'} available for enrollment`
+                    : 'No courses available yet. Check back soon!'
+                  }
+                </p>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{renderCourseGrid()}</div>
+            </div>
           </div>
         </div>
       )}

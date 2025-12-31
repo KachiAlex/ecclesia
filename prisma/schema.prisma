@@ -123,8 +123,9 @@ model User {
   parentId              String?
   parent                User?                 @relation("FamilyRelations", fields: [parentId], references: [id])
   children              User[]                @relation("FamilyRelations")
-  spouseId              String?
+  spouseId              String?               @unique
   spouse                User?                 @relation("SpouseRelation", fields: [spouseId], references: [id])
+  spouseOf              User?                 @relation("SpouseRelation")
   
   // Church association
   churchId              String?
@@ -207,8 +208,7 @@ model Church {
   domainVerified        Boolean               @default(false)
   
   // Subscription & Licensing
-  subscriptionId        String?
-  subscription          Subscription?         @relation(fields: [subscriptionId], references: [id])
+  subscription          Subscription?
   
   // Owner/Admin user
   ownerId               String?
@@ -237,7 +237,6 @@ model Church {
   updatedAt             DateTime              @updatedAt
   
   @@index([slug])
-  @@index([subscriptionId])
   @@index([customDomain])
 }
 
@@ -271,7 +270,7 @@ model Branch {
   description           String?
   
   // Branch admin (primary admin for this branch)
-  adminId               String?
+  adminId               String?               @unique
   admin                 User?                 @relation("BranchAdmin", fields: [adminId], references: [id])
   
   // Branch admins (multiple admins can manage a branch)
@@ -359,7 +358,7 @@ model SubscriptionPlan {
 model Subscription {
   id                    String                @id @default(cuid())
   churchId              String                @unique
-  church                Church                @relation
+  church                Church                @relation(fields: [churchId], references: [id])
   
   planId                String
   plan                  SubscriptionPlan      @relation(fields: [planId], references: [id])
@@ -939,6 +938,7 @@ model PayrollPosition {
   // Wage configuration
   wageScales            WageScale[]
   userSalaries          UserSalary[]
+  payrollRecords        PayrollRecord[]
   
   isActive              Boolean               @default(true)
   createdAt             DateTime              @default(now())

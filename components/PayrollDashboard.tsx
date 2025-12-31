@@ -98,7 +98,12 @@ interface PayrollPeriod {
   }
 }
 
-export default function PayrollDashboard() {
+interface PayrollDashboardProps {
+  isStaffView?: boolean
+  userId?: string
+}
+
+export default function PayrollDashboard({ isStaffView = false, userId }: PayrollDashboardProps) {
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
   const [salaries, setSalaries] = useState<Salary[]>([])
   const [periods, setPeriods] = useState<PayrollPeriod[]>([])
@@ -109,9 +114,54 @@ export default function PayrollDashboard() {
   const [staffLoading, setStaffLoading] = useState(true)
   const [staffError, setStaffError] = useState('')
 
+  const [staffMember, setStaffMember] = useState<StaffMember | null>(null)
+  const [staffSalary, setStaffSalary] = useState<Salary | null>(null)
+
   useEffect(() => {
-    loadData()
-  }, [])
+    if (isStaffView && userId) {
+      loadStaffData()
+    } else {
+      loadData()
+    }
+  }, [isStaffView, userId])
+
+  const loadStaffData = async () => {
+    try {
+      setStaffLoading(true)
+      setStaffError('')
+      
+      const [userRes, salaryRes] = await Promise.all([
+        fetch(`/api/users/${userId}`),
+        fetch(`/api/payroll/salaries?userId=${userId}&activeOnly=true`)
+      ])
+
+      if (userRes.ok) {
+        const userData = await userRes.json()
+        setStaffMember({
+          id: userData.id,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          profileImage: userData.profileImage,
+          staffLevelId: userData.staffLevelId,
+          staffLevelName: userData.staffLevelName,
+          customWage: userData.customWage ?? null,
+        })
+      }
+
+      if (salaryRes.ok) {
+        const salaryData = await salaryRes.json()
+        if (salaryData.length > 0) {
+          setStaffSalary(salaryData[0])
+        }
+      }
+    } catch (error) {
+      console.error('Error loading staff data:', error)
+      setStaffError('Unable to load your wage information.')
+    } finally {
+      setStaffLoading(false)
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -218,10 +268,125 @@ export default function PayrollDashboard() {
     }
   }
 
-  if (loading) {
+  if (loading || staffLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading payroll data...</div>
+      </div>
+    )
+  }
+
+  // Staff view for members
+  if (isStaffView && staffMember) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">My Payroll Information</h1>
+          <p className="text-gray-600 mt-2">View your current wage and designation details.</p>
+        </div>
+
+        {staffError && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800">{staffError}</p>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Personal Information */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
+            <div className="flex items-center gap-4 mb-4">
+              {staffMember.profileImage ? (
+                <img
+                  src={staffMember.profileImage}
+                  alt={`${staffMember.firstName} ${staffMember.lastName}`}
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-50 text-lg font-semibold text-primary-700">
+                  {staffMember.firstName[0]}{staffMember.lastName[0]}
+                </div>
+              )}
+              <div>
+                <div className="text-lg font-medium text-gray-900">
+                  {staffMember.firstName} {staffMember.lastName}
+                </div>
+                <div className="text-sm text-gray-500">{staffMember.email}</div>
+              </div>
+            </div>
+            
+            {staffMember.staffLevelName && (
+              <div className="border-t pt-4">
+                <div className="text-sm text-gray-600">Staff Level</div>
+                <div className="text-lg font-medium">{staffMember.staffLevelName}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Wage Information */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">Current Wage</h2>
+            {(() => {
+              const wageDetails = getStaffWageDetails(staffMember)
+              const wageAmountLabel = formatStaffCurrency(wageDetails.amount, wageDetails.currency)
+              const frequencyLabel = formatPayFrequencyLabel(wageDetails.payFrequency)
+              
+              return wageAmountLabel ? (
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{wageAmountLabel}</div>
+                    {frequencyLabel && (
+                      <div className="text-sm text-gray-500">{frequencyLabel} pay frequency</div>
+                    )}
+                  </div>
+                  <div>
+                    {wageDetails.source === 'custom' ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">
+                        Custom wage rate
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-sm font-medium text-primary-700">
+                        Staff level default
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-500">
+                  <p>Wage information not yet configured.</p>
+                  <p className="text-sm mt-1">Please contact your administrator.</p>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Payroll Status */}
+          {staffSalary && (
+            <div className="bg-white rounded-lg shadow p-6 md:col-span-2">
+              <h2 className="text-lg font-semibold mb-4">Payroll Assignment</h2>
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm text-gray-600">Position</div>
+                  <div className="text-lg font-medium">{staffSalary.position.name}</div>
+                  {staffSalary.position.department && (
+                    <div className="text-sm text-gray-500">{staffSalary.position.department.name}</div>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Payroll Rate</div>
+                  <div className="text-lg font-medium">
+                    {formatCurrency(staffSalary.wageScale.amount, staffSalary.wageScale.currency)}
+                    {staffSalary.wageScale.type === 'HOURLY' && '/hour'}
+                    {staffSalary.wageScale.type === 'SALARY' && '/month'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Since {formatDate(staffSalary.startDate)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     )
   }

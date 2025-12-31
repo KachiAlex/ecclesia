@@ -11,8 +11,11 @@ export default async function UsersPage() {
   }
 
   const role = (session.user as any)?.role as string | undefined
+  const userId = (session.user as any)?.id
+
+  // Members can only see their own profile
   if (role === 'MEMBER') {
-    redirect('/dashboard')
+    redirect(`/users/${userId}`)
   }
 
   return <MemberDirectory />

@@ -13,6 +13,13 @@ export default async function SubscriptionPage() {
     redirect('/auth/login')
   }
 
+  const userRole = (session.user as any).role
+
+  // Members cannot access subscription page
+  if (userRole === 'MEMBER') {
+    redirect('/dashboard')
+  }
+
   const userId = (session.user as any).id
   const church = await getCurrentChurch(userId)
 

@@ -4,7 +4,6 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
-import { prisma } from '@/lib/prisma'
 import {
   DigitalCourseEnrollmentService,
   DigitalCourseService,
@@ -12,6 +11,8 @@ import {
 import { CertificateService } from '@/lib/services/certificate-service'
 import { UserService } from '@/lib/services/user-service'
 import { UserRole } from '@/types'
+import { db } from '@/lib/firestore'
+import { COLLECTIONS } from '@/lib/firestore-collections'
 
 const MANAGER_ROLES: UserRole[] = ['ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'SUPER_ADMIN']
 
@@ -47,18 +48,16 @@ export async function POST(_: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
-    // Get church signature settings
-    let church = null
+    // Get church signature settings from Firestore
+    let signatureUrl, signatureTitle, signatureName
     try {
-      church = await prisma.church.findUnique({
-        where: { id: guarded.ctx.church.id },
-        select: {
-          name: true,
-          certificateSignatureUrl: true,
-          certificateSignatureTitle: true,
-          certificateSignatureName: true,
-        },
-      })
+      const churchDoc = await db.collection(COLLECTIONS.churches).doc(guarded.ctx.church.id).get()
+      if (churchDoc.exists) {
+        const churchData = churchDoc.data()!
+        signatureUrl = churchData.certificateSignatureUrl || undefined
+        signatureTitle = churchData.certificateSignatureTitle || undefined
+        signatureName = churchData.certificateSignatureName || undefined
+      }
     } catch (error) {
       console.warn('Could not fetch church signature settings:', error)
     }
@@ -79,12 +78,12 @@ export async function POST(_: Request, { params }: RouteParams) {
       userId: enrollment.userId,
       studentName,
       courseTitle: course.title,
-      churchName: guarded.ctx.church?.name,
+      churchName: guarded.ctx.church?.name || 'Ecclesia',
       theme: course.certificateTheme,
       badgeIssuedAt: enrollment.badgeIssuedAt ?? new Date(),
-      signatureUrl: church?.certificateSignatureUrl || undefined,
-      signatureTitle: church?.certificateSignatureTitle || undefined,
-      signatureName: church?.certificateSignatureName || undefined,
+      signatureUrl,
+      signatureTitle,
+      signatureName,
     })
 
     return NextResponse.json({

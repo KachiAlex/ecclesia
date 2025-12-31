@@ -94,7 +94,7 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 })
 
-export default function ReportsHub() {
+export default function ReportsHub({ isManager = true }: { isManager?: boolean }) {
   const [branches, setBranches] = useState<Branch[]>([])
   const [branchId, setBranchId] = useState('')
   const [start, setStart] = useState('')
@@ -254,14 +254,63 @@ export default function ReportsHub() {
       {/* Header */}
       <div>
         <p className="text-sm uppercase text-gray-500 tracking-wide">Reports & Analytics</p>
-        <h1 className="text-3xl font-bold text-gray-900 mt-1">Operational Pulse</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mt-1">
+          {isManager ? 'Operational Pulse' : 'Church Reports'}
+        </h1>
         <p className="text-gray-600 mt-2">
-          Consolidated attendance, finances, member growth, and resource impact across your church.
+          {isManager 
+            ? 'Consolidated attendance, finances, member growth, and resource impact across your church.'
+            : 'View available church reports and statistics that have been made accessible to members.'
+          }
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border shadow-sm p-5 space-y-4">
+      {!isManager && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+          <h2 className="text-lg font-semibold text-blue-900 mb-2">Member Reports Access</h2>
+          <p className="text-blue-700 mb-4">
+            Your church administrators can configure which reports are available to members. 
+            Currently, the following reports may be accessible:
+          </p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 text-left">
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <h3 className="font-semibold text-gray-900 mb-2">📊 Attendance Summary</h3>
+              <p className="text-sm text-gray-600">General attendance trends and participation statistics</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <h3 className="font-semibold text-gray-900 mb-2">👥 Membership Growth</h3>
+              <p className="text-sm text-gray-600">Church growth metrics and member milestones</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <h3 className="font-semibold text-gray-900 mb-2">📚 Resource Usage</h3>
+              <p className="text-sm text-gray-600">Digital school and reading plan engagement</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <h3 className="font-semibold text-gray-900 mb-2">🎯 Ministry Impact</h3>
+              <p className="text-sm text-gray-600">Community outreach and ministry effectiveness</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <h3 className="font-semibold text-gray-900 mb-2">💝 Giving Overview</h3>
+              <p className="text-sm text-gray-600">General giving trends (amounts may be hidden)</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <h3 className="font-semibold text-gray-900 mb-2">📅 Event Participation</h3>
+              <p className="text-sm text-gray-600">Event attendance and engagement metrics</p>
+            </div>
+          </div>
+          <div className="mt-6 p-4 bg-blue-100 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Report availability is configured by your church administrators. 
+              Contact your church leadership if you need access to specific reports for ministry purposes.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isManager && (
+        <>
+          {/* Filters - Only for managers */}
+          <div className="bg-white rounded-2xl border shadow-sm p-5 space-y-4">
         {sectionTitle('Filters', 'Segment reports by branch or time range.')}
         <div className="grid gap-4 md:grid-cols-4">
           <div className="flex flex-col gap-1">
@@ -574,6 +623,8 @@ export default function ReportsHub() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }

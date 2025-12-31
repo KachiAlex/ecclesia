@@ -158,8 +158,8 @@ async function migratePosts() {
         churchId: post.churchId,
         content: post.content,
         type: post.type,
-        imageUrl: post.imageUrl || null,
-        likes: post.likes || 0,
+        imageUrl: post.images?.[0] || null,
+        likes: post.likes?.length || 0,
         createdAt: toFirestoreTimestamp(post.createdAt),
         updatedAt: toFirestoreTimestamp(post.updatedAt),
       })

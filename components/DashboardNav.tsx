@@ -27,13 +27,14 @@ const navigation = [
 
 interface DashboardNavProps {
   userRole?: string
+  isStaff?: boolean
 }
 
-export default function DashboardNav({ userRole }: DashboardNavProps) {
+export default function DashboardNav({ userRole, isStaff = false }: DashboardNavProps) {
   const pathname = usePathname()
 
   const canSeeUsers = userRole !== 'MEMBER'
-  const canSeePayroll = userRole !== 'MEMBER'
+  const canSeePayroll = userRole !== 'MEMBER' || (userRole === 'MEMBER' && isStaff)
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {

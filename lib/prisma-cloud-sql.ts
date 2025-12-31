@@ -22,14 +22,6 @@ export const prisma =
         url: process.env.DATABASE_URL,
       },
     },
-    // Connection pool configuration
-    // These settings optimize for Cloud SQL
-    __internal: {
-      engine: {
-        connectTimeout: 10000, // 10 seconds
-        queryTimeout: 20000, // 20 seconds
-      },
-    },
   })
 
 // Handle graceful shutdown
@@ -57,7 +49,7 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 export async function withTransaction<T>(
   callback: (tx: PrismaClient) => Promise<T>
 ): Promise<T> {
-  return await prisma.$transaction(callback, {
+  return await prisma.$transaction(callback as any, {
     maxWait: 5000, // Maximum time to wait for a transaction slot
     timeout: 10000, // Maximum time the transaction can run
   })

@@ -279,22 +279,22 @@ export default function GroupsHub() {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('units')}
-          className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'units' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'units' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
         >
-          Units
+          My Groups
         </button>
         <button
           onClick={() => setActiveTab('invites')}
-          className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'invites' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'invites' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
         >
-          Invites
+          Broadcast Center
         </button>
         {isAdmin && (
           <button
             onClick={() => setActiveTab('admin')}
-            className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'admin' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'admin' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
           >
-            Admin
+            Direct Messages
           </button>
         )}
       </div>
