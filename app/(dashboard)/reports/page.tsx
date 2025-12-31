@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import ReportsHub from '@/components/ReportsHub'
 
-const MANAGER_ROLES = ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR', 'LEADER']
+const MANAGER_ROLES = ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR']
 
 export default async function ReportsPage() {
   const session = await getServerSession(authOptions)

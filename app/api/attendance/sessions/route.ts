@@ -7,7 +7,7 @@ import { UserService } from '@/lib/services/user-service'
 
 export async function GET(request: Request) {
   try {
-    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR', 'LEADER', 'MEMBER'] })
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR', 'MEMBER'] })
     if (!guarded.ok) return guarded.response
 
     const { church, userId, role } = guarded.ctx
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR', 'LEADER'] })
+    const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR'] })
     if (!guarded.ok) return guarded.response
 
     const { church, userId, role } = guarded.ctx

@@ -40,7 +40,7 @@ function parseRecurrence(v: any): MeetingRecurrence | undefined {
 export async function PATCH(request: Request, { params }: { params: { meetingId: string } }) {
   const guarded = await guardApi({
     requireChurch: true,
-    allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'LEADER'],
+    allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN'],
   })
   if (!guarded.ok) return guarded.response
 
@@ -154,7 +154,7 @@ export async function PATCH(request: Request, { params }: { params: { meetingId:
 export async function DELETE(_request: Request, { params }: { params: { meetingId: string } }) {
   const guarded = await guardApi({
     requireChurch: true,
-    allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN', 'LEADER'],
+    allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN'],
   })
   if (!guarded.ok) return guarded.response
 

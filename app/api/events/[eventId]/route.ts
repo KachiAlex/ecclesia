@@ -69,7 +69,7 @@ export async function PATCH(
     }
 
     const userRole = (session.user as any).role
-    if (!['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'LEADER'].includes(userRole)) {
+    if (!['ADMIN', 'SUPER_ADMIN', 'PASTOR', 'BRANCH_ADMIN'].includes(userRole)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

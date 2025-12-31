@@ -33,8 +33,13 @@ interface DashboardNavProps {
 export default function DashboardNav({ userRole, isStaff = false }: DashboardNavProps) {
   const pathname = usePathname()
 
-  const canSeeUsers = userRole !== 'MEMBER'
-  const canSeePayroll = userRole !== 'MEMBER' || (userRole === 'MEMBER' && isStaff)
+  const canSeeUsers = userRole !== 'MEMBER' && userRole !== 'LEADER'
+  const canSeePayroll = (userRole !== 'MEMBER' && userRole !== 'LEADER') || (userRole === 'MEMBER' && isStaff)
+  const canSeeReports = userRole !== 'MEMBER' && userRole !== 'LEADER'
+  const canSeeMeetings = userRole !== 'MEMBER' && userRole !== 'LEADER'
+  const canSeeEvents = userRole !== 'MEMBER' && userRole !== 'LEADER'
+  const canSeeAccounting = userRole !== 'MEMBER' && userRole !== 'LEADER'
+  const canSeeBranches = userRole !== 'MEMBER' && userRole !== 'LEADER'
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -50,6 +55,11 @@ export default function DashboardNav({ userRole, isStaff = false }: DashboardNav
         .filter((item) => {
           if (item.href === '/users') return canSeeUsers
           if (item.href === '/payroll') return canSeePayroll
+          if (item.href === '/reports') return canSeeReports
+          if (item.href === '/meetings') return canSeeMeetings
+          if (item.href === '/events') return canSeeEvents
+          if (item.href === '/accounting') return canSeeAccounting
+          if (item.href === '/branches') return canSeeBranches
           return true
         })
         .map((item) => {

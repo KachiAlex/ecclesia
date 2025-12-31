@@ -6,7 +6,7 @@ import { AttendanceService } from '@/lib/services/attendance-service'
 import { UserService } from '@/lib/services/user-service'
 
 export async function PUT(request: Request, { params }: { params: { sessionId: string } }) {
-  const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR', 'LEADER'] })
+  const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR'] })
   if (!guarded.ok) return guarded.response
 
   const { church, userId, role } = guarded.ctx

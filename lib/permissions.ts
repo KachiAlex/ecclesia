@@ -24,11 +24,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   VOLUNTEER: ['view_users'],
   MEMBER: [],
   LEADER: [
-    'view_users',
-    'edit_users',
-    'manage_groups',
-    'manage_volunteers',
-    'view_analytics',
+    'view_users', // Can view users but with restrictions
   ],
   BRANCH_ADMIN: [
     'view_users',

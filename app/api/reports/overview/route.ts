@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   try {
     const guarded = await guardApi({
       requireChurch: true,
-      allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR', 'LEADER'],
+      allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR'],
     })
     if (!guarded.ok) return guarded.response
 
