@@ -9,7 +9,7 @@ import { COLLECTIONS } from '@/lib/firestore-collections'
 import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(_: Request, { params }: { params: { token: string } }) {
-  const guarded = await guardApi({ requireAuth: true })
+  const guarded = await guardApi()
   if (!guarded.ok) return guarded.response
 
   const { userId } = guarded.ctx

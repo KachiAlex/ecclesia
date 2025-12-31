@@ -9,7 +9,7 @@ import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 
 export async function GET(_: Request, { params }: { params: { token: string } }) {
-  const guarded = await guardApi({ requireAuth: true })
+  const guarded = await guardApi()
   if (!guarded.ok) return guarded.response
 
   try {
