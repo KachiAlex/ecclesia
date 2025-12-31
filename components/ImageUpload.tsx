@@ -85,7 +85,7 @@ export function ImageUpload({
       </label>
       
       {/* Mode Toggle */}
-      <div className="flex space-x-2 mb-2">
+      <div className="flex flex-wrap gap-2 mb-2">
         <button
           type="button"
           onClick={() => setInputMode('upload')}
@@ -131,8 +131,8 @@ export function ImageUpload({
               </div>
             ) : (
               <div className="space-y-2">
-                <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                <div className="text-sm text-gray-600">
+                <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
+                <div className="text-xs sm:text-sm text-gray-600">
                   Click to upload or drag and drop
                 </div>
                 <div className="text-xs text-gray-500">

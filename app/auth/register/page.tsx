@@ -39,6 +39,28 @@ export default function RegisterPage() {
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle')
   const { brand } = useTenantBrand()
 
+  // Global escape key handler to close stuck modals/overlays
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Force close any stuck loading states or modals
+        setLoading(false)
+        setError('')
+        
+        // Remove any stuck overlays
+        const overlays = document.querySelectorAll('[class*="fixed"][class*="inset-0"]')
+        overlays.forEach(overlay => {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay)
+          }
+        })
+      }
+    }
+    
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
@@ -112,6 +134,12 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    
+    // Add timeout to prevent stuck loading state
+    const timeoutId = setTimeout(() => {
+      setLoading(false)
+      setError('Request timed out. Please try again.')
+    }, 30000) // 30 second timeout
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
@@ -161,14 +189,17 @@ export default function RegisterPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        clearTimeout(timeoutId)
         setError(data.error || 'Registration failed. Please try again.')
         setLoading(false)
         return
       }
 
       // Success - redirect to login with success message
+      clearTimeout(timeoutId)
       router.push('/auth/login?registered=true')
     } catch (err) {
+      clearTimeout(timeoutId)
       setError('An error occurred. Please try again.')
       setLoading(false)
     }

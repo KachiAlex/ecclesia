@@ -3208,14 +3208,14 @@ export default function DigitalSchool() {
   const analyticsPanel = !isCourseManager
     ? null
     : (
-        <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-4 rounded-2xl sm:rounded-3xl border border-gray-100 bg-white p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Analytics</p>
-              <h2 className="text-lg font-semibold text-gray-900">Learner progress & exams</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Learner progress & exams</h2>
               <p className="text-sm text-gray-500">Track who has started, completed, and how they scored.</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <select
                 value={analyticsCourseId ?? ''}
                 onChange={handleAnalyticsCourseChange}
@@ -3231,7 +3231,7 @@ export default function DigitalSchool() {
               <button
                 type="button"
                 onClick={() => analyticsCourseId && loadCourseAnalytics(analyticsCourseId)}
-                className="inline-flex items-center rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 whitespace-nowrap"
                 disabled={!analyticsCourseId || analyticsLoading}
               >
                 {analyticsLoading ? 'Refreshing…' : 'Refresh'}
@@ -3240,86 +3240,88 @@ export default function DigitalSchool() {
           </div>
 
           {analyticsError && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="rounded-xl sm:rounded-2xl border border-rose-200 bg-rose-50 px-3 sm:px-4 py-2 sm:py-3 text-sm text-rose-700">
               {analyticsError}
             </div>
           )}
 
           {!analyticsCourseId ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+            <div className="rounded-xl sm:rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-3 sm:px-4 py-4 sm:py-6 text-center text-sm text-gray-500">
               Select a course to view analytics.
             </div>
           ) : analyticsLoading ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+            <div className="rounded-xl sm:rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-3 sm:px-4 py-4 sm:py-6 text-center text-sm text-gray-500">
               Loading analytics…
             </div>
           ) : courseAnalytics ? (
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
                 <AnalyticsBadge label="Total enrolled" value={courseAnalytics.summary.total} tone="slate" />
                 <AnalyticsBadge label="Not started" value={courseAnalytics.summary.notStarted} tone="gray" />
                 <AnalyticsBadge label="In progress" value={courseAnalytics.summary.inProgress} tone="amber" />
                 <AnalyticsBadge label="Completed" value={courseAnalytics.summary.completed} tone="emerald" />
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3">Church level</th>
-                      <th className="px-4 py-3">Branch</th>
-                      <th className="px-4 py-3">Designation</th>
-                      <th className="px-4 py-3">Progress</th>
-                      <th className="px-4 py-3">Exam score</th>
-                      <th className="px-4 py-3">Last exam</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {courseAnalytics.rows.length === 0 ? (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="min-w-full inline-block align-middle">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       <tr>
-                        <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
-                          No enrollments yet.
-                        </td>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Member</th>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap hidden sm:table-cell">Church level</th>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap hidden md:table-cell">Branch</th>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap hidden lg:table-cell">Designation</th>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Progress</th>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Exam score</th>
+                        <th className="px-3 sm:px-4 py-3 whitespace-nowrap hidden sm:table-cell">Last exam</th>
                       </tr>
-                    ) : (
-                      courseAnalytics.rows.map((row) => (
-                        <tr key={row.enrollmentId}>
-                          <td className="px-4 py-3 text-gray-900">{row.memberName}</td>
-                          <td className="px-4 py-3 text-gray-600">{row.churchLevel}</td>
-                          <td className="px-4 py-3 text-gray-600">{row.branch}</td>
-                          <td className="px-4 py-3 text-gray-600">{row.designation}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-900">{row.progressPercent}%</span>
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                  row.status === 'completed'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : row.status === 'active'
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-gray-100 text-gray-600'
-                                }`}
-                              >
-                                {row.status}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-900">
-                            {typeof row.examScore === 'number' ? `${row.examScore}%` : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">
-                            {row.lastExamAt ? new Date(row.lastExamAt).toLocaleDateString() : '—'}
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {courseAnalytics.rows.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-500">
+                            No enrollments yet.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        courseAnalytics.rows.map((row) => (
+                          <tr key={row.enrollmentId}>
+                            <td className="px-3 sm:px-4 py-3 text-gray-900 font-medium">{row.memberName}</td>
+                            <td className="px-3 sm:px-4 py-3 text-gray-600 hidden sm:table-cell">{row.churchLevel}</td>
+                            <td className="px-3 sm:px-4 py-3 text-gray-600 hidden md:table-cell">{row.branch}</td>
+                            <td className="px-3 sm:px-4 py-3 text-gray-600 hidden lg:table-cell">{row.designation}</td>
+                            <td className="px-3 sm:px-4 py-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                <span className="text-sm font-semibold text-gray-900">{row.progressPercent}%</span>
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                    row.status === 'completed'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : row.status === 'active'
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  {row.status}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 text-gray-900 font-medium">
+                              {typeof row.examScore === 'number' ? `${row.examScore}%` : '—'}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 text-gray-600 hidden sm:table-cell">
+                              {row.lastExamAt ? new Date(row.lastExamAt).toLocaleDateString() : '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+            <div className="rounded-xl sm:rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-3 sm:px-4 py-4 sm:py-6 text-center text-sm text-gray-500">
               Analytics unavailable for this course.
             </div>
           )}
@@ -3532,25 +3534,25 @@ export default function DigitalSchool() {
       return Array.from({ length: 6 }).map((_, index) => (
         <div
           key={`skeleton-${index}`}
-          className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm animate-pulse bg-gray-50"
+          className="border rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-sm animate-pulse bg-gray-50"
         >
           <div className="flex items-center justify-between">
-            <span className="h-6 w-20 rounded-full bg-gray-200" />
-            <span className="h-4 w-16 rounded bg-gray-200" />
+            <span className="h-5 sm:h-6 w-16 sm:w-20 rounded-full bg-gray-200" />
+            <span className="h-3 sm:h-4 w-12 sm:w-16 rounded bg-gray-200" />
           </div>
           <div className="space-y-2">
-            <div className="h-5 w-3/4 rounded bg-gray-200" />
-            <div className="h-4 w-full rounded bg-gray-200" />
-            <div className="h-4 w-5/6 rounded bg-gray-200" />
+            <div className="h-4 sm:h-5 w-3/4 rounded bg-gray-200" />
+            <div className="h-3 sm:h-4 w-full rounded bg-gray-200" />
+            <div className="h-3 sm:h-4 w-5/6 rounded bg-gray-200" />
           </div>
           <div className="flex gap-2">
-            <span className="h-6 w-16 rounded-full bg-gray-200" />
-            <span className="h-6 w-20 rounded-full bg-gray-200" />
+            <span className="h-5 sm:h-6 w-12 sm:w-16 rounded-full bg-gray-200" />
+            <span className="h-5 sm:h-6 w-16 sm:w-20 rounded-full bg-gray-200" />
           </div>
           <div className="h-2 w-full rounded bg-gray-200" />
           <div className="flex gap-2">
-            <span className="h-9 flex-1 rounded-lg bg-gray-200" />
-            <span className="h-9 w-20 rounded-lg bg-gray-200" />
+            <span className="h-8 sm:h-9 flex-1 rounded-lg bg-gray-200" />
+            <span className="h-8 sm:h-9 w-16 sm:w-20 rounded-lg bg-gray-200" />
           </div>
         </div>
       ))
@@ -3558,7 +3560,7 @@ export default function DigitalSchool() {
 
     if (courses.length === 0) {
       return (
-        <div className="col-span-full rounded-3xl border border-dashed border-gray-200 p-6 text-center">
+        <div className="col-span-full rounded-2xl sm:rounded-3xl border border-dashed border-gray-200 p-4 sm:p-6 text-center">
           <p className="text-sm text-gray-600">
             {isCourseManager 
               ? "No courses published yet. Start a builder draft to seed the catalog for your campus."
@@ -3566,7 +3568,7 @@ export default function DigitalSchool() {
             }
           </p>
           {isCourseManager && (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div className="mt-4 flex flex-col sm:flex-row flex-wrap justify-center gap-2">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
@@ -3597,13 +3599,13 @@ export default function DigitalSchool() {
       return (
         <div
           key={course.id}
-          className="border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition relative"
+          className="border rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-sm hover:shadow-md transition relative"
         >
           {isCourseManager && (
-            <div className="absolute top-4 right-4 flex gap-2">
+            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex gap-1 sm:gap-2">
               <button
                 type="button"
-                className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-full border px-2 sm:px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
                 onClick={() => handleEditCourse(course.id)}
                 disabled={resumingCourseId === course.id}
               >
@@ -3611,7 +3613,7 @@ export default function DigitalSchool() {
               </button>
               <button
                 type="button"
-                className="rounded-full border px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                className="rounded-full border px-2 sm:px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
                 onClick={() => handleDeleteCourse(course.id)}
                 disabled={deletingCourseId === course.id}
               >
@@ -3619,8 +3621,8 @@ export default function DigitalSchool() {
               </button>
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
+          <div className="flex items-center justify-between pr-16 sm:pr-20">
+            <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${accessBadge(course.access)}`}>
               {course.access === 'open'
                 ? 'Open'
                 : course.access === 'request'
@@ -3632,30 +3634,35 @@ export default function DigitalSchool() {
             )}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-            <p className="text-sm text-gray-600 mt-1">{course.description}</p>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 leading-tight">{course.title}</h3>
+            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{course.description}</p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-            {course.format.map((item) => (
+          <div className="flex flex-wrap gap-1 sm:gap-2 text-xs text-gray-500">
+            {course.format.slice(0, 3).map((item) => (
               <span key={item} className="bg-gray-100 px-2 py-1 rounded-full">
                 {item}
               </span>
             ))}
+            {course.format.length > 3 && (
+              <span className="bg-gray-100 px-2 py-1 rounded-full">
+                +{course.format.length - 3} more
+              </span>
+            )}
           </div>
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-400">Mentors</p>
-              <p className="text-sm text-gray-800">{course.mentors.join(', ')}</p>
+              <p className="text-gray-800 truncate">{course.mentors.join(', ')}</p>
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-wide text-gray-400">Hours</p>
-              <p className="text-sm text-gray-800">{course.hours} hrs</p>
+              <p className="text-gray-800">{course.hours} hrs</p>
             </div>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-400">Format</p>
-              <p className="text-sm text-gray-800">{course.format.join(', ')}</p>
+              <p className="text-gray-800 truncate">{course.format.join(', ')}</p>
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-wide text-gray-400">Pricing</p>
@@ -3674,14 +3681,14 @@ export default function DigitalSchool() {
               {isCompleted && <span className="text-emerald-600 font-semibold">Badge issued</span>}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700"
               onClick={() => handleEnrollAction(course.id)}
             >
               {courseActionLabel(course, enrollment)}
             </button>
-            <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Details</button>
+            <button className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50 whitespace-nowrap">Details</button>
           </div>
         </div>
       )
@@ -3692,22 +3699,22 @@ export default function DigitalSchool() {
     <>
       {builderModal}
       {isCourseManager ? (
-        <div className="px-4 sm:px-6 py-8 sm:py-12">
-          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-10">
-            <div className="rounded-2xl sm:rounded-3xl bg-slate-900 text-white px-6 sm:px-10 py-8 sm:py-12 shadow-xl">
+        <div className="px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
+          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
+            <div className="rounded-2xl sm:rounded-3xl bg-slate-900 text-white px-4 sm:px-6 lg:px-10 py-6 sm:py-8 lg:py-12 shadow-xl">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Digital School</p>
-                  <h1 className="text-2xl sm:text-3xl font-semibold mt-3">Create and manage discipleship tracks</h1>
-                  <p className="text-sm text-gray-100/80 mt-3 max-w-2xl">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold mt-2 sm:mt-3">Create and manage discipleship tracks</h1>
+                  <p className="text-sm text-gray-100/80 mt-2 sm:mt-3 max-w-2xl">
                     Launch the builder to create a new course or resume a draft. Published courses appear in the catalog grid below.
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center md:justify-end">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 justify-center md:justify-end">
                   <button
                     type="button"
                     onClick={handleOpenNewCourse}
-                    className="px-4 py-2 rounded-full bg-white text-slate-900 text-sm font-semibold shadow hover:bg-slate-100"
+                    className="px-4 py-2 rounded-full bg-white text-slate-900 text-sm font-semibold shadow hover:bg-slate-100 whitespace-nowrap"
                   >
                     + Create course
                   </button>
@@ -3716,7 +3723,7 @@ export default function DigitalSchool() {
                       type="button"
                       onClick={() => void handleResumeDraft(latestDraftId)}
                       disabled={resumingCourseId === latestDraftId}
-                      className="px-4 py-2 rounded-full border border-white/50 text-sm text-white hover:bg-white/10 disabled:opacity-60"
+                      className="px-4 py-2 rounded-full border border-white/50 text-sm text-white hover:bg-white/10 disabled:opacity-60 whitespace-nowrap"
                     >
                       {resumingCourseId === latestDraftId ? 'Loading draft…' : 'Resume latest draft'}
                     </button>
@@ -3738,7 +3745,7 @@ export default function DigitalSchool() {
                   <button
                     type="button"
                     onClick={handleOpenNewCourse}
-                    className="px-4 py-2 rounded-full bg-primary-100 text-primary-700 text-sm font-semibold hover:bg-primary-200"
+                    className="px-4 py-2 rounded-full bg-primary-100 text-primary-700 text-sm font-semibold hover:bg-primary-200 whitespace-nowrap"
                   >
                     New course
                   </button>
@@ -3751,13 +3758,13 @@ export default function DigitalSchool() {
         </div>
       ) : (
         // Member View - Course catalog for regular users
-        <div className="px-4 sm:px-6 py-8 sm:py-12">
-          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-10">
-            <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 sm:px-10 py-8 sm:py-12 shadow-xl">
+        <div className="px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
+          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
+            <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 sm:px-6 lg:px-10 py-6 sm:py-8 lg:py-12 shadow-xl">
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.4em] text-blue-100">Digital School</p>
-                <h1 className="text-2xl sm:text-3xl font-semibold mt-3">Discipleship & Training Courses</h1>
-                <p className="text-sm text-blue-100 mt-3 max-w-2xl mx-auto">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold mt-2 sm:mt-3">Discipleship & Training Courses</h1>
+                <p className="text-sm text-blue-100 mt-2 sm:mt-3 max-w-2xl mx-auto">
                   Grow in your faith through our comprehensive discipleship tracks. Enroll in courses, complete modules, and earn certificates.
                 </p>
               </div>

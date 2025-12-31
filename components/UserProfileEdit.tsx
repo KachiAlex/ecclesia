@@ -256,33 +256,33 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-4 sm:py-8">
       <div className="mb-6">
         <button
           onClick={() => router.back()}
-          className="text-primary-600 hover:underline"
+          className="text-primary-600 hover:underline text-sm sm:text-base"
         >
           ← Back
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-6">Edit Profile</h1>
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6">Edit Profile</h1>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded">
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded">
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded text-sm">
             Profile updated successfully! Redirecting...
           </div>
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
                 First Name *
@@ -291,7 +291,7 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
                 {...register('firstName')}
                 type="text"
                 id="firstName"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
               />
               {errors.firstName && (
                 <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
@@ -306,7 +306,7 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
                 {...register('lastName')}
                 type="text"
                 id="lastName"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
               />
               {errors.lastName && (
                 <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
@@ -314,7 +314,7 @@ export default function UserProfileEdit({ userId }: UserProfileEditProps) {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                 Phone

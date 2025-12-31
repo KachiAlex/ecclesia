@@ -20,6 +20,26 @@ function LoginForm() {
 
   useEffect(() => {
     setMounted(true)
+    
+    // Global escape key handler to close stuck modals/overlays
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Force close any stuck loading states or modals
+        setLoading(false)
+        setError('')
+        
+        // Remove any stuck overlays
+        const overlays = document.querySelectorAll('[class*="fixed"][class*="inset-0"]')
+        overlays.forEach(overlay => {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay)
+          }
+        })
+      }
+    }
+    
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
   }, [])
 
   const isRegistered = searchParams?.get('registered') === 'true'
