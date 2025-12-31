@@ -10,7 +10,7 @@ import type {
   SurveySortOptions,
   SurveyPermissions,
   SurveyStatus,
-  SurveyTargetAudienceType
+  TargetAudienceType
 } from '@/types/survey'
 
 const prisma = new PrismaClient()
@@ -48,10 +48,10 @@ export class SurveyService {
             description: question.description,
             required: question.required,
             order: index,
-            options: question.options ? JSON.stringify(question.options) : null,
+            options: question.options ? question.options : undefined,
             minRating: question.minRating,
             maxRating: question.maxRating,
-            ratingLabels: question.ratingLabels ? JSON.stringify(question.ratingLabels) : null,
+            ratingLabels: question.ratingLabels ? question.ratingLabels : undefined,
           }))
         }
       },
@@ -433,7 +433,7 @@ export class SurveyService {
         questionResponses: {
           create: data.responses.map(r => ({
             questionId: r.questionId,
-            value: JSON.stringify(r.value),
+            value: r.value,
             textValue: r.textValue
           }))
         }
@@ -644,10 +644,11 @@ export class SurveyService {
       isAnonymous: survey.isAnonymous,
       allowMultipleResponses: survey.allowMultipleResponses,
       deadline: survey.deadline,
-      targetAudienceType: survey.targetAudienceType as SurveyTargetAudienceType,
-      targetBranchIds: survey.targetBranchIds,
-      targetGroupIds: survey.targetGroupIds,
-      targetUserIds: survey.targetUserIds,
+      targetAudience: {
+        type: survey.targetAudienceType as TargetAudienceType,
+        groupIds: survey.targetGroupIds,
+        roleIds: survey.targetUserIds // Note: using targetUserIds for roleIds
+      },
       sendOnPublish: survey.sendOnPublish,
       sendReminders: survey.sendReminders,
       reminderDays: survey.reminderDays,
@@ -660,10 +661,10 @@ export class SurveyService {
         description: q.description,
         required: q.required,
         order: q.order,
-        options: q.options ? JSON.parse(q.options) : undefined,
+        options: q.options || undefined,
         minRating: q.minRating,
         maxRating: q.maxRating,
-        ratingLabels: q.ratingLabels ? JSON.parse(q.ratingLabels) : undefined,
+        ratingLabels: q.ratingLabels || undefined,
         createdAt: q.createdAt,
         updatedAt: q.updatedAt
       })) || [],
@@ -690,7 +691,7 @@ export class SurveyService {
         id: qr.id,
         responseId: qr.responseId,
         questionId: qr.questionId,
-        value: JSON.parse(qr.value),
+        value: qr.value,
         textValue: qr.textValue
       })) || []
     }

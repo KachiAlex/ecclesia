@@ -1,6 +1,6 @@
 import type {
   CreateSurveyRequest,
-  SurveyQuestionType,
+  QuestionType,
   SubmitSurveyResponseRequest
 } from '@/types/survey'
 
@@ -65,7 +65,7 @@ export class SurveyValidation {
     }
 
     // Validate question type
-    const validTypes: SurveyQuestionType[] = ['MULTIPLE_CHOICE', 'TEXT', 'RATING', 'YES_NO']
+    const validTypes: QuestionType[] = ['MULTIPLE_CHOICE', 'TEXT', 'RATING', 'YES_NO']
     if (!validTypes.includes(question.type)) {
       errors.push(`${prefix} Invalid question type`)
     }
@@ -216,7 +216,7 @@ export class SurveyValidation {
     const errors: Array<{ questionId: string; type: string; message: string }> = []
 
     switch (question.type) {
-      case 'multiple_choice':
+      case 'MULTIPLE_CHOICE':
         if (Array.isArray(value)) {
           // Check if all selected options are valid
           if (question.options) {
@@ -247,7 +247,7 @@ export class SurveyValidation {
         }
         break
 
-      case 'text':
+      case 'TEXT':
         if (typeof value !== 'string') {
           errors.push({
             questionId: question.id,
@@ -278,7 +278,7 @@ export class SurveyValidation {
         }
         break
 
-      case 'rating':
+      case 'RATING':
         if (typeof value !== 'number') {
           errors.push({
             questionId: question.id,
@@ -298,7 +298,7 @@ export class SurveyValidation {
         }
         break
 
-      case 'yes_no':
+      case 'YES_NO':
         if (typeof value !== 'boolean') {
           errors.push({
             questionId: question.id,

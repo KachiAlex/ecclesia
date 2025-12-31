@@ -2,9 +2,9 @@
 
 export type SurveyStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED'
 
-export type QuestionType = 'multiple_choice' | 'text' | 'rating' | 'yes_no'
+export type QuestionType = 'MULTIPLE_CHOICE' | 'TEXT' | 'RATING' | 'YES_NO'
 
-export type TargetAudienceType = 'all' | 'groups' | 'roles' | 'custom'
+export type TargetAudienceType = 'ALL' | 'BRANCH' | 'GROUP' | 'CUSTOM'
 
 export interface Survey {
   id: string
@@ -196,7 +196,10 @@ export interface CreateSurveySettingsRequest {
   isAnonymous: boolean
   allowMultipleResponses: boolean
   deadline?: Date
-  targetAudience: TargetAudience
+  targetAudienceType: TargetAudienceType
+  targetBranchIds?: string[]
+  targetGroupIds?: string[]
+  targetUserIds?: string[]
   sendOnPublish: boolean
   sendReminders: boolean
   reminderDays: number[]

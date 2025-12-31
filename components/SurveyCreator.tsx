@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, GripVertical, Settings, Users, Save, Eye } from 'lucide-react'
+import { GripVertical, Settings, Users, Save, Eye } from 'lucide-react'
 import { SurveyQuestion, QuestionType, TargetAudience } from '@/types/survey'
 import MultipleChoiceQuestion from './survey/MultipleChoiceQuestion'
 import TextQuestion from './survey/TextQuestion'
@@ -36,7 +36,7 @@ export default function SurveyCreator({
   })
   const [targetAudience, setTargetAudience] = useState<TargetAudience>(
     initialData?.targetAudience || {
-      type: 'all',
+      type: 'ALL',
       groupIds: [],
       roleIds: []
     }
@@ -52,10 +52,10 @@ export default function SurveyCreator({
       description: '',
       required: false,
       order: questions.length,
-      options: type === 'multiple_choice' ? [''] : undefined,
-      minRating: type === 'rating' ? 1 : undefined,
-      maxRating: type === 'rating' ? 5 : undefined,
-      ratingLabels: type === 'rating' ? { min: 'Poor', max: 'Excellent' } : undefined
+      options: type === 'MULTIPLE_CHOICE' ? [''] : undefined,
+      minRating: type === 'RATING' ? 1 : undefined,
+      maxRating: type === 'RATING' ? 5 : undefined,
+      ratingLabels: type === 'RATING' ? { min: 'Poor', max: 'Excellent' } : undefined
     }
     setQuestions([...questions, newQuestion])
   }
@@ -129,13 +129,13 @@ export default function SurveyCreator({
     }
 
     switch (question.type) {
-      case 'multiple_choice':
+      case 'MULTIPLE_CHOICE':
         return <MultipleChoiceQuestion key={question.id} {...commonProps} />
-      case 'text':
+      case 'TEXT':
         return <TextQuestion key={question.id} {...commonProps} />
-      case 'rating':
+      case 'RATING':
         return <RatingQuestion key={question.id} {...commonProps} />
-      case 'yes_no':
+      case 'YES_NO':
         return <YesNoQuestion key={question.id} {...commonProps} />
       default:
         return null
@@ -247,28 +247,28 @@ export default function SurveyCreator({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => addQuestion('multiple_choice')}
+                  onClick={() => addQuestion('MULTIPLE_CHOICE')}
                   className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
                 >
                   + Multiple Choice
                 </button>
                 <button
                   type="button"
-                  onClick={() => addQuestion('text')}
+                  onClick={() => addQuestion('TEXT')}
                   className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
                 >
                   + Text
                 </button>
                 <button
                   type="button"
-                  onClick={() => addQuestion('rating')}
+                  onClick={() => addQuestion('RATING')}
                   className="px-3 py-2 text-sm bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100"
                 >
                   + Rating
                 </button>
                 <button
                   type="button"
-                  onClick={() => addQuestion('yes_no')}
+                  onClick={() => addQuestion('YES_NO')}
                   className="px-3 py-2 text-sm bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100"
                 >
                   + Yes/No

@@ -80,25 +80,25 @@ export default function TargetAudienceSelector({
   }
 
   const getEstimatedReach = () => {
-    if (targetAudience.type === 'all') {
+    if (targetAudience.type === 'ALL') {
       return 'All church members'
     }
     
     let count = 0
     
-    if (targetAudience.type === 'groups' && targetAudience.groupIds) {
+    if (targetAudience.type === 'GROUP' && targetAudience.groupIds) {
       targetAudience.groupIds.forEach(groupId => {
         const group = availableGroups.find(g => g.id === groupId)
         if (group) count += group.memberCount
       })
     }
     
-    if (targetAudience.type === 'roles' && targetAudience.roleIds) {
+    if (targetAudience.type === 'CUSTOM' && targetAudience.roleIds) {
       // Simplified estimation - in real app, would need actual role counts
       count = targetAudience.roleIds.length * 20
     }
     
-    if (targetAudience.type === 'custom') {
+    if (targetAudience.type === 'CUSTOM') {
       const groupCount = (targetAudience.groupIds || []).reduce((sum, groupId) => {
         const group = availableGroups.find(g => g.id === groupId)
         return sum + (group?.memberCount || 0)
@@ -141,8 +141,8 @@ export default function TargetAudienceSelector({
             <input
               type="radio"
               name="audienceType"
-              value="all"
-              checked={targetAudience.type === 'all'}
+              value="ALL"
+              checked={targetAudience.type === 'ALL'}
               onChange={(e) => updateAudience({ type: e.target.value as any, groupIds: [], roleIds: [] })}
               className="mt-1 text-primary-600 focus:ring-primary-500"
             />
@@ -159,14 +159,32 @@ export default function TargetAudienceSelector({
             <input
               type="radio"
               name="audienceType"
-              value="groups"
-              checked={targetAudience.type === 'groups'}
-              onChange={(e) => updateAudience({ type: e.target.value as any, roleIds: [] })}
+              value="BRANCH"
+              checked={targetAudience.type === 'BRANCH'}
+              onChange={(e) => updateAudience({ type: e.target.value as any, groupIds: [], roleIds: [] })}
               className="mt-1 text-primary-600 focus:ring-primary-500"
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <Building className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">Specific Branches</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-1">Send to specific church branches</p>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+            <input
+              type="radio"
+              name="audienceType"
+              value="GROUP"
+              checked={targetAudience.type === 'GROUP'}
+              onChange={(e) => updateAudience({ type: e.target.value as any, roleIds: [] })}
+              className="mt-1 text-primary-600 focus:ring-primary-500"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-900">Specific Groups</span>
               </div>
               <p className="text-xs text-gray-600 mt-1">Select ministries or small groups</p>
@@ -177,42 +195,24 @@ export default function TargetAudienceSelector({
             <input
               type="radio"
               name="audienceType"
-              value="roles"
-              checked={targetAudience.type === 'roles'}
-              onChange={(e) => updateAudience({ type: e.target.value as any, groupIds: [] })}
-              className="mt-1 text-primary-600 focus:ring-primary-500"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-900">By Role</span>
-              </div>
-              <p className="text-xs text-gray-600 mt-1">Target specific roles or positions</p>
-            </div>
-          </label>
-
-          <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-            <input
-              type="radio"
-              name="audienceType"
-              value="custom"
-              checked={targetAudience.type === 'custom'}
+              value="CUSTOM"
+              checked={targetAudience.type === 'CUSTOM'}
               onChange={(e) => updateAudience({ type: e.target.value as any })}
               className="mt-1 text-primary-600 focus:ring-primary-500"
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-gray-500" />
+                <UserCheck className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-900">Custom Selection</span>
               </div>
-              <p className="text-xs text-gray-600 mt-1">Mix of groups and roles</p>
+              <p className="text-xs text-gray-600 mt-1">Select specific individuals</p>
             </div>
           </label>
         </div>
       </div>
 
       {/* Group Selection */}
-      {(targetAudience.type === 'groups' || targetAudience.type === 'custom') && (
+      {(targetAudience.type === 'GROUP' || targetAudience.type === 'CUSTOM') && (
         <div className="space-y-3">
           <h3 className="text-md font-medium text-gray-900">Select Groups</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
@@ -241,28 +241,15 @@ export default function TargetAudienceSelector({
         </div>
       )}
 
-      {/* Role Selection */}
-      {(targetAudience.type === 'roles' || targetAudience.type === 'custom') && (
+      {/* Individual Selection */}
+      {targetAudience.type === 'CUSTOM' && (
         <div className="space-y-3">
-          <h3 className="text-md font-medium text-gray-900">Select Roles</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {availableRoles.map((role) => (
-              <label
-                key={role.id}
-                className="flex items-center gap-3 p-2 border rounded-lg cursor-pointer hover:bg-gray-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={(targetAudience.roleIds || []).includes(role.id)}
-                  onChange={() => toggleRole(role.id)}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">{role.name}</span>
-                  <div className="text-xs text-gray-600 capitalize">{role.level} access level</div>
-                </div>
-              </label>
-            ))}
+          <h3 className="text-md font-medium text-gray-900">Select Individuals</h3>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600">
+              Individual selection feature will be implemented here. 
+              This would include a searchable list of church members.
+            </p>
           </div>
         </div>
       )}
