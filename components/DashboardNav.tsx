@@ -86,7 +86,7 @@ export default function DashboardNav({ userRole, isStaff = false }: DashboardNav
             </div>
             
             {/* Label */}
-            <span className="text-sm">{item.name}</span>
+            <span className="text-sm lg:text-sm">{item.name}</span>
             
             {/* Active Indicator */}
             {active && (

@@ -469,30 +469,30 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
   const unit = payload.unit
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <div className="mb-4 sm:mb-6">
         <a className="text-sm text-primary-700 hover:underline" href="/groups">
           Back to Groups
         </a>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{unit.name}</h1>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold">{unit.name}</h1>
             {unit.description && <p className="text-gray-700 mt-2">{unit.description}</p>}
             <div className="text-sm text-gray-500 mt-2">Unit ID: {unit.id}</div>
           </div>
           {(isHead || isAdmin) && (
             <button
               onClick={() => setShowSettings(true)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2 whitespace-nowrap"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Settings
+              <span className="hidden sm:inline">Settings</span>
             </button>
           )}
         </div>
@@ -505,19 +505,19 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
       )}
 
       {isHead && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Invite Member</h2>
-          <div className="flex gap-2">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-4">Invite Member</h2>
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm sm:text-base"
               placeholder="Search by name or email"
             />
             <button
               onClick={searchUsers}
               disabled={searchingUsers || !userSearch.trim()}
-              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-60"
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-60 whitespace-nowrap"
             >
               {searchingUsers ? 'Searching...' : 'Search'}
             </button>
@@ -526,16 +526,16 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
           {userResults.length > 0 && (
             <div className="mt-4 space-y-2">
               {userResults.map((u) => (
-                <div key={u.id} className="flex items-center justify-between gap-4 border border-gray-100 rounded-lg p-3">
-                  <div>
-                    <div className="text-sm font-medium">
+                <div key={u.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100 rounded-lg p-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
                       {[u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id}
                     </div>
-                    {u.email && <div className="text-xs text-gray-500">{u.email}</div>}
+                    {u.email && <div className="text-xs text-gray-500 truncate">{u.email}</div>}
                   </div>
                   <button
                     onClick={() => inviteUser(u.id)}
-                    className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
+                    className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm whitespace-nowrap"
                   >
                     Invite
                   </button>
@@ -547,8 +547,8 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
       )}
 
       {isHead && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Pending Invites</h2>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-4">Pending Invites</h2>
           {loadingInvites ? (
             <div className="text-gray-600">Loading invites...</div>
           ) : pendingInvites.length === 0 ? (
@@ -556,14 +556,14 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
           ) : (
             <div className="space-y-2">
               {pendingInvites.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between gap-4 border border-gray-100 rounded-lg p-3">
-                  <div className="text-sm">
-                    <div className="font-medium">{inv.invitedUserId}</div>
+                <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-100 rounded-lg p-3">
+                  <div className="text-sm flex-1 min-w-0">
+                    <div className="font-medium truncate">{inv.invitedUserId}</div>
                     <div className="text-xs text-gray-500">Invite ID: {inv.id}</div>
                   </div>
                   <button
                     onClick={() => revokeInvite(inv.id)}
-                    className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
+                    className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm whitespace-nowrap"
                   >
                     Revoke
                   </button>
@@ -574,13 +574,13 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex flex-wrap gap-2 mb-4">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto">
           {(['chat', 'polls', 'rules'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActivityTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
                 activityTab === tab ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -850,32 +850,32 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Members</h2>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold mb-4">Members</h2>
         {payload.members.length === 0 ? (
           <div className="text-gray-600">No members yet.</div>
         ) : (
           <div className="space-y-2">
             {payload.members.map((m) => (
-              <div key={m.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-3">
-                <div className="flex items-center gap-3">
+              <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between border border-gray-100 rounded-lg p-3 gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   {m.user?.profileImage ? (
                     <img
                       src={m.user.profileImage}
                       alt={formatMemberName(m)}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                       <span className="text-primary-600 text-sm font-medium">
                         {m.user?.firstName?.[0] || m.user?.email?.[0] || m.userId[0]}
                       </span>
                     </div>
                   )}
-                  <div className="text-sm">
-                    <div className="font-medium">{formatMemberName(m)}</div>
+                  <div className="text-sm flex-1 min-w-0">
+                    <div className="font-medium truncate">{formatMemberName(m)}</div>
                     {m.user?.email && (
-                      <div className="text-xs text-gray-500">{m.user.email}</div>
+                      <div className="text-xs text-gray-500 truncate">{m.user.email}</div>
                     )}
                   </div>
                 </div>
@@ -899,10 +899,10 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold">Group Settings</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Group Settings</h2>
               <button
                 onClick={() => setShowSettings(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

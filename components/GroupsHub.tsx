@@ -294,16 +294,16 @@ export default function GroupsHub() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-start justify-between gap-4 mb-6">
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Groups</h1>
-          <p className="text-gray-600 mt-1">Units (cells, departments, family units) managed by your church.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Groups</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Units (cells, departments, family units) managed by your church.</p>
         </div>
         <div className="flex items-center gap-2">
           <a
             href="/groups/nearby"
-            className="px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm"
+            className="px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm whitespace-nowrap"
           >
             Find Nearby Groups
           </a>
@@ -312,27 +312,27 @@ export default function GroupsHub() {
 
       {error && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">{error}</p>
+          <p className="text-yellow-800 text-sm">{error}</p>
         </div>
       )}
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('units')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'units' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${activeTab === 'units' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
         >
           My Groups
         </button>
         <button
           onClick={() => setActiveTab('invites')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'invites' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${activeTab === 'invites' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
         >
           Broadcast Center
         </button>
         {isAdmin && (
           <button
             onClick={() => setActiveTab('admin')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'admin' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${activeTab === 'admin' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'}`}
           >
             Direct Messages
           </button>
@@ -342,15 +342,15 @@ export default function GroupsHub() {
       {activeTab === 'units' && (
         <div className="space-y-6">
           {!isMember && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Create Unit</h2>
-              <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold mb-4">Create Unit</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
                   <select
                     value={createUnitTypeId}
                     onChange={(e) => setCreateUnitTypeId(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm sm:text-base"
                   >
                     {unitTypes.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -364,7 +364,7 @@ export default function GroupsHub() {
                   <input
                     value={newUnitName}
                     onChange={(e) => setNewUnitName(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm sm:text-base"
                     placeholder="e.g. Cell Group A"
                   />
                 </div>
@@ -374,24 +374,24 @@ export default function GroupsHub() {
                 <input
                   value={newUnitDescription}
                   onChange={(e) => setNewUnitDescription(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm sm:text-base"
                   placeholder="Optional"
                 />
               </div>
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Group Leader (Optional)</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     value={leaderSearch}
                     onChange={(e) => setLeaderSearch(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2"
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm sm:text-base"
                     placeholder="Search by name or email"
                   />
                   <button
                     type="button"
                     onClick={searchLeaders}
                     disabled={searchingLeaders || !leaderSearch.trim()}
-                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-60"
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-60 whitespace-nowrap"
                   >
                     {searchingLeaders ? 'Searching...' : 'Search'}
                   </button>
