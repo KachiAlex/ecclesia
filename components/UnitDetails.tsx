@@ -840,9 +840,35 @@ export default function UnitDetails({ unitId }: { unitId: string }) {
           <div className="space-y-2">
             {payload.members.map((m) => (
               <div key={m.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-3">
-                <div className="text-sm">
-                  <span className="font-medium">{m.userId}</span>
-                  <span className="text-gray-500"> — {m.role}</span>
+                <div className="flex items-center gap-3">
+                  {m.user?.profileImage ? (
+                    <img
+                      src={m.user.profileImage}
+                      alt={formatMemberName(m)}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                      <span className="text-primary-600 text-sm font-medium">
+                        {m.user?.firstName?.[0] || m.user?.email?.[0] || m.userId[0]}
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-sm">
+                    <div className="font-medium">{formatMemberName(m)}</div>
+                    {m.user?.email && (
+                      <div className="text-xs text-gray-500">{m.user.email}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    m.role === 'HEAD' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {m.role === 'HEAD' ? 'Leader' : 'Member'}
+                  </span>
                 </div>
               </div>
             ))}

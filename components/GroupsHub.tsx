@@ -26,6 +26,13 @@ type Unit = {
   }
 }
 
+type UserRow = {
+  id: string
+  firstName?: string
+  lastName?: string
+  email?: string
+}
+
 type Invite = {
   id: string
   unitId: string
@@ -74,7 +81,13 @@ export default function GroupsHub() {
   const [createUnitTypeId, setCreateUnitTypeId] = useState('')
   const [newUnitName, setNewUnitName] = useState('')
   const [newUnitDescription, setNewUnitDescription] = useState('')
+  const [newUnitLeaderId, setNewUnitLeaderId] = useState('')
   const [savingUnit, setSavingUnit] = useState(false)
+
+  // Leader search
+  const [leaderSearch, setLeaderSearch] = useState('')
+  const [leaderResults, setLeaderResults] = useState<UserRow[]>([])
+  const [searchingLeaders, setSearchingLeaders] = useState(false)
 
   const unitTypeById = useMemo(() => {
     const map: Record<string, UnitType> = {}
@@ -171,6 +184,7 @@ export default function GroupsHub() {
           unitTypeId: createUnitTypeId,
           name: newUnitName,
           description: newUnitDescription || undefined,
+          headUserId: newUnitLeaderId || undefined,
         }),
       })
 
@@ -179,12 +193,38 @@ export default function GroupsHub() {
 
       setNewUnitName('')
       setNewUnitDescription('')
+      setNewUnitLeaderId('')
+      setLeaderSearch('')
+      setLeaderResults([])
       await loadAll()
     } catch (e: any) {
       setError(parseApiError(e))
     } finally {
       setSavingUnit(false)
     }
+  }
+
+  const searchLeaders = async () => {
+    if (!leaderSearch.trim()) return
+    setSearchingLeaders(true)
+    setError('')
+    try {
+      const q = encodeURIComponent(leaderSearch.trim())
+      const res = await fetch(`/api/users?search=${q}&limit=10&page=1`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Failed to search users')
+      setLeaderResults((data.users || []) as UserRow[])
+    } catch (e: any) {
+      setError(parseApiError(e))
+    } finally {
+      setSearchingLeaders(false)
+    }
+  }
+
+  const selectLeader = (user: UserRow) => {
+    setNewUnitLeaderId(user.id)
+    setLeaderSearch([user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || user.id)
+    setLeaderResults([])
   }
 
   const acceptInvite = async (inviteId: string) => {
@@ -337,6 +377,49 @@ export default function GroupsHub() {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2"
                   placeholder="Optional"
                 />
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Group Leader (Optional)</label>
+                <div className="flex gap-2">
+                  <input
+                    value={leaderSearch}
+                    onChange={(e) => setLeaderSearch(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2"
+                    placeholder="Search by name or email"
+                  />
+                  <button
+                    type="button"
+                    onClick={searchLeaders}
+                    disabled={searchingLeaders || !leaderSearch.trim()}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-60"
+                  >
+                    {searchingLeaders ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                {leaderResults.length > 0 && (
+                  <div className="mt-2 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                    {leaderResults.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => selectLeader(user)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="text-sm font-medium">
+                          {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || user.id}
+                        </div>
+                        {user.email && (
+                          <div className="text-xs text-gray-500">{user.email}</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {newUnitLeaderId && (
+                  <div className="mt-2 text-sm text-green-600">
+                    ✓ Leader selected
+                  </div>
+                )}
               </div>
               <div className="mt-4">
                 <button

@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const name = String(body?.name || '').trim()
   const description = body?.description ? String(body.description) : undefined
   const branchId = body?.branchId ? String(body.branchId) : undefined
+  const headUserId = body?.headUserId ? String(body.headUserId) : userId
 
   if (!unitTypeId) return NextResponse.json({ error: 'unitTypeId is required' }, { status: 400 })
   if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
@@ -57,18 +58,29 @@ export async function POST(request: Request) {
     unitTypeId,
     name,
     description,
-    headUserId: userId,
+    headUserId,
     branchId,
   })
 
-  // Create head membership
+  // Create head membership for the designated leader
   await UnitMembershipService.create({
     churchId: church.id,
     unitId: unit.id,
     unitTypeId,
-    userId,
+    userId: headUserId,
     role: 'HEAD',
   })
+
+  // If the creator is different from the head, add them as a member
+  if (headUserId !== userId) {
+    await UnitMembershipService.create({
+      churchId: church.id,
+      unitId: unit.id,
+      unitTypeId,
+      userId,
+      role: 'MEMBER',
+    })
+  }
 
   return NextResponse.json({ unit }, { status: 201 })
 }
