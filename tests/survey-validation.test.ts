@@ -204,7 +204,7 @@ describe('Survey Data Model Validation', () => {
             required: true,
             minRating: 1,
             maxRating: 5,
-            ratingLabels: ['Poor', 'Fair', 'Good', 'Very Good', 'Excellent']
+            ratingLabels: { min: 'Poor', max: 'Excellent' }
           }
         ],
         settings: {
