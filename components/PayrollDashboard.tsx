@@ -279,22 +279,22 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
   // Staff view for members
   if (isStaffView && staffMember) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">My Payroll Information</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">My Payroll Information</h1>
           <p className="text-gray-600 mt-2">View your current wage and designation details.</p>
         </div>
 
         {staffError && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">{staffError}</p>
+            <p className="text-red-800 text-sm">{staffError}</p>
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Personal Information */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-4">Personal Information</h2>
             <div className="flex items-center gap-4 mb-4">
               {staffMember.profileImage ? (
                 <img
@@ -392,19 +392,19 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Payroll Dashboard</h1>
-        <div className="flex gap-4">
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Payroll Dashboard</h1>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
           <Link
             href="/dashboard/payroll/positions"
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-center text-sm"
           >
             Manage Positions
           </Link>
           <Link
             href="/dashboard/payroll/periods/new"
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-center text-sm"
           >
             New Pay Period
           </Link>
@@ -413,10 +413,10 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-4">
+        <nav className="flex gap-2 sm:gap-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab('summary')}
-            className={`pb-4 px-2 border-b-2 ${
+            className={`pb-4 px-2 border-b-2 text-sm whitespace-nowrap ${
               activeTab === 'summary'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -426,7 +426,7 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
           </button>
           <button
             onClick={() => setActiveTab('staff')}
-            className={`pb-4 px-2 border-b-2 ${
+            className={`pb-4 px-2 border-b-2 text-sm whitespace-nowrap ${
               activeTab === 'staff'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -436,7 +436,7 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
           </button>
           <button
             onClick={() => setActiveTab('salaries')}
-            className={`pb-4 px-2 border-b-2 ${
+            className={`pb-4 px-2 border-b-2 text-sm whitespace-nowrap ${
               activeTab === 'salaries'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -446,7 +446,7 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
           </button>
           <button
             onClick={() => setActiveTab('periods')}
-            className={`pb-4 px-2 border-b-2 ${
+            className={`pb-4 px-2 border-b-2 text-sm whitespace-nowrap ${
               activeTab === 'periods'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'

@@ -250,14 +250,14 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
     value ? new Date(value).toLocaleDateString() : 'N/A'
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
       <div>
         <p className="text-sm uppercase text-gray-500 tracking-wide">Reports & Analytics</p>
-        <h1 className="text-3xl font-bold text-gray-900 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
           {isManager ? 'Operational Pulse' : 'Church Reports'}
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="text-gray-600 mt-2 text-sm sm:text-base">
           {isManager 
             ? 'Consolidated attendance, finances, member growth, and resource impact across your church.'
             : 'View available church reports and statistics that have been made accessible to members.'
@@ -266,36 +266,36 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
       </div>
 
       {!isManager && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
-          <h2 className="text-lg font-semibold text-blue-900 mb-2">Member Reports Access</h2>
-          <p className="text-blue-700 mb-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6 text-center">
+          <h2 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">Member Reports Access</h2>
+          <p className="text-blue-700 mb-4 text-sm sm:text-base">
             Your church administrators can configure which reports are available to members. 
             Currently, the following reports may be accessible:
           </p>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 text-left">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-left">
             <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2">📊 Attendance Summary</h3>
-              <p className="text-sm text-gray-600">General attendance trends and participation statistics</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">📊 Attendance Summary</h3>
+              <p className="text-xs sm:text-sm text-gray-600">General attendance trends and participation statistics</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2">👥 Membership Growth</h3>
-              <p className="text-sm text-gray-600">Church growth metrics and member milestones</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">👥 Membership Growth</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Church growth metrics and member milestones</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2">📚 Resource Usage</h3>
-              <p className="text-sm text-gray-600">Digital school and reading plan engagement</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">📚 Resource Usage</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Digital school and reading plan engagement</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2">🎯 Ministry Impact</h3>
-              <p className="text-sm text-gray-600">Community outreach and ministry effectiveness</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">🎯 Ministry Impact</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Community outreach and ministry effectiveness</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2">💝 Giving Overview</h3>
-              <p className="text-sm text-gray-600">General giving trends (amounts may be hidden)</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">💝 Giving Overview</h3>
+              <p className="text-xs sm:text-sm text-gray-600">General giving trends (amounts may be hidden)</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2">📅 Event Participation</h3>
-              <p className="text-sm text-gray-600">Event attendance and engagement metrics</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">📅 Event Participation</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Event attendance and engagement metrics</p>
             </div>
           </div>
           <div className="mt-6 p-4 bg-blue-100 rounded-lg">

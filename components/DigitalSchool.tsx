@@ -3692,18 +3692,18 @@ export default function DigitalSchool() {
     <>
       {builderModal}
       {isCourseManager ? (
-        <div className="px-6 py-12">
-          <div className="max-w-6xl mx-auto space-y-10">
-            <div className="rounded-3xl bg-slate-900 text-white px-10 py-12 shadow-xl">
+        <div className="px-4 sm:px-6 py-8 sm:py-12">
+          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-10">
+            <div className="rounded-2xl sm:rounded-3xl bg-slate-900 text-white px-6 sm:px-10 py-8 sm:py-12 shadow-xl">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Digital School</p>
-                  <h1 className="text-3xl font-semibold mt-3">Create and manage discipleship tracks</h1>
+                  <h1 className="text-2xl sm:text-3xl font-semibold mt-3">Create and manage discipleship tracks</h1>
                   <p className="text-sm text-gray-100/80 mt-3 max-w-2xl">
                     Launch the builder to create a new course or resume a draft. Published courses appear in the catalog grid below.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3 justify-center md:justify-end">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center md:justify-end">
                   <button
                     type="button"
                     onClick={handleOpenNewCourse}
@@ -3729,9 +3729,9 @@ export default function DigitalSchool() {
             {examReviewPanel}
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Course catalog</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Course catalog</h2>
                   <p className="text-sm text-gray-600">Drafts stay private until you publish them.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -3745,18 +3745,18 @@ export default function DigitalSchool() {
                 </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{renderCourseGrid()}</div>
+              <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">{renderCourseGrid()}</div>
             </div>
           </div>
         </div>
       ) : (
         // Member View - Course catalog for regular users
-        <div className="px-6 py-12">
-          <div className="max-w-6xl mx-auto space-y-10">
-            <div className="rounded-3xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-12 shadow-xl">
+        <div className="px-4 sm:px-6 py-8 sm:py-12">
+          <div className="max-w-6xl mx-auto space-y-6 sm:space-y-10">
+            <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 sm:px-10 py-8 sm:py-12 shadow-xl">
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.4em] text-blue-100">Digital School</p>
-                <h1 className="text-3xl font-semibold mt-3">Discipleship & Training Courses</h1>
+                <h1 className="text-2xl sm:text-3xl font-semibold mt-3">Discipleship & Training Courses</h1>
                 <p className="text-sm text-blue-100 mt-3 max-w-2xl mx-auto">
                   Grow in your faith through our comprehensive discipleship tracks. Enroll in courses, complete modules, and earn certificates.
                 </p>
@@ -3765,7 +3765,7 @@ export default function DigitalSchool() {
 
             <div className="space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-semibold text-gray-900">Available Courses</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Available Courses</h2>
                 <p className="text-sm text-gray-600 mt-1">
                   {courses.length > 0 
                     ? `${courses.length} course${courses.length === 1 ? '' : 's'} available for enrollment`
@@ -3774,7 +3774,7 @@ export default function DigitalSchool() {
                 </p>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{renderCourseGrid()}</div>
+              <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">{renderCourseGrid()}</div>
             </div>
           </div>
         </div>

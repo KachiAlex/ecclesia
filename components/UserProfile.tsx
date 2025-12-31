@@ -149,9 +149,9 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-8 text-white">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-4 sm:p-8 text-white">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
               {user.profileImage ? (
                 <img
                   src={user.profileImage}
@@ -159,26 +159,26 @@ export default function UserProfile({ userId }: UserProfileProps) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="text-3xl text-primary-600 font-bold">
+                <div className="text-2xl sm:text-3xl text-primary-600 font-bold">
                   {user.firstName[0]}{user.lastName[0]}
                 </div>
               )}
             </div>
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
+            <div className="text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
                 {user.firstName} {user.lastName}
               </h1>
-              <p className="text-primary-100">{user.email}</p>
-              {user.phone && <p className="text-primary-100">{user.phone}</p>}
+              <p className="text-primary-100 text-sm sm:text-base">{user.email}</p>
+              {user.phone && <p className="text-primary-100 text-sm sm:text-base">{user.phone}</p>}
             </div>
           </div>
         </div>
 
-        <div className="p-8">
-          <div className="grid md:grid-cols-2 gap-8">
+        <div className="p-4 sm:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             {/* Basic Information */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Basic Information</h2>
               <dl className="space-y-3">
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Role</dt>
@@ -347,9 +347,9 @@ export default function UserProfile({ userId }: UserProfileProps) {
           {/* Salary Information */}
           {user.salary && (
             <div className="mt-8 border-t pt-8">
-              <h2 className="text-xl font-semibold mb-4">Position & Salary</h2>
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Position & Salary</h2>
               <div className="bg-gray-50 rounded-lg p-4">
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <div className="text-sm text-gray-600">Position</div>
                     <div className="font-medium">{user.salary.position.name}</div>
