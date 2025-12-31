@@ -25,7 +25,7 @@ export async function GET(_: Request, { params }: { params: { unitId: string } }
   return NextResponse.json({ settings })
 }
 
-export async function PATCH(request: Request, { params }: { params: { unitId: string } }) {
+export async function PUT(request: Request, { params }: { params: { unitId: string } }) {
   const guarded = await guardApi({ requireChurch: true })
   if (!guarded.ok) return guarded.response
 

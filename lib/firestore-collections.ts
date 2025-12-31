@@ -81,6 +81,7 @@ export const COLLECTIONS = {
   unitMessages: 'unit_messages',
   unitPolls: 'unit_polls',
   unitPollVotes: 'unit_poll_votes',
+  unitInviteLinks: 'unit_invite_links',
   
   // Volunteer collections
   volunteers: 'volunteers',
