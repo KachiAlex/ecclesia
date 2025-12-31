@@ -6,6 +6,7 @@ import { getCurrentChurch, getCurrentChurchId } from '@/lib/church-context'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
 import BranchSwitcher from '@/components/BranchSwitcher'
+import ChurchSwitcher from '@/components/ChurchSwitcher'
 import OnboardingBanner from '@/components/OnboardingBanner'
 import DashboardNav from '@/components/DashboardNav'
 
@@ -97,7 +98,11 @@ export default async function DashboardLayout({
 
         {/* User Section */}
         <div className="border-t border-gray-200/50 p-4 bg-gradient-to-br from-gray-50/50 to-blue-50/30">
-          <BranchSwitcher />
+          {user?.role === 'SUPER_ADMIN' && !activeChurch ? (
+            <ChurchSwitcher />
+          ) : (
+            <BranchSwitcher />
+          )}
 
           <div className="space-y-3 w-full">
             <div className="grid grid-cols-2 gap-2 pt-2 px-2">

@@ -50,7 +50,10 @@ export default function LeaderGroupsHub() {
     try {
       // Get units where user is HEAD
       const unitsRes = await fetch('/api/units/mine')
-      if (!unitsRes.ok) throw new Error('Failed to load your units')
+      if (!unitsRes.ok) {
+        const errorData = await unitsRes.json().catch(() => ({}))
+        throw new Error(errorData.error || `Failed to load your units (${unitsRes.status})`)
+      }
       
       const unitsData = await unitsRes.json()
       const leaderUnits = (unitsData.units || []).filter((unit: Unit) => 
@@ -68,9 +71,12 @@ export default function LeaderGroupsHub() {
                 ...unit,
                 members: memberData.members || []
               }
+            } else {
+              console.error(`Failed to load members for unit ${unit.id}:`, membersRes.status)
+              return { ...unit, members: [] }
             }
-            return { ...unit, members: [] }
-          } catch {
+          } catch (error) {
+            console.error(`Error loading members for unit ${unit.id}:`, error)
             return { ...unit, members: [] }
           }
         })
