@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊', gradient: 'from-blue-500 to-indigo-600' },
   { name: 'Meetings', href: '/meetings', icon: '🔴', gradient: 'from-red-500 to-rose-600' },
+  { name: 'Surveys', href: '/surveys', icon: '📝', gradient: 'from-emerald-500 to-teal-600' },
   { name: 'Sermons', href: '/sermons', icon: '📺', gradient: 'from-purple-500 to-violet-600' },
   { name: 'Prayer', href: '/prayer', icon: '🙏', gradient: 'from-blue-500 to-cyan-600' },
   { name: 'Giving', href: '/giving', icon: '💰', gradient: 'from-green-500 to-emerald-600' },

@@ -144,6 +144,12 @@ export const COLLECTIONS = {
   digitalExamQuestions: 'digital_exam_questions',
   digitalExamAttempts: 'digital_exam_attempts',
   digitalCourseBadges: 'digital_course_badges',
+
+  // Member Invitation System collections
+  invitationForms: 'invitation_forms',
+  invitationLinks: 'invitation_links',
+  registrationSubmissions: 'registration_submissions',
+  invitationLinkAccess: 'invitation_link_access',
 } as const
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS]

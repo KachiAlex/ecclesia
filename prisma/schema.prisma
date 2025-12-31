@@ -171,6 +171,17 @@ model User {
   salary                UserSalary?
   payrollRecords        PayrollRecord[]
   
+  // Member Invitation System
+  createdInvitationForms InvitationForm[]     @relation("InvitationFormCreator")
+  createdInvitationLinks InvitationLink[]     @relation("InvitationLinkCreator")
+  reviewedSubmissions   RegistrationSubmission[] @relation("SubmissionReviewer")
+  createdFromSubmission RegistrationSubmission[] @relation("CreatedFromSubmission")
+  
+  // Survey System
+  createdSurveys        Survey[]              @relation("SurveyCreator")
+  surveyResponses       SurveyResponse[]      @relation("SurveyRespondent")
+  createdSurveyTemplates SurveyTemplate[]     @relation("SurveyTemplateCreator")
+  
   // Gamification
   xp                    Int                   @default(0)
   level                 Int                   @default(1)
@@ -233,6 +244,15 @@ model Church {
   payrollPeriods        PayrollPeriod[]
   payrollRecords        PayrollRecord[]
   
+  // Member Invitation System
+  invitationForms       InvitationForm[]
+  invitationLinks       InvitationLink[]
+  registrationSubmissions RegistrationSubmission[]
+  
+  // Survey System
+  surveys               Survey[]
+  surveyTemplates       SurveyTemplate[]
+  
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   
@@ -283,6 +303,7 @@ model Branch {
   departments           Department[]
   groups                Group[]
   events                Event[]
+  surveys               Survey[]
   
   isActive              Boolean               @default(true)
   
@@ -1094,5 +1115,265 @@ model PayrollRecord {
   @@index([churchId])
   @@index([status])
   @@index([paymentDate])
+}
+
+// Member Invitation System
+model InvitationForm {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  name                  String
+  description           String?
+  fields                Json                  // Array of FormField objects
+  branding              Json?                 // Church branding configuration
+  settings              Json                  // FormSettings object
+  createdBy             String
+  creator               User                  @relation("InvitationFormCreator", fields: [createdBy], references: [id])
+  
+  // Relations
+  links                 InvitationLink[]
+  submissions           RegistrationSubmission[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([createdBy])
+}
+
+model InvitationLink {
+  id                    String                @id @default(cuid())
+  formId                String
+  form                  InvitationForm        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  token                 String                @unique // Cryptographically secure token
+  maxUses               Int?                  // null = unlimited uses
+  currentUses           Int                   @default(0)
+  expiresAt             DateTime?             // null = never expires
+  isActive              Boolean               @default(true)
+  createdBy             String
+  creator               User                  @relation("InvitationLinkCreator", fields: [createdBy], references: [id])
+  
+  // Relations
+  submissions           RegistrationSubmission[]
+  accessLogs            InvitationLinkAccess[]
+  
+  createdAt             DateTime              @default(now())
+  
+  @@index([token])
+  @@index([churchId])
+  @@index([formId])
+  @@index([createdBy])
+  @@index([expiresAt])
+  @@index([isActive])
+}
+
+model RegistrationSubmission {
+  id                    String                @id @default(cuid())
+  linkId                String
+  link                  InvitationLink        @relation(fields: [linkId], references: [id])
+  formId                String
+  form                  InvitationForm        @relation(fields: [formId], references: [id])
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  formData              Json                  // Submitted form data
+  status                String                @default("pending") // "pending", "approved", "rejected"
+  ipAddress             String?
+  userAgent             String?
+  
+  // Review information
+  reviewedAt            DateTime?
+  reviewedBy            String?
+  reviewer              User?                 @relation("SubmissionReviewer", fields: [reviewedBy], references: [id])
+  rejectionReason       String?
+  
+  // Created user (if approved)
+  createdUserId         String?
+  createdUser           User?                 @relation("CreatedFromSubmission", fields: [createdUserId], references: [id])
+  
+  submittedAt           DateTime              @default(now())
+  
+  @@index([linkId])
+  @@index([formId])
+  @@index([churchId])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([reviewedBy])
+}
+
+// Security and analytics tracking
+model InvitationLinkAccess {
+  id                    String                @id @default(cuid())
+  linkId                String
+  link                  InvitationLink        @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  ipAddress             String?
+  userAgent             String?
+  accessedAt            DateTime              @default(now())
+  
+  @@index([linkId])
+  @@index([accessedAt])
+  @@index([ipAddress])
+}
+
+// Survey System
+enum SurveyStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum SurveyQuestionType {
+  MULTIPLE_CHOICE
+  TEXT
+  RATING
+  YES_NO
+}
+
+enum SurveyTargetAudienceType {
+  ALL
+  BRANCH
+  GROUP
+  CUSTOM
+}
+
+model Survey {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                @relation(fields: [churchId], references: [id])
+  branchId              String?
+  branch                Branch?               @relation(fields: [branchId], references: [id])
+  createdBy             String
+  creator               User                  @relation("SurveyCreator", fields: [createdBy], references: [id])
+  
+  // Survey details
+  title                 String
+  description           String?
+  status                SurveyStatus          @default(DRAFT)
+  
+  // Settings
+  isAnonymous           Boolean               @default(false)
+  allowMultipleResponses Boolean              @default(false)
+  deadline              DateTime?
+  
+  // Target audience
+  targetAudienceType    SurveyTargetAudienceType @default(ALL)
+  targetBranchIds       String[]              // For BRANCH type
+  targetGroupIds        String[]              // For GROUP type
+  targetUserIds         String[]              // For CUSTOM type
+  
+  // Notifications
+  sendOnPublish         Boolean               @default(true)
+  sendReminders         Boolean               @default(true)
+  reminderDays          Int[]                 @default([3, 1]) // Days before deadline
+  
+  // Meeting integration
+  meetingId             String?               // For meeting-linked surveys
+  
+  // Relations
+  questions             SurveyQuestion[]
+  responses             SurveyResponse[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  publishedAt           DateTime?
+  closedAt              DateTime?
+  
+  @@index([churchId])
+  @@index([branchId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([deadline])
+}
+
+model SurveyQuestion {
+  id                    String                @id @default(cuid())
+  surveyId              String
+  survey                Survey                @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  // Question details
+  type                  SurveyQuestionType
+  title                 String
+  description           String?
+  required              Boolean               @default(false)
+  order                 Int
+  
+  // Question-specific settings
+  options               Json?                 // For multiple choice questions
+  minRating             Int?                  // For rating questions
+  maxRating             Int?                  // For rating questions
+  ratingLabels          Json?                 // For rating questions
+  
+  // Relations
+  responses             SurveyQuestionResponse[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([surveyId])
+  @@index([order])
+}
+
+model SurveyResponse {
+  id                    String                @id @default(cuid())
+  surveyId              String
+  survey                Survey                @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  userId                String?               // null for anonymous surveys
+  user                  User?                 @relation("SurveyRespondent", fields: [userId], references: [id])
+  
+  // Response metadata
+  ipAddress             String?
+  userAgent             String?
+  submittedAt           DateTime              @default(now())
+  
+  // Relations
+  questionResponses     SurveyQuestionResponse[]
+  
+  @@index([surveyId])
+  @@index([userId])
+  @@index([submittedAt])
+}
+
+model SurveyQuestionResponse {
+  id                    String                @id @default(cuid())
+  responseId            String
+  response              SurveyResponse        @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId            String
+  question              SurveyQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  // Response value (stored as JSON to handle different types)
+  value                 Json
+  textValue             String?               // For "other" options or additional text
+  
+  @@unique([responseId, questionId])
+  @@index([responseId])
+  @@index([questionId])
+}
+
+model SurveyTemplate {
+  id                    String                @id @default(cuid())
+  churchId              String?               // null for system templates
+  church                Church?               @relation(fields: [churchId], references: [id])
+  createdBy             String?               // null for system templates
+  creator               User?                 @relation("SurveyTemplateCreator", fields: [createdBy], references: [id])
+  
+  // Template details
+  name                  String
+  description           String?
+  category              String                // "Sermon Feedback", "Event Evaluation", etc.
+  isSystemTemplate      Boolean               @default(false)
+  
+  // Template structure
+  templateData          Json                  // Survey structure and questions
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([createdBy])
+  @@index([category])
+  @@index([isSystemTemplate])
 }
 
