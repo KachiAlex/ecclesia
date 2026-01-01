@@ -124,7 +124,7 @@ export class SurveyService {
 
     if (!user) return []
 
-    const userGroupIds = user.groups.map(g => g.groupId)
+    const userGroupIds = user.groups.map((g: { groupId: string }) => g.groupId)
 
     const whereClause: any = {
       churchId,
