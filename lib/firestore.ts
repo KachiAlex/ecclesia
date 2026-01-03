@@ -16,7 +16,7 @@ let _storage: Storage | null = globalForFirebase.firebaseStorage ?? null
 /**
  * Initialize Firebase Admin SDK
  */
-export function initFirebase() {
+export function initFirebase(): Firestore | null {
   if (!globalForFirebase.firebaseApp) {
     if (getApps().length === 0) {
       // Try to get service account from environment variable (for Vercel/Railway/etc)
@@ -28,12 +28,21 @@ export function initFirebase() {
 
       if (envServiceAccountRaw) {
         try {
-          serviceAccount = JSON.parse(envServiceAccountRaw)
+          // If it's already an object, use it directly
+          if (typeof envServiceAccountRaw === 'object') {
+            serviceAccount = envServiceAccountRaw
+          } else {
+            // Otherwise try to parse it as JSON
+            serviceAccount = JSON.parse(envServiceAccountRaw)
+          }
           console.log('Successfully parsed Firebase service account from environment variable')
         } catch (e) {
           console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e)
+          console.error('Raw value type:', typeof envServiceAccountRaw)
           console.error('Raw value length:', envServiceAccountRaw?.length || 0)
-          console.error('Raw value preview:', envServiceAccountRaw?.substring(0, 100) + '...')
+          if (typeof envServiceAccountRaw === 'string') {
+            console.error('Raw value preview:', envServiceAccountRaw.substring(0, 100) + '...')
+          }
         }
       } else {
         console.log('No FIREBASE_SERVICE_ACCOUNT environment variable found')
@@ -53,19 +62,44 @@ export function initFirebase() {
         }
       }
 
-      if (serviceAccount && typeof serviceAccount === 'object') {
-        globalForFirebase.firebaseApp = initializeApp({
-          credential: cert(serviceAccount),
-          projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-        })
+      // Only use cert() if we have a valid service account object
+      if (serviceAccount && typeof serviceAccount === 'object' && serviceAccount.type === 'service_account') {
+        try {
+          globalForFirebase.firebaseApp = initializeApp({
+            credential: cert(serviceAccount),
+            projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
+          })
+          console.log('Firebase initialized with service account credentials')
+        } catch (e) {
+          console.error('Failed to initialize Firebase with service account:', e)
+          // Fall back to default credentials
+          try {
+            globalForFirebase.firebaseApp = initializeApp({
+              projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+              storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
+            })
+            console.log('Firebase initialized with default credentials (fallback)')
+          } catch (fallbackError) {
+            console.error('Failed to initialize Firebase with default credentials:', fallbackError)
+            // Don't throw - let the app continue without Firebase if initialization fails
+            // This is important for build-time initialization
+          }
+        }
       } else {
         // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
         console.log('No valid service account found, using default credentials')
-        globalForFirebase.firebaseApp = initializeApp({
-          projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-          storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-        })
+        try {
+          globalForFirebase.firebaseApp = initializeApp({
+            projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
+          })
+          console.log('Firebase initialized with default credentials')
+        } catch (e) {
+          console.error('Failed to initialize Firebase with default credentials:', e)
+          // Don't throw - let the app continue without Firebase if initialization fails
+          // This is important for build-time initialization
+        }
       }
     }
   } else if (getApps().length > 0) {
@@ -73,19 +107,34 @@ export function initFirebase() {
     globalForFirebase.firebaseApp = getApps()[0]
   }
 
-  app = globalForFirebase.firebaseApp!
+  // If Firebase app is still not initialized, return null or a mock
+  if (!globalForFirebase.firebaseApp) {
+    console.warn('Firebase app not initialized - returning null')
+    return null as any
+  }
+
+  app = globalForFirebase.firebaseApp
 
   if (!globalForFirebase.firebaseDb) {
-    const instance = getFirestore(app)
-    if (!globalForFirebase.firebaseSettingsApplied) {
-      instance.settings({ ignoreUndefinedProperties: true })
-      globalForFirebase.firebaseSettingsApplied = true
+    try {
+      const instance = getFirestore(app)
+      if (!globalForFirebase.firebaseSettingsApplied) {
+        instance.settings({ ignoreUndefinedProperties: true })
+        globalForFirebase.firebaseSettingsApplied = true
+      }
+      globalForFirebase.firebaseDb = instance
+    } catch (e) {
+      console.error('Failed to get Firestore instance:', e)
+      return null as any
     }
-    globalForFirebase.firebaseDb = instance
   }
 
   if (!globalForFirebase.firebaseStorage) {
-    globalForFirebase.firebaseStorage = getStorage(app)
+    try {
+      globalForFirebase.firebaseStorage = getStorage(app)
+    } catch (e) {
+      console.error('Failed to get Firebase Storage:', e)
+    }
   }
 
   _db = globalForFirebase.firebaseDb!
@@ -99,13 +148,14 @@ export function initFirebase() {
  */
 export function getFirestoreDB(): Firestore {
   if (!_db) {
-    _db = initFirebase()
+    const result = initFirebase()
+    if (!result) {
+      throw new Error('Failed to initialize Firebase')
+    }
+    _db = result
   }
   return _db
 }
-
-// Export db - initialized on first access
-export const db = getFirestoreDB()
 
 /**
  * Get Firebase Storage instance
@@ -120,7 +170,8 @@ export function getFirebaseStorage(): Storage {
   return _storage
 }
 
-// Export storage - initialized on first access
+// Export db and storage - initialized on first access
+export const db = getFirestoreDB()
 export const storage = getFirebaseStorage()
 
 /**
