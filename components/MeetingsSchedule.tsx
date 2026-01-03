@@ -455,13 +455,18 @@ export default function MeetingsSchedule({ canManageMeetings }: { canManageMeeti
                       {o.branchId ? ` • Branch: ${o.branchId}` : ' • All branches'}
                     </div>
                     {o.description && <div className="text-sm text-gray-700 mt-2">{o.description}</div>}
-                    {o.google?.meetUrl && (
-                      <div className="text-sm mt-2">
-                        <a className="text-primary-700 hover:underline" href={o.google.meetUrl} target="_blank" rel="noreferrer">
-                          Join Google Meet
-                        </a>
-                      </div>
-                    )}
+                  {o.google?.meetUrl && (
+                    <div className="text-sm mt-2">
+                      <a className="text-primary-700 hover:underline font-semibold" href={o.google.meetUrl} target="_blank" rel="noreferrer">
+                        → Join Google Meet
+                      </a>
+                    </div>
+                  )}
+                  {!o.google?.meetUrl && canManageMeetings && (
+                    <div className="text-sm mt-2 text-gray-500">
+                      No Google Meet link (connect Google Calendar to auto-generate)
+                    </div>
+                  )}
                     {recurrenceSummary(o)}
                   </div>
                   {canManageMeetings && (

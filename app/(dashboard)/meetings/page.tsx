@@ -20,5 +20,8 @@ export default async function MeetingsPage() {
     userRole === 'BRANCH_ADMIN' ||
     userRole === 'LEADER'
 
-  return <MeetingsHub isAdmin={isAdmin} canManageMeetings={canManageMeetings} />
+  // Members can view and join meetings, but cannot create/edit/delete
+  const canViewMeetings = true
+
+  return <MeetingsHub isAdmin={isAdmin} canManageMeetings={canManageMeetings} canViewMeetings={canViewMeetings} />
 }

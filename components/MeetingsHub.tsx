@@ -7,11 +7,24 @@ import MeetingsSchedule from '@/components/MeetingsSchedule'
 export default function MeetingsHub({
   isAdmin,
   canManageMeetings,
+  canViewMeetings = true,
 }: {
   isAdmin: boolean
   canManageMeetings: boolean
+  canViewMeetings?: boolean
 }) {
   const [tab, setTab] = useState<'schedule' | 'livestream'>('schedule')
+
+  if (!canViewMeetings) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Meetings</h1>
+          <p className="text-gray-600 mt-1">You don't have access to meetings.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
