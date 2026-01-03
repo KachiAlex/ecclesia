@@ -53,13 +53,7 @@ export function initFirebase() {
         }
       }
 
-      if (serviceAccount) {
-        // Ensure serviceAccount is an object, not a string
-        if (typeof serviceAccount === 'string') {
-          console.error('Service account should be an object, not a string. Check FIREBASE_SERVICE_ACCOUNT environment variable.')
-          throw new Error('Invalid service account format')
-        }
-        
+      if (serviceAccount && typeof serviceAccount === 'object') {
         globalForFirebase.firebaseApp = initializeApp({
           credential: cert(serviceAccount),
           projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -67,7 +61,7 @@ export function initFirebase() {
         })
       } else {
         // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
-        console.log('No service account found, using default credentials')
+        console.log('No valid service account found, using default credentials')
         globalForFirebase.firebaseApp = initializeApp({
           projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
           storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
