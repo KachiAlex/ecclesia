@@ -42,7 +42,7 @@ export class SurveyService {
         reminderDays: data.settings.reminderDays,
         meetingId: data.settings.meetingId,
         questions: {
-          create: data.questions.map((question, index) => ({
+          create: data.questions.map((question: any, index: number) => ({
             type: question.type,
             title: question.title,
             description: question.description,
@@ -431,7 +431,7 @@ export class SurveyService {
         ipAddress,
         userAgent,
         questionResponses: {
-          create: data.responses.map(r => ({
+          create: data.responses.map((r: any) => ({
             questionId: r.questionId,
             value: r.value,
             textValue: r.textValue

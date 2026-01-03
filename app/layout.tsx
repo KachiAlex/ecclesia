@@ -1,5 +1,5 @@
 // Import polyfills first to ensure they're loaded before any other code
-import '@/lib/polyfills'
+import '@/lib/polyfills.js'
 import type { Metadata } from 'next'
 import '@fontsource-variable/inter/index.css'
 import { Inter } from 'next/font/google'
