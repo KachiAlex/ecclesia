@@ -26,15 +26,6 @@ const nextConfig = {
     },
     // Optimize build performance
     optimizePackageImports: ['@prisma/client'],
-    // Reduce build time
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
   },
   webpack: (config, { isServer, dev }) => {
     // Existing webpack configuration if any
@@ -44,6 +35,27 @@ const nextConfig = {
         fs: false,
         path: false,
         stream: false,
+      };
+    }
+
+    // Fix for "self is not defined" error
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new config.webpack.DefinePlugin({
+        'typeof self': JSON.stringify('undefined'),
+      })
+    );
+
+    // Provide polyfills for browser globals in server environment
+    if (isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        stream: false,
+        crypto: false,
+        os: false,
+        buffer: false,
       };
     }
 
