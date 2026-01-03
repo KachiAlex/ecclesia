@@ -14,11 +14,14 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
   let church = null
   let error = null
 
-  try {
-    church = slug ? await ChurchService.findBySlug(slug) : null
-  } catch (err) {
-    console.error('[login] Error fetching church by slug:', err)
-    error = 'Unable to load church information. Please try again.'
+  // Only try to fetch church if slug is provided
+  if (slug) {
+    try {
+      church = await ChurchService.findBySlug(slug)
+    } catch (err) {
+      console.error('[login] Error fetching church by slug:', err)
+      error = 'Unable to load church information. Please try again.'
+    }
   }
 
   return (
