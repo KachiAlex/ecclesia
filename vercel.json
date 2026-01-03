@@ -3,6 +3,16 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "build": {
+    "env": {
+      "SKIP_ENV_VALIDATION": "1"
+    }
+  },
   "env": {
     "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "ecclesia-2025"
   }
