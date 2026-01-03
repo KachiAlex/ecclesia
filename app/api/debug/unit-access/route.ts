@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options'
 import { UnitService, UnitMembershipService } from '@/lib/services/unit-service'
 import { getCurrentChurch } from '@/lib/church-context'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
