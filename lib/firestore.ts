@@ -23,30 +23,26 @@ export function initFirebase(): Firestore | null {
         // Try to get service account from environment variable (for Vercel/Railway/etc)
         let serviceAccount: any = undefined
 
-        const envServiceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
-          ? Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
-          : process.env.FIREBASE_SERVICE_ACCOUNT
-
-        if (envServiceAccountRaw) {
+        // First try FIREBASE_SERVICE_ACCOUNT_BASE64 (preferred for Vercel)
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
           try {
-            // If it's already an object, use it directly
-            if (typeof envServiceAccountRaw === 'object') {
-              serviceAccount = envServiceAccountRaw
-            } else {
-              // Otherwise try to parse it as JSON
-              serviceAccount = JSON.parse(envServiceAccountRaw)
-            }
-            console.log('Successfully parsed Firebase service account from environment variable')
+            serviceAccount = JSON.parse(
+              Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
+            )
+            console.log('Successfully parsed Firebase service account from BASE64 environment variable')
+          } catch (e) {
+            console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_BASE64:', e)
+          }
+        }
+
+        // Then try FIREBASE_SERVICE_ACCOUNT (JSON string)
+        if (!serviceAccount && process.env.FIREBASE_SERVICE_ACCOUNT) {
+          try {
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+            console.log('Successfully parsed Firebase service account from JSON environment variable')
           } catch (e) {
             console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e)
-            console.error('Raw value type:', typeof envServiceAccountRaw)
-            console.error('Raw value length:', envServiceAccountRaw?.length || 0)
-            if (typeof envServiceAccountRaw === 'string') {
-              console.error('Raw value preview:', envServiceAccountRaw.substring(0, 100) + '...')
-            }
           }
-        } else {
-          console.log('No FIREBASE_SERVICE_ACCOUNT environment variable found')
         }
         
         // Try to load from file (for local development)
@@ -57,6 +53,7 @@ export function initFirebase(): Firestore | null {
             const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
             if (fs.existsSync(serviceAccountPath)) {
               serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'))
+              console.log('Successfully loaded Firebase service account from file')
             }
           } catch (e) {
             console.error('Failed to load service account from file:', e)
@@ -74,33 +71,12 @@ export function initFirebase(): Firestore | null {
             console.log('Firebase initialized with service account credentials')
           } catch (e) {
             console.error('Failed to initialize Firebase with service account:', e)
-            // Fall back to default credentials
-            try {
-              globalForFirebase.firebaseApp = initializeApp({
-                projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-                storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-              })
-              console.log('Firebase initialized with default credentials (fallback)')
-            } catch (fallbackError) {
-              console.error('Failed to initialize Firebase with default credentials:', fallbackError)
-              // Don't throw - let the app continue without Firebase if initialization fails
-              // This is important for build-time initialization
-            }
+            // Don't try fallback - service account is required
+            console.error('Firebase initialization failed - service account is required for Firestore access')
           }
         } else {
-          // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
-          console.log('No valid service account found, using default credentials')
-          try {
-            globalForFirebase.firebaseApp = initializeApp({
-              projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-              storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-            })
-            console.log('Firebase initialized with default credentials')
-          } catch (e) {
-            console.error('Failed to initialize Firebase with default credentials:', e)
-            // Don't throw - let the app continue without Firebase if initialization fails
-            // This is important for build-time initialization
-          }
+          console.error('No valid service account found in environment variables')
+          console.error('FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_SERVICE_ACCOUNT must be set in Vercel environment variables')
         }
       }
     } else if (getApps().length > 0) {
@@ -108,9 +84,9 @@ export function initFirebase(): Firestore | null {
       globalForFirebase.firebaseApp = getApps()[0]
     }
 
-    // If Firebase app is still not initialized, return null or a mock
+    // If Firebase app is still not initialized, return null
     if (!globalForFirebase.firebaseApp) {
-      console.warn('Firebase app not initialized - returning null')
+      console.warn('Firebase app not initialized - Firestore will not be available')
       return null as any
     }
 
