@@ -29,9 +29,14 @@ export function initFirebase() {
       if (envServiceAccountRaw) {
         try {
           serviceAccount = JSON.parse(envServiceAccountRaw)
+          console.log('Successfully parsed Firebase service account from environment variable')
         } catch (e) {
           console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e)
+          console.error('Raw value length:', envServiceAccountRaw?.length || 0)
+          console.error('Raw value preview:', envServiceAccountRaw?.substring(0, 100) + '...')
         }
+      } else {
+        console.log('No FIREBASE_SERVICE_ACCOUNT environment variable found')
       }
       
       // Try to load from file (for local development)
@@ -49,6 +54,12 @@ export function initFirebase() {
       }
 
       if (serviceAccount) {
+        // Ensure serviceAccount is an object, not a string
+        if (typeof serviceAccount === 'string') {
+          console.error('Service account should be an object, not a string. Check FIREBASE_SERVICE_ACCOUNT environment variable.')
+          throw new Error('Invalid service account format')
+        }
+        
         globalForFirebase.firebaseApp = initializeApp({
           credential: cert(serviceAccount),
           projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -56,6 +67,7 @@ export function initFirebase() {
         })
       } else {
         // Use default credentials (for Cloud Run/Firebase/Vercel with default credentials)
+        console.log('No service account found, using default credentials')
         globalForFirebase.firebaseApp = initializeApp({
           projectId: process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
           storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
