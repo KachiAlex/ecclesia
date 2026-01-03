@@ -27,7 +27,7 @@ const nextConfig = {
     // Optimize build performance
     optimizePackageImports: ['@prisma/client'],
   },
-  webpack: (config, { isServer, dev }) => {
+  webpack: (config, { isServer, dev, webpack }) => {
     // Existing webpack configuration if any
     if (!isServer) {
       config.resolve.fallback = {
@@ -41,7 +41,7 @@ const nextConfig = {
     // Fix for "self is not defined" error
     config.plugins = config.plugins || [];
     config.plugins.push(
-      new config.webpack.DefinePlugin({
+      new webpack.DefinePlugin({
         'typeof self': JSON.stringify('undefined'),
       })
     );
