@@ -185,7 +185,7 @@ export class SurveyService {
       }
     })
 
-    return surveys.map(survey => this.transformSurveyFromPrisma(survey))
+    return surveys.map((survey: any) => this.transformSurveyFromPrisma(survey))
   }
 
   /**
@@ -233,7 +233,7 @@ export class SurveyService {
       }
     })
 
-    return surveys.map(survey => this.transformSurveyFromPrisma(survey))
+    return surveys.map((survey: any) => this.transformSurveyFromPrisma(survey))
   }
 
   /**
@@ -487,7 +487,7 @@ export class SurveyService {
       orderBy: { submittedAt: 'desc' }
     })
 
-    return responses.map(response => this.transformResponseFromPrisma(response))
+    return responses.map((response: any) => this.transformResponseFromPrisma(response))
   }
 
   /**
@@ -627,6 +627,40 @@ export class SurveyService {
       default:
         return false
     }
+  }
+
+  /**
+   * Get surveys linked to a specific meeting
+   */
+  static async getSurveysByMeeting(
+    meetingId: string,
+    churchId: string
+  ): Promise<Survey[]> {
+    const surveys = await prisma.survey.findMany({
+      where: {
+        churchId,
+        meetingId
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        questions: {
+          orderBy: { order: 'asc' }
+        },
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        _count: {
+          select: { responses: true }
+        }
+      }
+    })
+
+    return surveys.map((survey: any) => this.transformSurveyFromPrisma(survey))
   }
 
   /**
