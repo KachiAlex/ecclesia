@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import type {
   Survey,
   SurveyQuestion,
@@ -13,7 +13,7 @@ import type {
   TargetAudienceType
 } from '@/types/survey'
 
-const prisma = new PrismaClient()
+
 
 export class SurveyService {
   /**
@@ -416,7 +416,7 @@ export class SurveyService {
     }
 
     // Validate required questions
-    const requiredQuestions = survey.questions.filter(q => q.required)
+    const requiredQuestions = survey.questions.filter((q: any) => q.required)
     for (const question of requiredQuestions) {
       const response = data.responses.find(r => r.questionId === question.id)
       if (!response || response.value === null || response.value === undefined || response.value === '') {
