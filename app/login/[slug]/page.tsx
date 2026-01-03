@@ -11,7 +11,15 @@ function formatLoginUrl(slug: string) {
 
 export default async function TenantSlugLoginPage({ params }: { params: { slug: string } }) {
   const slug = params.slug?.toLowerCase()
-  const church = slug ? await ChurchService.findBySlug(slug) : null
+  let church = null
+  let error = null
+
+  try {
+    church = slug ? await ChurchService.findBySlug(slug) : null
+  } catch (err) {
+    console.error('[login] Error fetching church by slug:', err)
+    error = 'Unable to load church information. Please try again.'
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -46,15 +54,22 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
         <div className="w-full md:w-1/2">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Tenant access</p>
           <h1 className="mt-4 text-4xl font-bold text-gray-900 md:text-5xl">
-            {church ? `Welcome back to ${church.name}` : 'We could not find that church'}
+            {error ? 'Error loading church' : church ? `Welcome back to ${church.name}` : 'We could not find that church'}
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            {church
-              ? 'Sign in with your church email and password. This URL is unique to your tenant for security.'
-              : 'Double-check the slug provided by your superadmin or return to the slug finder to try again.'}
+            {error
+              ? 'There was a problem loading the church information. Please try again or contact support.'
+              : church
+                ? 'Sign in with your church email and password. This URL is unique to your tenant for security.'
+                : 'Double-check the slug provided by your superadmin or return to the slug finder to try again.'}
           </p>
 
-          {church ? (
+          {error ? (
+            <div className="mt-6 flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50/70 p-4 text-sm text-red-900">
+              <AlertCircle className="h-5 w-5" />
+              <span>{error}</span>
+            </div>
+          ) : church ? (
             <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
               <p className="font-semibold">Shareable login link</p>
               <p className="mt-1 font-mono text-base text-blue-900">{formatLoginUrl(slug)}</p>
@@ -86,11 +101,13 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
         </div>
 
         <div className="w-full md:w-1/2">
-          {church ? (
+          {church && !error ? (
             <CredentialsLoginForm slug={slug} churchName={church.name} />
           ) : (
             <div className="rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-2xl">
-              <p className="text-lg font-semibold text-gray-900">Enter a valid church slug to continue.</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {error ? 'Please try again later' : 'Enter a valid church slug to continue.'}
+              </p>
               <p className="mt-2 text-sm text-gray-600">
                 Need help? Email support@ecclesia.app and we will resend your tenant details.
               </p>
@@ -98,7 +115,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
                 href="/login"
                 className="mt-6 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-white"
               >
-                Try another slug
+                {error ? 'Try again' : 'Try another slug'}
               </Link>
             </div>
           )}
