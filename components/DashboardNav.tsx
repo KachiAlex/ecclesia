@@ -36,7 +36,7 @@ export default function DashboardNav({ userRole, isStaff = false }: DashboardNav
   const canSeeUsers = userRole !== 'MEMBER' && userRole !== 'LEADER'
   const canSeePayroll = (userRole !== 'MEMBER' && userRole !== 'LEADER') || (userRole === 'MEMBER' && isStaff)
   const canSeeReports = userRole !== 'MEMBER' && userRole !== 'LEADER'
-  const canSeeMeetings = userRole !== 'MEMBER' && userRole !== 'LEADER'
+  const canSeeMeetings = true // All authenticated users can view meetings
   const canSeeEvents = userRole !== 'MEMBER' && userRole !== 'LEADER'
   const canSeeAccounting = userRole !== 'MEMBER' && userRole !== 'LEADER'
   const canSeeBranches = userRole !== 'MEMBER' && userRole !== 'LEADER'
