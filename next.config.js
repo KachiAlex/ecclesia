@@ -27,7 +27,19 @@ const nextConfig = {
     // Optimize build performance
     optimizePackageImports: ['@prisma/client'],
   },
+  // Add server-side polyfills
+  serverRuntimeConfig: {
+    // Will only be available on the server side
+  },
+  publicRuntimeConfig: {
+    // Will be available on both server and client
+  },
   webpack: (config, { isServer, dev, webpack }) => {
+    // Import polyfills for server-side rendering
+    if (isServer) {
+      require('./lib/polyfills.js');
+    }
+
     // Existing webpack configuration if any
     if (!isServer) {
       config.resolve.fallback = {
@@ -38,13 +50,23 @@ const nextConfig = {
       };
     }
 
-    // Fix for "self is not defined" error
+    // Fix for "self is not defined" error - provide global polyfill
     config.plugins = config.plugins || [];
     config.plugins.push(
       new webpack.DefinePlugin({
-        'typeof self': JSON.stringify('undefined'),
+        'typeof self': isServer ? JSON.stringify('undefined') : JSON.stringify('object'),
+        'self': isServer ? 'undefined' : 'self',
       })
     );
+
+    // Add global polyfill for server-side rendering
+    if (isServer) {
+      config.plugins.push(
+        new webpack.ProvidePlugin({
+          'self': ['global', 'self'],
+        })
+      );
+    }
 
     // Provide polyfills for browser globals in server environment
     if (isServer) {
