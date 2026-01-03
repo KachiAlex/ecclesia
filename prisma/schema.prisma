@@ -182,6 +182,10 @@ model User {
   surveyResponses       SurveyResponse[]      @relation("SurveyRespondent")
   createdSurveyTemplates SurveyTemplate[]     @relation("SurveyTemplateCreator")
   
+  // Multi-Platform Streaming
+  createdLivestreams    Livestream[]          @relation("LivestreamCreator")
+  createdMeetings       Meeting[]             @relation("MeetingCreator")
+  
   // Gamification
   xp                    Int                   @default(0)
   level                 Int                   @default(1)
@@ -252,6 +256,11 @@ model Church {
   // Survey System
   surveys               Survey[]
   surveyTemplates       SurveyTemplate[]
+  
+  // Multi-Platform Streaming
+  platformConnections   PlatformConnection[]  @relation("PlatformConnections")
+  livestreams           Livestream[]          @relation("Livestreams")
+  meetings              Meeting[]             @relation("Meetings")
   
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
@@ -1376,4 +1385,203 @@ model SurveyTemplate {
   @@index([category])
   @@index([isSystemTemplate])
 }
+
+// Multi-Platform Streaming - Platform Connections
+enum StreamingPlatform {
+  RESTREAM
+  ZOOM
+  GOOGLE_MEET
+  TEAMS
+  JITSI
+  INSTAGRAM
+  YOUTUBE
+  FACEBOOK
+}
+
+enum PlatformConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+  EXPIRED
+  ERROR
+}
+
+model PlatformConnection {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                @relation("PlatformConnections", fields: [churchId], references: [id])
+  platform              StreamingPlatform
+  status                PlatformConnectionStatus @default(DISCONNECTED)
+  
+  // Encrypted credentials
+  credentials           Json                  // Encrypted: { accessToken?, refreshToken?, apiKey?, apiSecret?, webhookSecret? }
+  
+  // Connection metadata
+  expiresAt             DateTime?
+  lastError             String?
+  lastErrorAt           DateTime?
+  
+  // OAuth state
+  oauthState            String?               // Temporary state for OAuth flow
+  oauthStateExpiresAt   DateTime?
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@unique([churchId, platform])
+  @@index([churchId])
+  @@index([platform])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// Multi-Platform Streaming - Livestreams
+enum LivestreamStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+enum LivestreamPlatformStatus {
+  PENDING
+  LIVE
+  ENDED
+  FAILED
+}
+
+model Livestream {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                @relation("Livestreams", fields: [churchId], references: [id])
+  
+  // Livestream details
+  title                 String
+  description           String?
+  thumbnail             String?
+  
+  // Status
+  status                LivestreamStatus      @default(SCHEDULED)
+  
+  // Timing
+  startAt               DateTime
+  endAt                 DateTime?
+  
+  // Creator
+  createdBy             String
+  creator               User                  @relation("LivestreamCreator", fields: [createdBy], references: [id])
+  
+  // Platforms
+  platforms             LivestreamPlatform[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([startAt])
+}
+
+model LivestreamPlatform {
+  id                    String                @id @default(cuid())
+  livestreamId          String
+  livestream            Livestream            @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
+  
+  // Platform details
+  platform              StreamingPlatform
+  platformId            String?               // Platform-specific ID (e.g., YouTube broadcast ID)
+  url                   String?               // Platform-specific URL
+  
+  // Status
+  status                LivestreamPlatformStatus @default(PENDING)
+  error                 String?
+  
+  // Platform-specific settings
+  settings              Json?                 // { title?, description?, thumbnail?, ... }
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@unique([livestreamId, platform])
+  @@index([livestreamId])
+  @@index([platform])
+  @@index([status])
+}
+
+// Multi-Platform Streaming - Meetings (Enhanced)
+enum MeetingStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+}
+
+enum MeetingPlatformStatus {
+  PENDING
+  ACTIVE
+  ENDED
+  FAILED
+}
+
+model Meeting {
+  id                    String                @id @default(cuid())
+  churchId              String
+  church                Church                @relation("Meetings", fields: [churchId], references: [id])
+  
+  // Meeting details
+  title                 String
+  description           String?
+  
+  // Status
+  status                MeetingStatus         @default(SCHEDULED)
+  
+  // Timing
+  startAt               DateTime
+  endAt                 DateTime
+  
+  // Primary platform
+  primaryPlatform       StreamingPlatform?
+  
+  // Creator
+  createdBy             String
+  creator               User                  @relation("MeetingCreator", fields: [createdBy], references: [id])
+  
+  // Platforms
+  platforms             MeetingPlatform[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([churchId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([startAt])
+}
+
+model MeetingPlatform {
+  id                    String                @id @default(cuid())
+  meetingId             String
+  meeting               Meeting               @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  // Platform details
+  platform              StreamingPlatform
+  platformMeetingId     String?               // Platform-specific meeting ID
+  url                   String?               // Platform-specific meeting URL
+  
+  // Status
+  status                MeetingPlatformStatus @default(PENDING)
+  error                 String?
+  
+  // Platform-specific settings
+  settings              Json?                 // { title?, description?, ... }
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@unique([meetingId, platform])
+  @@index([meetingId])
+  @@index([platform])
+  @@index([status])
+}
+
+// Update Church model to include new relations
+// (These are added to the existing Church model above)
 

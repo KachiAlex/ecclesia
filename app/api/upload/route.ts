@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 import { StorageService } from '@/lib/services/storage-service'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const guarded = await guardApi({ requireChurch: true })

@@ -1,391 +1,265 @@
-import { db, toDate } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
-import { FieldValue } from 'firebase-admin/firestore'
+import { prisma } from '@/lib/firestore'
+import { StreamingPlatform, MeetingStatus, MeetingPlatformStatus, MeetingData } from '@/lib/types/streaming'
+import { PlatformConnectionService } from './platform-connection-service'
 
-export type MeetingRecurrenceFrequency = 'WEEKLY' | 'MONTHLY' | 'CUSTOM'
-
-export type MeetingRecurrence = {
-  frequency: MeetingRecurrenceFrequency
-  interval?: number
-  // 0 (Sunday) - 6 (Saturday)
-  byWeekday?: number[]
-  // 1 - 31
-  byMonthDay?: number
-  // Optional end
-  until?: Date
-}
-
-export interface MeetingSeries {
-  id: string
-  churchId: string
-  branchId?: string | null
-  title: string
-  description?: string
-  startAt: Date
-  endAt?: Date
-  timezone?: string
-  recurrence?: MeetingRecurrence
-  google?: {
-    calendarEventId?: string
-    calendarId?: string
-    meetUrl?: string
-  }
-  createdBy: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface MeetingOccurrence {
-  id: string
-  seriesId: string
-  churchId: string
-  branchId?: string | null
-  title: string
-  description?: string
-  startAt: Date
-  endAt?: Date
-  timezone?: string
-  google?: MeetingSeries['google']
-}
-
-function addDays(d: Date, days: number): Date {
-  const x = new Date(d)
-  x.setDate(x.getDate() + days)
-  return x
-}
-
-function addWeeks(d: Date, weeks: number): Date {
-  return addDays(d, weeks * 7)
-}
-
-function addMonths(d: Date, months: number): Date {
-  const x = new Date(d)
-  const day = x.getDate()
-  x.setMonth(x.getMonth() + months)
-  // handle month overflow (e.g. Jan 31 + 1 month)
-  if (x.getDate() !== day) {
-    x.setDate(0)
-  }
-  return x
-}
-
-function clampRangeEndByUntil(rangeEnd: Date, until?: Date): Date {
-  if (!until) return rangeEnd
-  return until.getTime() < rangeEnd.getTime() ? until : rangeEnd
-}
-
-function overlaps(aStart: Date, aEnd: Date | undefined, bStart: Date, bEnd: Date): boolean {
-  const aE = aEnd ?? aStart
-  return aStart.getTime() <= bEnd.getTime() && aE.getTime() >= bStart.getTime()
-}
-
-function normalizeWeekdays(byWeekday: number[] | undefined): number[] | undefined {
-  if (!byWeekday || byWeekday.length === 0) return undefined
-  const cleaned = Array.from(new Set(byWeekday.map((n) => Number(n)).filter((n) => Number.isFinite(n))))
-    .map((n) => Math.max(0, Math.min(6, Math.floor(n))))
-    .sort((a, b) => a - b)
-  return cleaned.length ? cleaned : undefined
-}
-
-function expandWeekly(series: MeetingSeries, rangeStart: Date, rangeEnd: Date): MeetingOccurrence[] {
-  const interval = Math.max(1, Math.floor(series.recurrence?.interval || 1))
-  const byWeekday = normalizeWeekdays(series.recurrence?.byWeekday)
-
-  // If weekdays not specified, default to the weekday of the series start
-  const weekdays = byWeekday ?? [series.startAt.getDay()]
-
-  // Anchor to the week that contains series.startAt
-  const anchor = new Date(series.startAt)
-  const anchorWeekStart = addDays(anchor, -anchor.getDay())
-
-  const untilClamped = clampRangeEndByUntil(rangeEnd, series.recurrence?.until)
-  const occurrences: MeetingOccurrence[] = []
-
-  // Find first weekStart that could include rangeStart
-  let weekStart = new Date(anchorWeekStart)
-  while (addWeeks(weekStart, interval).getTime() < rangeStart.getTime()) {
-    weekStart = addWeeks(weekStart, interval)
-  }
-
-  // Iterate weeks
-  while (weekStart.getTime() <= untilClamped.getTime()) {
-    for (const wd of weekdays) {
-      const occurrenceStart = new Date(weekStart)
-      occurrenceStart.setDate(occurrenceStart.getDate() + wd)
-      occurrenceStart.setHours(series.startAt.getHours(), series.startAt.getMinutes(), series.startAt.getSeconds(), series.startAt.getMilliseconds())
-
-      if (occurrenceStart.getTime() < series.startAt.getTime()) continue
-      if (series.recurrence?.until && occurrenceStart.getTime() > series.recurrence.until.getTime()) continue
-
-      const occurrenceEnd = series.endAt
-        ? new Date(occurrenceStart.getTime() + (series.endAt.getTime() - series.startAt.getTime()))
-        : undefined
-
-      if (overlaps(occurrenceStart, occurrenceEnd, rangeStart, untilClamped)) {
-        occurrences.push({
-          id: `${series.id}:${occurrenceStart.toISOString()}`,
-          seriesId: series.id,
-          churchId: series.churchId,
-          branchId: series.branchId ?? null,
-          title: series.title,
-          description: series.description,
-          startAt: occurrenceStart,
-          endAt: occurrenceEnd,
-          timezone: series.timezone,
-          google: series.google,
-        })
-      }
-    }
-
-    weekStart = addWeeks(weekStart, interval)
-  }
-
-  return occurrences
-}
-
-function expandMonthly(series: MeetingSeries, rangeStart: Date, rangeEnd: Date): MeetingOccurrence[] {
-  const interval = Math.max(1, Math.floor(series.recurrence?.interval || 1))
-  const byMonthDay = Math.max(1, Math.min(31, Math.floor(series.recurrence?.byMonthDay || series.startAt.getDate())))
-
-  const untilClamped = clampRangeEndByUntil(rangeEnd, series.recurrence?.until)
-  const occurrences: MeetingOccurrence[] = []
-
-  // Start from series.startAt month
-  let cursor = new Date(series.startAt)
-
-  // Fast-forward to month that could overlap rangeStart
-  while (addMonths(cursor, interval).getTime() < rangeStart.getTime()) {
-    cursor = addMonths(cursor, interval)
-  }
-
-  while (cursor.getTime() <= untilClamped.getTime()) {
-    const occurrenceStart = new Date(cursor)
-    occurrenceStart.setDate(byMonthDay)
-    occurrenceStart.setHours(series.startAt.getHours(), series.startAt.getMinutes(), series.startAt.getSeconds(), series.startAt.getMilliseconds())
-
-    // If date overflowed, skip (e.g. Feb 30)
-    if (occurrenceStart.getMonth() !== cursor.getMonth()) {
-      cursor = addMonths(cursor, interval)
-      continue
-    }
-
-    if (occurrenceStart.getTime() < series.startAt.getTime()) {
-      cursor = addMonths(cursor, interval)
-      continue
-    }
-
-    if (series.recurrence?.until && occurrenceStart.getTime() > series.recurrence.until.getTime()) break
-
-    const occurrenceEnd = series.endAt
-      ? new Date(occurrenceStart.getTime() + (series.endAt.getTime() - series.startAt.getTime()))
-      : undefined
-
-    if (overlaps(occurrenceStart, occurrenceEnd, rangeStart, untilClamped)) {
-      occurrences.push({
-        id: `${series.id}:${occurrenceStart.toISOString()}`,
-        seriesId: series.id,
-        churchId: series.churchId,
-        branchId: series.branchId ?? null,
-        title: series.title,
-        description: series.description,
-        startAt: occurrenceStart,
-        endAt: occurrenceEnd,
-        timezone: series.timezone,
-        google: series.google,
-      })
-    }
-
-    cursor = addMonths(cursor, interval)
-  }
-
-  return occurrences
-}
-
-export function expandMeetingSeries(params: {
-  series: MeetingSeries
-  rangeStart: Date
-  rangeEnd: Date
-}): MeetingOccurrence[] {
-  const { series, rangeStart, rangeEnd } = params
-
-  if (!series.recurrence) {
-    const occurrenceStart = series.startAt
-    const occurrenceEnd = series.endAt
-    if (!overlaps(occurrenceStart, occurrenceEnd, rangeStart, rangeEnd)) return []
-
-    return [
-      {
-        id: `${series.id}:${occurrenceStart.toISOString()}`,
-        seriesId: series.id,
-        churchId: series.churchId,
-        branchId: series.branchId ?? null,
-        title: series.title,
-        description: series.description,
-        startAt: series.startAt,
-        endAt: series.endAt,
-        timezone: series.timezone,
-        google: series.google,
-      },
-    ]
-  }
-
-  // CUSTOM is treated as weekly/monthly depending on provided fields.
-  if (series.recurrence.frequency === 'MONTHLY') return expandMonthly(series, rangeStart, rangeEnd)
-  if (series.recurrence.frequency === 'WEEKLY') return expandWeekly(series, rangeStart, rangeEnd)
-
-  // CUSTOM: If byMonthDay is provided, treat it as monthly, else weekly.
-  if (series.recurrence.byMonthDay) return expandMonthly(series, rangeStart, rangeEnd)
-  return expandWeekly(series, rangeStart, rangeEnd)
-}
-
+/**
+ * Meeting Service
+ * Manages meeting creation, updates, and multi-platform scheduling
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 6.3
+ */
 export class MeetingService {
-  static async findById(meetingId: string): Promise<MeetingSeries | null> {
-    const doc = await db.collection(COLLECTIONS.meetings).doc(meetingId).get()
-    if (!doc.exists) return null
-    return this.mapDoc(doc.id, doc.data()!)
+  /**
+   * Create a new meeting on multiple platforms
+   * Property 3: Meeting Link Generation - generates valid links for each platform
+   */
+  static async createMeeting(
+    churchId: string,
+    userId: string,
+    data: {
+      title: string
+      description?: string
+      startAt: Date
+      endAt: Date
+      primaryPlatform?: StreamingPlatform
+      platforms: {
+        platform: StreamingPlatform
+        settings?: Record<string, any>
+      }[]
+    }
+  ): Promise<MeetingData> {
+    try {
+      // Validate that at least one platform is selected
+      if (!data.platforms || data.platforms.length === 0) {
+        throw new Error('At least one platform must be selected')
+      }
+
+      // Validate that all selected platforms are connected
+      const connections = await PlatformConnectionService.getConnections(churchId)
+      const connectedPlatforms = connections.map((c) => c.platform)
+
+      for (const platform of data.platforms) {
+        if (!connectedPlatforms.includes(platform.platform)) {
+          throw new Error(`Platform ${platform.platform} is not connected`)
+        }
+      }
+
+      // Validate primary platform if specified
+      if (data.primaryPlatform && !data.platforms.some((p) => p.platform === data.primaryPlatform)) {
+        throw new Error('Primary platform must be one of the selected platforms')
+      }
+
+      // Create meeting
+      const meeting = await prisma.meeting.create({
+        data: {
+          churchId,
+          title: data.title,
+          description: data.description,
+          status: MeetingStatus.SCHEDULED,
+          startAt: data.startAt,
+          endAt: data.endAt,
+          primaryPlatform: data.primaryPlatform,
+          createdBy: userId,
+          platforms: {
+            create: data.platforms.map((p) => ({
+              platform: p.platform,
+              status: MeetingPlatformStatus.PENDING,
+              settings: p.settings || {},
+            })),
+          },
+        },
+        include: {
+          platforms: true,
+        },
+      })
+
+      return this.formatMeeting(meeting)
+    } catch (error) {
+      console.error('Error creating meeting:', error)
+      throw error
+    }
   }
 
-  static async create(params: {
-    churchId: string
-    createdBy: string
-    branchId?: string | null
-    title: string
-    description?: string
-    startAt: Date
-    endAt?: Date
-    timezone?: string
-    recurrence?: MeetingRecurrence
-  }): Promise<MeetingSeries> {
-    const docRef = db.collection(COLLECTIONS.meetings).doc()
+  /**
+   * Get meeting details
+   */
+  static async getMeeting(meetingId: string): Promise<MeetingData | null> {
+    try {
+      const meeting = await prisma.meeting.findUnique({
+        where: { id: meetingId },
+        include: { platforms: true },
+      })
 
-    await docRef.set({
-      churchId: params.churchId,
-      createdBy: params.createdBy,
-      branchId: params.branchId ?? null,
-      title: params.title,
-      description: params.description || undefined,
-      startAt: params.startAt,
-      endAt: params.endAt || undefined,
-      timezone: params.timezone || undefined,
-      recurrence: params.recurrence || undefined,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    })
+      if (!meeting) {
+        return null
+      }
 
-    const created = await docRef.get()
-    const data = created.data()!
-
-    return {
-      id: created.id,
-      ...data,
-      startAt: toDate(data.startAt),
-      endAt: data.endAt ? toDate(data.endAt) : undefined,
-      recurrence: data.recurrence
-        ? {
-            ...data.recurrence,
-            until: data.recurrence.until ? toDate(data.recurrence.until) : undefined,
-          }
-        : undefined,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as MeetingSeries
+      return this.formatMeeting(meeting)
+    } catch (error) {
+      console.error('Error getting meeting:', error)
+      throw error
+    }
   }
 
-  static async update(
+  /**
+   * Get all meetings for a church
+   */
+  static async getMeetings(churchId: string, status?: MeetingStatus): Promise<MeetingData[]> {
+    try {
+      const meetings = await prisma.meeting.findMany({
+        where: {
+          churchId,
+          ...(status && { status }),
+        },
+        include: { platforms: true },
+        orderBy: { startAt: 'asc' },
+      })
+
+      return meetings.map((m) => this.formatMeeting(m))
+    } catch (error) {
+      console.error('Error getting meetings:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Update meeting details
+   */
+  static async updateMeeting(
     meetingId: string,
-    patch: {
+    data: {
       title?: string
       description?: string
-      startAt?: Date
-      endAt?: Date | null
-      timezone?: string | null
-      recurrence?: MeetingRecurrence | null
-      branchId?: string | null
+      primaryPlatform?: StreamingPlatform
     }
-  ): Promise<MeetingSeries> {
-    const payload: any = {
-      updatedAt: FieldValue.serverTimestamp(),
+  ): Promise<MeetingData> {
+    try {
+      const updated = await prisma.meeting.update({
+        where: { id: meetingId },
+        data,
+        include: { platforms: true },
+      })
+
+      return this.formatMeeting(updated)
+    } catch (error) {
+      console.error('Error updating meeting:', error)
+      throw error
     }
-
-    if (patch.title !== undefined) payload.title = patch.title
-    if (patch.description !== undefined) payload.description = patch.description || undefined
-    if (patch.startAt !== undefined) payload.startAt = patch.startAt
-    if (patch.endAt !== undefined) payload.endAt = patch.endAt || undefined
-    if (patch.timezone !== undefined) payload.timezone = patch.timezone || undefined
-    if (patch.recurrence !== undefined) payload.recurrence = patch.recurrence || undefined
-    if (patch.branchId !== undefined) payload.branchId = patch.branchId ?? null
-
-    await db.collection(COLLECTIONS.meetings).doc(meetingId).update(payload)
-
-    const updated = await db.collection(COLLECTIONS.meetings).doc(meetingId).get()
-    return this.mapDoc(updated.id, updated.data()!)
   }
 
-  static async updateGoogle(params: {
-    meetingId: string
-    google: NonNullable<MeetingSeries['google']>
-  }): Promise<MeetingSeries> {
-    await db.collection(COLLECTIONS.meetings).doc(params.meetingId).update({
-      google: params.google,
-      updatedAt: FieldValue.serverTimestamp(),
-    })
-
-    const updated = await db.collection(COLLECTIONS.meetings).doc(params.meetingId).get()
-    const data = updated.data()!
-
-    return this.mapDoc(updated.id, data)
+  /**
+   * Delete meeting
+   */
+  static async deleteMeeting(meetingId: string): Promise<void> {
+    try {
+      await prisma.meeting.delete({
+        where: { id: meetingId },
+      })
+    } catch (error) {
+      console.error('Error deleting meeting:', error)
+      throw error
+    }
   }
 
-  static async findByChurch(params: {
-    churchId: string
-    branchScope?: { branchId?: string | null }
-    limit?: number
-  }): Promise<MeetingSeries[]> {
-    const limit = Math.max(1, Math.min(200, Number(params.limit || 100)))
+  /**
+   * Update meeting status
+   */
+  static async updateMeetingStatus(meetingId: string, status: MeetingStatus): Promise<MeetingData> {
+    try {
+      const updated = await prisma.meeting.update({
+        where: { id: meetingId },
+        data: { status },
+        include: { platforms: true },
+      })
 
-    // We avoid orderBy to reduce index requirements.
-    let query = db.collection(COLLECTIONS.meetings).where('churchId', '==', params.churchId)
+      return this.formatMeeting(updated)
+    } catch (error) {
+      console.error('Error updating meeting status:', error)
+      throw error
+    }
+  }
 
-    const branchId = params.branchScope?.branchId
-    if (typeof branchId === 'string' && branchId.trim()) {
-      // Branch-scoped viewer should see:
-      // - meetings for their branch
-      // - meetings for all branches (null)
-      // Firestore doesn't support OR easily, so do 2 queries.
-      const [branchSnap, allSnap] = await Promise.all([
-        query.where('branchId', '==', branchId).limit(limit).get(),
-        query.where('branchId', '==', null).limit(limit).get(),
-      ])
-      const docs = [...branchSnap.docs, ...allSnap.docs]
-      const dedup = new Map<string, MeetingSeries>()
-      for (const doc of docs) {
-        const data = doc.data()
-        dedup.set(doc.id, this.mapDoc(doc.id, data))
+  /**
+   * Update platform status
+   * Property 4: Platform Failure Isolation - tracks individual platform failures
+   */
+  static async updatePlatformStatus(
+    meetingId: string,
+    platform: StreamingPlatform,
+    status: MeetingPlatformStatus,
+    error?: string
+  ): Promise<void> {
+    try {
+      await prisma.meetingPlatform.update({
+        where: {
+          meetingId_platform: {
+            meetingId,
+            platform,
+          },
+        },
+        data: {
+          status,
+          error: error || null,
+        },
+      })
+    } catch (error) {
+      console.error(`Error updating platform status for ${platform}:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Get platform links for members
+   * Property 5: Member Platform Access - returns all available platform links
+   * Property 8: Primary Platform Highlighting - highlights primary platform
+   */
+  static async getPlatformLinks(meetingId: string): Promise<
+    Array<{
+      platform: StreamingPlatform
+      url?: string
+      status: MeetingPlatformStatus
+      error?: string
+      isPrimary: boolean
+    }>
+  > {
+    try {
+      const meeting = await prisma.meeting.findUnique({
+        where: { id: meetingId },
+        include: { platforms: true },
+      })
+
+      if (!meeting) {
+        throw new Error('Meeting not found')
       }
-      return Array.from(dedup.values()).sort((a, b) => b.startAt.getTime() - a.startAt.getTime())
-    }
 
-    const snap = await query.limit(limit).get()
-    return snap.docs
-      .map((d) => this.mapDoc(d.id, d.data()))
-      .sort((a, b) => b.startAt.getTime() - a.startAt.getTime())
+      return meeting.platforms.map((p) => ({
+        platform: p.platform,
+        url: p.url || undefined,
+        status: p.status,
+        error: p.error || undefined,
+        isPrimary: p.platform === meeting.primaryPlatform,
+      }))
+    } catch (error) {
+      console.error('Error getting platform links:', error)
+      throw error
+    }
   }
 
-  private static mapDoc(id: string, data: any): MeetingSeries {
+  /**
+   * Format meeting for API response
+   */
+  private static formatMeeting(meeting: any): MeetingData {
     return {
-      id,
-      ...data,
-      branchId: data.branchId ?? null,
-      startAt: toDate(data.startAt),
-      endAt: data.endAt ? toDate(data.endAt) : undefined,
-      recurrence: data.recurrence
-        ? {
-            ...data.recurrence,
-            until: data.recurrence.until ? toDate(data.recurrence.until) : undefined,
-          }
-        : undefined,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as MeetingSeries
+      id: meeting.id,
+      churchId: meeting.churchId,
+      title: meeting.title,
+      description: meeting.description,
+      status: meeting.status,
+      startAt: meeting.startAt,
+      endAt: meeting.endAt,
+      primaryPlatform: meeting.primaryPlatform,
+      createdBy: meeting.createdBy,
+      createdAt: meeting.createdAt,
+      updatedAt: meeting.updatedAt,
+    }
   }
 }
