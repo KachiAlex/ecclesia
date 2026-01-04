@@ -1,6 +1,13 @@
-import { prisma } from '@/lib/firestore'
-import { StreamingPlatform, LivestreamStatus, LivestreamPlatformStatus, LivestreamData } from '@/lib/types/streaming'
+import { prisma } from '@/lib/prisma'
+import {
+  StreamingPlatform,
+  LivestreamStatus,
+  LivestreamPlatformStatus,
+  LivestreamData,
+  PlatformConnectionStatus,
+} from '@/lib/types/streaming'
 import { PlatformConnectionService } from './platform-connection-service'
+import { PlatformClientFactory } from '@/lib/clients/platform-client-factory'
 
 /**
  * Livestream Service
@@ -19,7 +26,7 @@ export class LivestreamService {
       title: string
       description?: string
       thumbnail?: string
-      startAt: Date
+      startAt?: Date
       platforms: {
         platform: StreamingPlatform
         settings?: Record<string, any>
@@ -27,22 +34,22 @@ export class LivestreamService {
     }
   ): Promise<LivestreamData> {
     try {
-      // Validate that at least one platform is selected
       if (!data.platforms || data.platforms.length === 0) {
         throw new Error('At least one platform must be selected')
       }
 
-      // Validate that all selected platforms are connected
-      const connections = await PlatformConnectionService.getConnections(churchId)
-      const connectedPlatforms = connections.map((c) => c.platform)
+      // Ensure each selected platform is connected and ready
+      await Promise.all(
+        data.platforms.map(async (platform) => {
+          const connection = await PlatformConnectionService.getConnection(churchId, platform.platform)
+          if (!connection || connection.status !== PlatformConnectionStatus.CONNECTED) {
+            throw new Error(`Platform ${platform.platform} is not connected`)
+          }
+        })
+      )
 
-      for (const platform of data.platforms) {
-        if (!connectedPlatforms.includes(platform.platform)) {
-          throw new Error(`Platform ${platform.platform} is not connected`)
-        }
-      }
+      const startAt = data.startAt ? new Date(data.startAt) : new Date()
 
-      // Create livestream
       const livestream = await prisma.livestream.create({
         data: {
           churchId,
@@ -50,7 +57,7 @@ export class LivestreamService {
           description: data.description,
           thumbnail: data.thumbnail,
           status: LivestreamStatus.SCHEDULED,
-          startAt: data.startAt,
+          startAt,
           createdBy: userId,
           platforms: {
             create: data.platforms.map((p) => ({
@@ -65,7 +72,23 @@ export class LivestreamService {
         },
       })
 
-      return this.formatLivestream(livestream)
+      await Promise.all(
+        livestream.platforms.map((platform) =>
+          this.provisionPlatformLivestream(livestream, platform, {
+            title: data.title,
+            description: data.description,
+            thumbnail: data.thumbnail,
+            startAt,
+          })
+        )
+      )
+
+      const refreshed = await prisma.livestream.findUnique({
+        where: { id: livestream.id },
+        include: { platforms: true },
+      })
+
+      return this.formatLivestream(refreshed || livestream)
     } catch (error) {
       console.error('Error creating livestream:', error)
       throw error
@@ -129,7 +152,25 @@ export class LivestreamService {
         throw new Error('Livestream not found')
       }
 
-      // Update livestream status
+      const basePayload = {
+        title: livestream.title,
+        description: livestream.description,
+        thumbnail: livestream.thumbnail,
+        startAt: livestream.startAt,
+      }
+
+      await Promise.all(
+        livestream.platforms.map(async (platform) => {
+          let currentPlatform = platform
+          if (!currentPlatform.platformId) {
+            await this.provisionPlatformLivestream(livestream, currentPlatform, basePayload)
+            currentPlatform =
+              (await prisma.livestreamPlatform.findUnique({ where: { id: platform.id } })) || platform
+          }
+          await this.startPlatformBroadcast(livestream, currentPlatform)
+        })
+      )
+
       const updated = await prisma.livestream.update({
         where: { id: livestreamId },
         data: {
@@ -137,16 +178,6 @@ export class LivestreamService {
         },
         include: { platforms: true },
       })
-
-      // Update all platform statuses to LIVE
-      await Promise.all(
-        livestream.platforms.map((p) =>
-          prisma.livestreamPlatform.update({
-            where: { id: p.id },
-            data: { status: LivestreamPlatformStatus.LIVE },
-          })
-        )
-      )
 
       return this.formatLivestream(updated)
     } catch (error) {
@@ -170,7 +201,12 @@ export class LivestreamService {
         throw new Error('Livestream not found')
       }
 
-      // Update livestream status
+      await Promise.all(
+        livestream.platforms.map(async (platform) => {
+          await this.stopPlatformBroadcast(livestream, platform)
+        })
+      )
+
       const updated = await prisma.livestream.update({
         where: { id: livestreamId },
         data: {
@@ -179,16 +215,6 @@ export class LivestreamService {
         },
         include: { platforms: true },
       })
-
-      // Update all platform statuses to ENDED
-      await Promise.all(
-        livestream.platforms.map((p) =>
-          prisma.livestreamPlatform.update({
-            where: { id: p.id },
-            data: { status: LivestreamPlatformStatus.ENDED },
-          })
-        )
-      )
 
       return this.formatLivestream(updated)
     } catch (error) {
@@ -215,7 +241,18 @@ export class LivestreamService {
         include: { platforms: true },
       })
 
-      return this.formatLivestream(updated)
+      await Promise.all(
+        updated.platforms.map(async (platform) => {
+          await this.updatePlatformLivestream(updated, platform, data)
+        })
+      )
+
+      const refreshed = await prisma.livestream.findUnique({
+        where: { id: livestreamId },
+        include: { platforms: true },
+      })
+
+      return this.formatLivestream(refreshed || updated)
     } catch (error) {
       console.error('Error updating livestream:', error)
       throw error
@@ -227,6 +264,19 @@ export class LivestreamService {
    */
   static async deleteLivestream(livestreamId: string): Promise<void> {
     try {
+      const livestream = await prisma.livestream.findUnique({
+        where: { id: livestreamId },
+        include: { platforms: true },
+      })
+
+      if (livestream) {
+        await Promise.all(
+          livestream.platforms.map(async (platform) => {
+            await this.deletePlatformLivestream(livestream, platform)
+          })
+        )
+      }
+
       await prisma.livestream.delete({
         where: { id: livestreamId },
       })
@@ -315,6 +365,145 @@ export class LivestreamService {
       createdBy: livestream.createdBy,
       createdAt: livestream.createdAt,
       updatedAt: livestream.updatedAt,
+      platforms: livestream.platforms
+        ? livestream.platforms.map((platform: any) => ({
+            id: platform.id,
+            platform: platform.platform,
+            status: platform.status,
+            url: platform.url || undefined,
+            error: platform.error || undefined,
+            settings: platform.settings || undefined,
+          }))
+        : [],
+    }
+  }
+
+  private static async provisionPlatformLivestream(
+    livestream: any,
+    platform: any,
+    baseData: { title: string; description?: string; thumbnail?: string; startAt: Date }
+  ): Promise<void> {
+    try {
+      const client = await PlatformClientFactory.getClient(livestream.churchId, platform.platform)
+      const response = await client.createLivestream({
+        title: platform.settings?.title || baseData.title,
+        description: platform.settings?.description || baseData.description,
+        thumbnail: platform.settings?.thumbnail || baseData.thumbnail,
+        startAt: baseData.startAt,
+        settings: platform.settings,
+      })
+
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          platformId: response.platformId,
+          url: response.url,
+          status: LivestreamPlatformStatus.PENDING,
+          error: null,
+        },
+      })
+    } catch (error) {
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          status: LivestreamPlatformStatus.FAILED,
+          error: error instanceof Error ? error.message : 'Failed to provision platform',
+        },
+      })
+    }
+  }
+
+  private static async startPlatformBroadcast(livestream: any, platform: any): Promise<void> {
+    if (!platform.platformId) {
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          status: LivestreamPlatformStatus.FAILED,
+          error: 'Platform stream not provisioned',
+        },
+      })
+      return
+    }
+
+    try {
+      const client = await PlatformClientFactory.getClient(livestream.churchId, platform.platform)
+      await client.startBroadcasting(platform.platformId)
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          status: LivestreamPlatformStatus.LIVE,
+          error: null,
+        },
+      })
+    } catch (error) {
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          status: LivestreamPlatformStatus.FAILED,
+          error: error instanceof Error ? error.message : 'Failed to start broadcasting',
+        },
+      })
+    }
+  }
+
+  private static async stopPlatformBroadcast(livestream: any, platform: any): Promise<void> {
+    if (!platform.platformId) {
+      return
+    }
+
+    try {
+      const client = await PlatformClientFactory.getClient(livestream.churchId, platform.platform)
+      await client.stopBroadcasting(platform.platformId)
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          status: LivestreamPlatformStatus.ENDED,
+          error: null,
+        },
+      })
+    } catch (error) {
+      await prisma.livestreamPlatform.update({
+        where: { id: platform.id },
+        data: {
+          status: LivestreamPlatformStatus.FAILED,
+          error: error instanceof Error ? error.message : 'Failed to stop broadcasting',
+        },
+      })
+    }
+  }
+
+  private static async deletePlatformLivestream(livestream: any, platform: any): Promise<void> {
+    if (!platform.platformId) {
+      return
+    }
+
+    try {
+      const client = await PlatformClientFactory.getClient(livestream.churchId, platform.platform)
+      await client.deleteLivestream(platform.platformId)
+    } catch (error) {
+      console.error(`Error deleting platform livestream for ${platform.platform}:`, error)
+    }
+  }
+
+  private static async updatePlatformLivestream(
+    livestream: any,
+    platform: any,
+    data: { title?: string; description?: string; thumbnail?: string }
+  ): Promise<void> {
+    if (!platform.platformId) {
+      return
+    }
+
+    try {
+      const client = await PlatformClientFactory.getClient(livestream.churchId, platform.platform)
+      await client.updateLivestream(platform.platformId, {
+        title: data.title,
+        description: data.description,
+        thumbnail: data.thumbnail,
+        settings: platform.settings,
+      })
+    } catch (error) {
+      console.error(`Error updating platform livestream for ${platform.platform}:`, error)
     }
   }
 }

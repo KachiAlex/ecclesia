@@ -4,6 +4,9 @@ import { RestreamClient } from './restream-client'
 import { ZoomClient } from './zoom-client'
 import { TeamsClient } from './teams-client'
 import { JitsiClient } from './jitsi-client'
+import { YouTubeClient } from './youtube-client'
+import { FacebookClient } from './facebook-client'
+import { InstagramClient } from './instagram-client'
 import { PlatformConnectionService } from '@/lib/services/platform-connection-service'
 
 /**
@@ -52,6 +55,18 @@ export class PlatformClientFactory {
         client = new RestreamClient()
         break
 
+      case StreamingPlatform.YOUTUBE:
+        client = new YouTubeClient()
+        break
+
+      case StreamingPlatform.FACEBOOK:
+        client = new FacebookClient()
+        break
+
+      case StreamingPlatform.INSTAGRAM:
+        client = new InstagramClient()
+        break
+
       case StreamingPlatform.ZOOM:
         client = new ZoomClient()
         break
@@ -64,12 +79,8 @@ export class PlatformClientFactory {
         client = new JitsiClient()
         break
 
-      // TODO: Add other platform clients
-      case StreamingPlatform.INSTAGRAM:
-      case StreamingPlatform.YOUTUBE:
-      case StreamingPlatform.FACEBOOK:
       case StreamingPlatform.GOOGLE_MEET:
-        throw new Error(`Platform client not yet implemented: ${platform}`)
+        throw new Error('Google Meet integration not yet implemented')
 
       default:
         throw new Error(`Unknown platform: ${platform}`)

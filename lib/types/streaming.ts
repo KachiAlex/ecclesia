@@ -37,6 +37,11 @@ export interface PlatformCredentials {
   apiKey?: string
   apiSecret?: string
   webhookSecret?: string
+  channelId?: string
+  pageId?: string
+  instagramUserId?: string
+  igUserId?: string
+  [key: string]: any
 }
 
 export interface PlatformConnectionData {
@@ -71,6 +76,16 @@ export interface LivestreamData {
   createdBy: string
   createdAt: Date
   updatedAt: Date
+  platforms?: LivestreamPlatformData[]
+}
+
+export interface LivestreamPlatformData {
+  id: string
+  platform: StreamingPlatform
+  status: LivestreamPlatformStatus
+  url?: string
+  error?: string
+  settings?: LivestreamPlatformSettings
 }
 
 export interface MeetingData {

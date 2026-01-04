@@ -10,7 +10,11 @@ import type {
   SurveySortOptions,
   SurveyPermissions,
   SurveyStatus,
-  TargetAudienceType
+  TargetAudienceType,
+  SurveyAnalytics,
+  SurveyInsights,
+  SurveyQuestionAnalytics,
+  SurveyResponseBreakdown
 } from '@/types/survey'
 
 
@@ -663,6 +667,72 @@ export class SurveyService {
     return surveys.map((survey: any) => this.transformSurveyFromPrisma(survey))
   }
 
+  static async getSurveyInsights(
+    surveyId: string,
+    requesterId: string,
+    requesterRole: string
+  ): Promise<SurveyInsights> {
+    const canManageAll = ['ADMIN', 'SUPER_ADMIN', 'PASTOR'].includes(requesterRole)
+
+    const surveyRecord = await prisma.survey.findUnique({
+      where: { id: surveyId },
+      include: {
+        questions: {
+          orderBy: { order: 'asc' }
+        },
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        responses: {
+          orderBy: { submittedAt: 'desc' },
+          include: {
+            questionResponses: {
+              include: {
+                question: true
+              }
+            },
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: { responses: true }
+        }
+      }
+    })
+
+    if (!surveyRecord) {
+      throw new Error('Survey not found')
+    }
+
+    if (!canManageAll && surveyRecord.createdBy !== requesterId) {
+      throw new Error('Unauthorized to view survey insights')
+    }
+
+    const survey = this.transformSurveyFromPrisma(surveyRecord)
+    const responses = surveyRecord.responses.map((response: any) =>
+      this.transformResponseFromPrisma(response)
+    )
+    const analytics = this.buildSurveyAnalytics(survey, responses)
+
+    return {
+      survey,
+      analytics,
+      responses
+    }
+  }
+
   /**
    * Helper: Transform Prisma survey to our Survey type
    */
@@ -680,9 +750,14 @@ export class SurveyService {
       deadline: survey.deadline,
       targetAudience: {
         type: survey.targetAudienceType as TargetAudienceType,
-        groupIds: survey.targetGroupIds,
-        roleIds: survey.targetUserIds // Note: using targetUserIds for roleIds
+        branchIds: survey.targetBranchIds || undefined,
+        groupIds: survey.targetGroupIds || undefined,
+        roleIds: survey.targetUserIds || undefined
       },
+      targetAudienceType: survey.targetAudienceType as TargetAudienceType,
+      targetBranchIds: survey.targetBranchIds || undefined,
+      targetGroupIds: survey.targetGroupIds || undefined,
+      targetUserIds: survey.targetUserIds || undefined,
       sendOnPublish: survey.sendOnPublish,
       sendReminders: survey.sendReminders,
       reminderDays: survey.reminderDays,
@@ -695,7 +770,8 @@ export class SurveyService {
         description: q.description,
         required: q.required,
         order: q.order,
-        options: q.options || undefined,
+        options: this.normalizeQuestionOptions(q.options),
+        allowMultiple: q.allowMultiple,
         minRating: q.minRating,
         maxRating: q.maxRating,
         ratingLabels: q.ratingLabels || undefined,
@@ -703,6 +779,7 @@ export class SurveyService {
         updatedAt: q.updatedAt
       })) || [],
       responses: survey.responses?.map((r: any) => this.transformResponseFromPrisma(r)) || [],
+      responseCount: survey._count?.responses ?? survey.responses?.length ?? 0,
       createdAt: survey.createdAt,
       updatedAt: survey.updatedAt,
       publishedAt: survey.publishedAt,
@@ -726,8 +803,210 @@ export class SurveyService {
         responseId: qr.responseId,
         questionId: qr.questionId,
         value: qr.value,
-        textValue: qr.textValue
-      })) || []
+        textValue: qr.textValue,
+        question: qr.question
+          ? {
+              id: qr.question.id,
+              title: qr.question.title,
+              type: qr.question.type,
+              options: this.normalizeQuestionOptions(qr.question.options),
+              minRating: qr.question.minRating,
+              maxRating: qr.question.maxRating,
+              ratingLabels: qr.question.ratingLabels || undefined,
+              allowMultiple: qr.question.allowMultiple
+            }
+          : undefined
+      })) || [],
+      user: response.user
+        ? {
+            id: response.user.id,
+            firstName: response.user.firstName,
+            lastName: response.user.lastName,
+            email: response.user.email
+          }
+        : undefined
     }
   }
-}
+
+  private static normalizeQuestionOptions(options?: any): string[] | undefined {
+    if (!options) return undefined
+    if (!Array.isArray(options)) return undefined
+
+    const normalized = options
+      .map(option => {
+        if (typeof option === 'string') return option
+        if (option && typeof option === 'object' && 'text' in option) {
+          return String((option as any).text ?? '')
+        }
+        return ''
+      })
+      .map(option => option.trim())
+      .filter(Boolean)
+
+    return normalized.length ? normalized : undefined
+  }
+
+  private static buildSurveyAnalytics(
+    survey: Survey,
+    responses: SurveyResponse[]
+  ): SurveyAnalytics {
+    const totalResponses = responses.length
+    const uniqueRespondents = new Set(
+      responses.map(response => response.userId || response.ipAddress || response.id)
+    ).size
+
+    const timestamps = responses.map(response => new Date(response.submittedAt).getTime())
+    const firstResponseAt = timestamps.length ? new Date(Math.min(...timestamps)) : undefined
+    const lastResponseAt = timestamps.length ? new Date(Math.max(...timestamps)) : undefined
+
+    const responseTrendMap = new Map<string, number>()
+    responses.forEach(response => {
+      const dayKey = new Date(response.submittedAt).toISOString().slice(0, 10)
+      responseTrendMap.set(dayKey, (responseTrendMap.get(dayKey) || 0) + 1)
+    })
+
+    const responseTrend = Array.from(responseTrendMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, count]) => ({ date, count }))
+
+    const targetSize = this.estimateTargetAudienceSize(survey)
+    const completionRate =
+      targetSize && targetSize > 0
+        ? Math.min(100, (uniqueRespondents / targetSize) * 100)
+        : totalResponses > 0
+          ? 100
+          : 0
+
+    const questionAnalytics: SurveyQuestionAnalytics[] = survey.questions.map(question => {
+      const breakdown: SurveyResponseBreakdown = {}
+      let totalQuestionResponses = 0
+
+      if (question.type === 'MULTIPLE_CHOICE') {
+        const optionCounts: Record<string, number> = {}
+        const options = this.normalizeQuestionOptions(question.options) || []
+        options.forEach(option => {
+          optionCounts[option] = 0
+        })
+
+        responses.forEach(response => {
+          const answer = response.questionResponses.find(qr => qr.questionId === question.id)
+          if (!answer || answer.value === undefined || answer.value === null) {
+            return
+          }
+          totalQuestionResponses += 1
+          if (Array.isArray(answer.value)) {
+            answer.value.forEach((val: any) => {
+              const key = String(val)
+              optionCounts[key] = (optionCounts[key] || 0) + 1
+            })
+          } else {
+            const key = String(answer.value)
+            optionCounts[key] = (optionCounts[key] || 0) + 1
+          }
+        })
+
+        breakdown.optionCounts = optionCounts
+      } else if (question.type === 'RATING') {
+        const distribution: Record<number, number> = {}
+        let ratingSum = 0
+        let ratingCount = 0
+
+        responses.forEach(response => {
+          const answer = response.questionResponses.find(qr => qr.questionId === question.id)
+          if (!answer || typeof answer.value !== 'number') {
+            return
+          }
+          totalQuestionResponses += 1
+          ratingCount += 1
+          ratingSum += answer.value
+          distribution[answer.value] = (distribution[answer.value] || 0) + 1
+        })
+
+        breakdown.ratingDistribution = distribution
+        if (ratingCount > 0) {
+          breakdown.averageRating = ratingSum / ratingCount
+        }
+      } else if (question.type === 'YES_NO') {
+        let yesCount = 0
+        let noCount = 0
+
+        responses.forEach(response => {
+          const answer = response.questionResponses.find(qr => qr.questionId === question.id)
+          if (!answer || typeof answer.value !== 'boolean') {
+            return
+          }
+          totalQuestionResponses += 1
+          if (answer.value) {
+            yesCount += 1
+          } else {
+            noCount += 1
+          }
+        })
+
+        breakdown.yesCount = yesCount
+        breakdown.noCount = noCount
+      } else if (question.type === 'TEXT') {
+        const texts: string[] = []
+
+        responses.forEach(response => {
+          const answer = response.questionResponses.find(qr => qr.questionId === question.id)
+          if (!answer) {
+            return
+          }
+          const asString =
+            typeof answer.value === 'string'
+              ? answer.value
+              : typeof answer.textValue === 'string'
+                ? answer.textValue
+                : null
+          if (asString && asString.trim().length > 0) {
+            totalQuestionResponses += 1
+            if (texts.length < 50) {
+              texts.push(asString.trim())
+            }
+          }
+        })
+
+        breakdown.textResponses = texts
+      }
+
+      return {
+        questionId: question.id,
+        questionTitle: question.title,
+        questionType: question.type,
+        totalResponses: totalQuestionResponses,
+        responseBreakdown: breakdown
+      }
+    })
+
+    return {
+      surveyId: survey.id,
+      totalResponses,
+      completionRate,
+      uniqueRespondents,
+      firstResponseAt,
+      lastResponseAt,
+      responseTrend,
+      questionAnalytics
+    }
+  }
+
+  private static estimateTargetAudienceSize(survey: Survey): number | null {
+    if (survey.targetAudienceType === 'CUSTOM') {
+      const customCount = survey.targetUserIds?.length || survey.targetAudience?.roleIds?.length || 0
+      return customCount > 0 ? customCount : null
+    }
+
+    if (survey.targetAudienceType === 'GROUP') {
+      const groupCount = survey.targetGroupIds?.length || survey.targetAudience?.groupIds?.length || 0
+      return groupCount > 0 ? groupCount * 10 : null
+    }
+
+    if (survey.targetAudienceType === 'BRANCH') {
+      const branchCount =
+        survey.targetBranchIds?.length || survey.targetAudience?.branchIds?.length || 0
+      return branchCount > 0 ? branchCount * 50 : null
+    }
+
+    return null
+  }

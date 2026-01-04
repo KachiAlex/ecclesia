@@ -11,6 +11,8 @@ export interface IPlatformClient {
     title: string
     description?: string
     thumbnail?: string
+    startAt?: Date
+    settings?: Record<string, any>
   }): Promise<{
     platformId: string
     url: string
@@ -21,6 +23,8 @@ export interface IPlatformClient {
       title?: string
       description?: string
       thumbnail?: string
+      startAt?: Date
+      settings?: Record<string, any>
     }
   ): Promise<void>
   startBroadcasting(platformId: string): Promise<void>
@@ -44,6 +48,8 @@ export abstract class BasePlatformClient implements IPlatformClient {
     title: string
     description?: string
     thumbnail?: string
+    startAt?: Date
+    settings?: Record<string, any>
   }): Promise<{
     platformId: string
     url: string
@@ -55,6 +61,8 @@ export abstract class BasePlatformClient implements IPlatformClient {
       title?: string
       description?: string
       thumbnail?: string
+      startAt?: Date
+      settings?: Record<string, any>
     }
   ): Promise<void>
 

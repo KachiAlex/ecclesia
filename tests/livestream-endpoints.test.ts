@@ -1,346 +1,193 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LivestreamService } from '@/lib/services/livestream-service'
-import { StreamingPlatform } from '@/lib/types/streaming'
+import {
+  LivestreamPlatformStatus,
+  LivestreamStatus,
+  PlatformConnectionStatus,
+  StreamingPlatform,
+} from '@/lib/types/streaming'
 
-describe('Livestream Endpoints', () => {
-  const churchId = 'test-church-123'
-  const livestreamData = {
-    title: 'Test Livestream',
-    description: 'Test Description',
-    platforms: [StreamingPlatform.RESTREAM, StreamingPlatform.YOUTUBE],
+const prismaMock = {
+  livestream: {
+    create: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  livestreamPlatform: {
+    update: vi.fn(),
+    findUnique: vi.fn(),
+  },
+}
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: prismaMock,
+}))
+
+const platformConnectionServiceMock = {
+  getConnection: vi.fn(),
+  getConnections: vi.fn(),
+}
+
+vi.mock('@/lib/services/platform-connection-service', () => ({
+  PlatformConnectionService: platformConnectionServiceMock,
+}))
+
+const platformClientMock = {
+  createLivestream: vi.fn(),
+  startBroadcasting: vi.fn(),
+  stopBroadcasting: vi.fn(),
+  deleteLivestream: vi.fn(),
+  updateLivestream: vi.fn(),
+}
+
+const platformClientFactoryMock = {
+  getClient: vi.fn(),
+}
+
+vi.mock('@/lib/clients/platform-client-factory', () => ({
+  PlatformClientFactory: platformClientFactoryMock,
+}))
+
+const churchId = 'church-123'
+const userId = 'user-456'
+const baseStartAt = new Date('2024-01-01T10:00:00.000Z')
+
+function buildLivestreamRecord(status: LivestreamStatus = LivestreamStatus.SCHEDULED) {
+  return {
+    id: 'ls_1',
+    churchId,
+    title: 'Sunday Service',
+    description: 'Weekly livestream',
+    thumbnail: null,
+    status,
+    startAt: baseStartAt,
+    endAt: null,
+    createdBy: userId,
+    createdAt: baseStartAt,
+    updatedAt: baseStartAt,
+    platforms: [
+      {
+        id: 'lp_1',
+        livestreamId: 'ls_1',
+        platform: StreamingPlatform.YOUTUBE,
+        platformId: 'yt-remote',
+        status: LivestreamPlatformStatus.PENDING,
+        url: null,
+        error: null,
+        settings: {},
+      },
+      {
+        id: 'lp_2',
+        livestreamId: 'ls_1',
+        platform: StreamingPlatform.FACEBOOK,
+        platformId: 'fb-remote',
+        status: LivestreamPlatformStatus.PENDING,
+        url: null,
+        error: null,
+        settings: {},
+      },
+    ],
   }
+}
 
+describe('LivestreamService multi-platform orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    platformConnectionServiceMock.getConnection.mockResolvedValue({
+      status: PlatformConnectionStatus.CONNECTED,
+    })
+    platformClientFactoryMock.getClient.mockResolvedValue(platformClientMock)
+    platformClientMock.createLivestream.mockResolvedValue({
+      platformId: 'remote-123',
+      url: 'https://example.com/watch/remote-123',
+    })
+    platformClientMock.startBroadcasting.mockResolvedValue(undefined)
+    platformClientMock.stopBroadcasting.mockResolvedValue(undefined)
+    platformClientMock.deleteLivestream.mockResolvedValue(undefined)
+    platformClientMock.updateLivestream.mockResolvedValue(undefined)
+
+    prismaMock.livestreamPlatform.update.mockResolvedValue(null)
+    prismaMock.livestreamPlatform.findUnique.mockResolvedValue(null)
   })
 
-  describe('POST /api/livestreams - Create livestream', () => {
-    it('should create a livestream with valid data', async () => {
-      const result = await LivestreamService.createLivestream(churchId, livestreamData)
+  it('creates a livestream and provisions all selected platforms', async () => {
+    const record = buildLivestreamRecord()
+    prismaMock.livestream.create.mockResolvedValue(record)
+    prismaMock.livestream.findUnique.mockResolvedValue(record)
 
-      expect(result).toHaveProperty('id')
-      expect(result).toHaveProperty('churchId')
-      expect(result.churchId).toBe(churchId)
-      expect(result.title).toBe(livestreamData.title)
+    const result = await LivestreamService.createLivestream(churchId, userId, {
+      title: record.title,
+      description: record.description ?? undefined,
+      startAt: baseStartAt,
+      platforms: [
+        { platform: StreamingPlatform.YOUTUBE, settings: { title: 'YT Title' } },
+        { platform: StreamingPlatform.FACEBOOK },
+      ],
     })
 
-    it('should validate required fields', async () => {
-      const invalidData = {
-        title: '',
-        description: 'Test',
-        platforms: [StreamingPlatform.RESTREAM],
-      }
+    expect(platformConnectionServiceMock.getConnection).toHaveBeenCalledTimes(2)
+    expect(platformClientFactoryMock.getClient).toHaveBeenCalledTimes(2)
+    expect(platformClientMock.createLivestream).toHaveBeenCalledTimes(2)
+    expect(result.platforms?.length).toBe(2)
+    expect(result.status).toBe(LivestreamStatus.SCHEDULED)
+  })
 
-      await expect(
-        LivestreamService.createLivestream(churchId, invalidData)
-      ).rejects.toThrow()
-    })
-
-    it('should require at least one platform', async () => {
-      const invalidData = {
-        title: 'Test',
-        description: 'Test',
+  it('throws if no platforms are provided', async () => {
+    await expect(
+      LivestreamService.createLivestream(churchId, userId, {
+        title: 'Missing Platforms',
         platforms: [],
-      }
-
-      await expect(
-        LivestreamService.createLivestream(churchId, invalidData)
-      ).rejects.toThrow()
-    })
-
-    it('should store livestream metadata', async () => {
-      const result = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      expect(result.title).toBe(livestreamData.title)
-      expect(result.description).toBe(livestreamData.description)
-      expect(result.platforms).toEqual(livestreamData.platforms)
-    })
-
-    it('should set initial status to CREATED', async () => {
-      const result = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      expect(result.status).toBe('created')
-    })
-  })
-
-  describe('GET /api/livestreams - List livestreams', () => {
-    it('should list all livestreams for a church', async () => {
-      const result = await LivestreamService.getLivestreams(churchId)
-
-      expect(Array.isArray(result)).toBe(true)
-    })
-
-    it('should return livestreams with required fields', async () => {
-      const result = await LivestreamService.getLivestreams(churchId)
-
-      result.forEach((livestream) => {
-        expect(livestream).toHaveProperty('id')
-        expect(livestream).toHaveProperty('title')
-        expect(livestream).toHaveProperty('status')
       })
-    })
-
-    it('should filter livestreams by church ID', async () => {
-      const result = await LivestreamService.getLivestreams(churchId)
-
-      result.forEach((livestream) => {
-        expect(livestream.churchId).toBe(churchId)
-      })
-    })
-
-    it('should return empty array if no livestreams exist', async () => {
-      const result = await LivestreamService.getLivestreams('non-existent-church')
-
-      expect(Array.isArray(result)).toBe(true)
-    })
+    ).rejects.toThrow('At least one platform must be selected')
   })
 
-  describe('GET /api/livestreams/[id] - Get livestream details', () => {
-    it('should retrieve livestream by ID', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      const result = await LivestreamService.getLivestream(churchId, created.id)
+  it('starts broadcasting across all provisioned platforms', async () => {
+    const created = buildLivestreamRecord()
+    prismaMock.livestream.findUnique.mockResolvedValueOnce(created)
+    prismaMock.livestream.update.mockResolvedValue(buildLivestreamRecord(LivestreamStatus.LIVE))
 
-      expect(result).not.toBeNull()
-      expect(result?.id).toBe(created.id)
-    })
+    const result = await LivestreamService.startBroadcasting(created.id)
 
-    it('should return null if livestream not found', async () => {
-      const result = await LivestreamService.getLivestream(churchId, 'non-existent-id')
-
-      expect(result).toBeNull()
-    })
-
-    it('should return all livestream details', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      const result = await LivestreamService.getLivestream(churchId, created.id)
-
-      expect(result?.title).toBe(livestreamData.title)
-      expect(result?.description).toBe(livestreamData.description)
-      expect(result?.platforms).toEqual(livestreamData.platforms)
-    })
-
-    it('should verify church ownership', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      const result = await LivestreamService.getLivestream('different-church', created.id)
-
-      expect(result).toBeNull()
-    })
+    expect(platformClientFactoryMock.getClient).toHaveBeenCalledTimes(created.platforms.length)
+    expect(platformClientMock.startBroadcasting).toHaveBeenCalledTimes(created.platforms.length)
+    expect(result.status).toBe(LivestreamStatus.LIVE)
   })
 
-  describe('PATCH /api/livestreams/[id] - Update livestream', () => {
-    it('should update livestream details', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      const updates = {
-        title: 'Updated Title',
-        description: 'Updated Description',
-      }
+  it('stops broadcasting and marks livestream as ended', async () => {
+    const liveRecord = buildLivestreamRecord(LivestreamStatus.LIVE)
+    prismaMock.livestream.findUnique.mockResolvedValueOnce(liveRecord)
+    prismaMock.livestream.update.mockResolvedValue(buildLivestreamRecord(LivestreamStatus.ENDED))
 
-      const result = await LivestreamService.updateLivestream(churchId, created.id, updates)
+    const result = await LivestreamService.stopBroadcasting(liveRecord.id)
 
-      expect(result?.title).toBe(updates.title)
-      expect(result?.description).toBe(updates.description)
-    })
-
-    it('should preserve unchanged fields', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      const updates = {
-        title: 'Updated Title',
-      }
-
-      const result = await LivestreamService.updateLivestream(churchId, created.id, updates)
-
-      expect(result?.title).toBe(updates.title)
-      expect(result?.description).toBe(livestreamData.description)
-    })
-
-    it('should not allow updating platforms after creation', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      const updates = {
-        platforms: [StreamingPlatform.FACEBOOK],
-      }
-
-      await expect(
-        LivestreamService.updateLivestream(churchId, created.id, updates)
-      ).rejects.toThrow()
-    })
-
-    it('should verify church ownership before updating', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      await expect(
-        LivestreamService.updateLivestream('different-church', created.id, {
-          title: 'Hacked',
-        })
-      ).rejects.toThrow()
-    })
+    expect(platformClientMock.stopBroadcasting).toHaveBeenCalledTimes(liveRecord.platforms.length)
+    expect(result.status).toBe(LivestreamStatus.ENDED)
   })
 
-  describe('DELETE /api/livestreams/[id] - Delete livestream', () => {
-    it('should delete a livestream', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
+  it('updates livestream metadata and syncs platform titles', async () => {
+    const record = buildLivestreamRecord()
+    prismaMock.livestream.update.mockResolvedValue(record)
+    prismaMock.livestream.findUnique.mockResolvedValue(record)
 
-      await expect(
-        LivestreamService.deleteLivestream(churchId, created.id)
-      ).resolves.not.toThrow()
+    const result = await LivestreamService.updateLivestream(record.id, {
+      title: 'Updated Title',
+      description: 'New description',
     })
 
-    it('should verify church ownership before deleting', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      await expect(
-        LivestreamService.deleteLivestream('different-church', created.id)
-      ).rejects.toThrow()
-    })
-
-    it('should not allow deleting active livestream', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      await expect(
-        LivestreamService.deleteLivestream(churchId, created.id)
-      ).rejects.toThrow()
-    })
+    expect(platformClientMock.updateLivestream).toHaveBeenCalledTimes(record.platforms.length)
+    expect(result.title).toBe(record.title)
   })
 
-  describe('POST /api/livestreams/[id]/start - Start broadcasting', () => {
-    it('should start broadcasting to all platforms', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
+  it('deletes remote platform broadcasts before removing the livestream', async () => {
+    const record = buildLivestreamRecord()
+    prismaMock.livestream.findUnique.mockResolvedValue(record)
+    prismaMock.livestream.delete.mockResolvedValue(undefined)
 
-      const result = await LivestreamService.startBroadcasting(churchId, created.id)
+    await LivestreamService.deleteLivestream(record.id)
 
-      expect(result?.status).toBe('active')
-    })
-
-    it('should verify church ownership before starting', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      await expect(
-        LivestreamService.startBroadcasting('different-church', created.id)
-      ).rejects.toThrow()
-    })
-
-    it('should not allow starting already active livestream', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      await expect(
-        LivestreamService.startBroadcasting(churchId, created.id)
-      ).rejects.toThrow()
-    })
-
-    it('should generate platform-specific stream URLs', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      const result = await LivestreamService.startBroadcasting(churchId, created.id)
-
-      expect(result?.platformLinks).toBeDefined()
-      expect(result?.platformLinks?.length).toBeGreaterThan(0)
-    })
-  })
-
-  describe('POST /api/livestreams/[id]/stop - Stop broadcasting', () => {
-    it('should stop broadcasting to all platforms', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      const result = await LivestreamService.stopBroadcasting(churchId, created.id)
-
-      expect(result?.status).toBe('stopped')
-    })
-
-    it('should verify church ownership before stopping', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      await expect(
-        LivestreamService.stopBroadcasting('different-church', created.id)
-      ).rejects.toThrow()
-    })
-
-    it('should not allow stopping inactive livestream', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      await expect(
-        LivestreamService.stopBroadcasting(churchId, created.id)
-      ).rejects.toThrow()
-    })
-
-    it('should continue if one platform fails', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      const result = await LivestreamService.stopBroadcasting(churchId, created.id)
-
-      expect(result?.status).toBe('stopped')
-    })
-  })
-
-  describe('GET /api/livestreams/[id]/platforms - Get platform links', () => {
-    it('should return platform links for active livestream', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      const result = await LivestreamService.getPlatformLinks(churchId, created.id)
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-    })
-
-    it('should include all selected platforms', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-      await LivestreamService.startBroadcasting(churchId, created.id)
-
-      const result = await LivestreamService.getPlatformLinks(churchId, created.id)
-
-      livestreamData.platforms.forEach((platform) => {
-        expect(result.some((link) => link.platform === platform)).toBe(true)
-      })
-    })
-
-    it('should return empty array for inactive livestream', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      const result = await LivestreamService.getPlatformLinks(churchId, created.id)
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBe(0)
-    })
-
-    it('should verify church ownership', async () => {
-      const created = await LivestreamService.createLivestream(churchId, livestreamData)
-
-      await expect(
-        LivestreamService.getPlatformLinks('different-church', created.id)
-      ).rejects.toThrow()
-    })
-  })
-
-  describe('Error handling', () => {
-    it('should handle invalid church ID', async () => {
-      await expect(
-        LivestreamService.createLivestream('', livestreamData)
-      ).rejects.toThrow()
-    })
-
-    it('should handle missing required fields', async () => {
-      const invalidData = {
-        title: '',
-        description: '',
-        platforms: [],
-      }
-
-      await expect(
-        LivestreamService.createLivestream(churchId, invalidData)
-      ).rejects.toThrow()
-    })
-
-    it('should handle database errors gracefully', async () => {
-      // This test verifies error handling for database issues
-      try {
-        await LivestreamService.getLivestream(churchId, 'test-id')
-      } catch (error) {
-        expect(error).toBeDefined()
-      }
-    })
+    expect(platformClientMock.deleteLivestream).toHaveBeenCalledTimes(record.platforms.length)
+    expect(prismaMock.livestream.delete).toHaveBeenCalledWith({ where: { id: record.id } })
   })
 })

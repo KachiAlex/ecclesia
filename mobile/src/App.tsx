@@ -7,7 +7,6 @@ import { useAuthStore } from '@store/auth-store'
 import SplashScreenComponent from '@screens/SplashScreen'
 import LoginScreen from '@screens/LoginScreen'
 import RegisterScreen from '@screens/RegisterScreen'
-import DashboardScreen from '@screens/DashboardScreen'
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync()
@@ -15,7 +14,7 @@ SplashScreen.preventAutoHideAsync()
 const Stack = createNativeStackNavigator()
 
 export default function App() {
-  const { isAuthenticated, isLoading, restoreToken } = useAuthStore()
+  const { isLoading, restoreToken } = useAuthStore()
 
   useEffect(() => {
     const bootstrapAsync = async () => {
@@ -41,39 +40,28 @@ export default function App() {
     <>
       <NavigationContainer>
         <Stack.Navigator
+          initialRouteName="Splash"
           screenOptions={{
             headerShown: false,
             animationEnabled: true,
           }}
         >
-          {!isAuthenticated ? (
-            <>
-              <Stack.Screen
-                name="Splash"
-                component={SplashScreenComponent}
-                options={{ animationEnabled: false }}
-              />
-              <Stack.Screen
-                name="Login"
-                component={LoginScreen}
-                options={{
-                  animationTypeForReplace: isLoading ? 'none' : 'pop',
-                }}
-              />
-              <Stack.Screen
-                name="Register"
-                component={RegisterScreen}
-              />
-            </>
-          ) : (
-            <Stack.Screen
-              name="Dashboard"
-              component={DashboardScreen}
-              options={{
-                animationTypeForReplace: 'pop',
-              }}
-            />
-          )}
+          <Stack.Screen
+            name="Splash"
+            component={SplashScreenComponent}
+            options={{ animationEnabled: false }}
+          />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{
+              animationTypeForReplace: isLoading ? 'none' : 'pop',
+            }}
+          />
+          <Stack.Screen
+            name="Register"
+            component={RegisterScreen}
+          />
         </Stack.Navigator>
       </NavigationContainer>
       <StatusBar barStyle="dark-content" />

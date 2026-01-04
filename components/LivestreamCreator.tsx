@@ -6,22 +6,23 @@ import { StreamingPlatform } from '@/lib/types/streaming'
 interface LivestreamFormData {
   title: string
   description: string
+  startAt: string
   platforms: StreamingPlatform[]
-  youtubeSettings?: {
-    title: string
-    description: string
+  youtubeSettings: {
+    title?: string
+    description?: string
     thumbnail?: string
   }
-  facebookSettings?: {
-    title: string
-    description: string
+  facebookSettings: {
+    title?: string
+    description?: string
   }
-  instagramSettings?: {
-    title: string
+  instagramSettings: {
+    title?: string
   }
-  restreamSettings?: {
-    title: string
-    description: string
+  restreamSettings: {
+    title?: string
+    description?: string
   }
 }
 
@@ -40,6 +41,7 @@ export default function LivestreamCreator({
   const [form, setForm] = useState<LivestreamFormData>({
     title: '',
     description: '',
+    startAt: '',
     platforms: [],
     youtubeSettings: {
       title: '',
@@ -74,6 +76,45 @@ export default function LivestreamCreator({
     }))
   }
 
+  const getPlatformSettings = (platform: StreamingPlatform) => {
+    let settings:
+      | LivestreamFormData['youtubeSettings']
+      | LivestreamFormData['facebookSettings']
+      | LivestreamFormData['instagramSettings']
+      | LivestreamFormData['restreamSettings']
+      | undefined
+
+    switch (platform) {
+      case StreamingPlatform.YOUTUBE:
+        settings = form.youtubeSettings
+        break
+      case StreamingPlatform.FACEBOOK:
+        settings = form.facebookSettings
+        break
+      case StreamingPlatform.INSTAGRAM:
+        settings = form.instagramSettings
+        break
+      case StreamingPlatform.RESTREAM:
+        settings = form.restreamSettings
+        break
+      default:
+        settings = undefined
+    }
+
+    if (!settings) {
+      return undefined
+    }
+
+    const hasValue = Object.values(settings).some((value) => {
+      if (typeof value === 'string') {
+        return value.trim().length > 0
+      }
+      return value !== undefined && value !== null
+    })
+
+    return hasValue ? settings : undefined
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -97,13 +138,11 @@ export default function LivestreamCreator({
         body: JSON.stringify({
           title: form.title,
           description: form.description,
-          platforms: form.platforms,
-          platformSettings: {
-            youtube: form.youtubeSettings,
-            facebook: form.facebookSettings,
-            instagram: form.instagramSettings,
-            restream: form.restreamSettings,
-          },
+          startAt: form.startAt ? new Date(form.startAt).toISOString() : undefined,
+          platforms: form.platforms.map((platform) => ({
+            platform,
+            settings: getPlatformSettings(platform),
+          })),
         }),
       })
 
@@ -113,12 +152,18 @@ export default function LivestreamCreator({
       }
 
       const data = await response.json()
-      onSuccess?.(data.id)
+      const livestream = data?.data || data
+      if (livestream?.id) {
+        onSuccess?.(livestream.id)
+      } else {
+        onSuccess?.('')
+      }
 
       // Reset form
       setForm({
         title: '',
         description: '',
+        startAt: '',
         platforms: [],
         youtubeSettings: { title: '', description: '' },
         facebookSettings: { title: '', description: '' },
@@ -142,11 +187,12 @@ export default function LivestreamCreator({
           <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="livestream-title" className="block text-sm font-medium text-gray-700 mb-2">
               Livestream Title *
             </label>
             <input
               type="text"
+              id="livestream-title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="e.g., Sunday Service - January 5, 2025"
@@ -156,10 +202,24 @@ export default function LivestreamCreator({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="livestream-start" className="block text-sm font-medium text-gray-700 mb-2">
+              Start Time
+            </label>
+            <input
+              type="datetime-local"
+              id="livestream-start"
+              value={form.startAt}
+              onChange={(e) => setForm({ ...form, startAt: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="livestream-description" className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
             <textarea
+              id="livestream-description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Add details about this livestream..."

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { LivestreamService } from '@/lib/services/livestream-service'
 import { StreamingPlatform, LivestreamStatus } from '@/lib/types/streaming'
-import { prisma } from '@/lib/firestore'
+import { prisma } from '@/lib/prisma'
 
 /**
  * GET /api/livestreams - List livestreams
@@ -75,19 +75,33 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields
-    if (!body.title || !body.startAt || !body.platforms || body.platforms.length === 0) {
+    if (!body.title || !body.platforms || body.platforms.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields: title, startAt, platforms' },
+        { error: 'Missing required fields: title, platforms' },
         { status: 400 }
       )
     }
 
-    // Validate platforms
+    if (body.startAt) {
+      const parsedDate = new Date(body.startAt)
+      if (Number.isNaN(parsedDate.getTime())) {
+        return NextResponse.json({ error: 'Invalid startAt date' }, { status: 400 })
+      }
+    }
+
+    // Validate platforms payload (expects array of { platform, settings? })
+    if (!Array.isArray(body.platforms)) {
+      return NextResponse.json({ error: 'Platforms must be an array' }, { status: 400 })
+    }
+
     const validPlatforms = Object.values(StreamingPlatform)
-    for (const platform of body.platforms) {
-      if (!validPlatforms.includes(platform.platform)) {
+    for (const platformEntry of body.platforms) {
+      if (!platformEntry?.platform || !validPlatforms.includes(platformEntry.platform)) {
+        return NextResponse.json({ error: `Invalid platform: ${platformEntry?.platform}` }, { status: 400 })
+      }
+      if (platformEntry.settings && typeof platformEntry.settings !== 'object') {
         return NextResponse.json(
-          { error: `Invalid platform: ${platform.platform}` },
+          { error: `Invalid settings for platform: ${platformEntry.platform}` },
           { status: 400 }
         )
       }
@@ -101,7 +115,7 @@ export async function POST(request: NextRequest) {
         title: body.title,
         description: body.description,
         thumbnail: body.thumbnail,
-        startAt: new Date(body.startAt),
+        startAt: body.startAt ? new Date(body.startAt) : undefined,
         platforms: body.platforms,
       }
     )

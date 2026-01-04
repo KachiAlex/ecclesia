@@ -18,12 +18,17 @@ export interface Survey {
   allowMultipleResponses: boolean
   deadline?: Date
   targetAudience: TargetAudience
+  targetAudienceType: TargetAudienceType
+  targetBranchIds?: string[]
+  targetGroupIds?: string[]
+  targetUserIds?: string[]
   sendOnPublish: boolean
   sendReminders: boolean
   reminderDays: number[]
   meetingId?: string
   questions: SurveyQuestion[]
   responses?: SurveyResponse[]
+  responseCount?: number
   createdAt: Date
   updatedAt: Date
   publishedAt?: Date
@@ -65,6 +70,7 @@ export interface SurveyQuestion {
 
 export interface TargetAudience {
   type: TargetAudienceType
+  branchIds?: string[]
   groupIds?: string[]
   roleIds?: string[]
 }
@@ -83,6 +89,14 @@ export interface SurveyResponse {
   userAgent?: string
   submittedAt: Date
   questionResponses: SurveyQuestionResponse[]
+  user?: SurveyResponseUser
+}
+
+export interface SurveyResponseUser {
+  id: string
+  firstName?: string | null
+  lastName?: string | null
+  email?: string | null
 }
 
 export interface SurveyQuestionResponse {
@@ -91,6 +105,16 @@ export interface SurveyQuestionResponse {
   questionId: string
   value: any // JSON value - can be string, number, array, etc.
   textValue?: string
+  question?: {
+    id: string
+    title: string
+    type: QuestionType
+    options?: string[]
+    minRating?: number
+    maxRating?: number
+    ratingLabels?: { min?: string; max?: string }
+    allowMultiple?: boolean
+  }
 }
 
 export interface SurveyTemplate {
@@ -132,14 +156,29 @@ export interface SurveyTemplateSettings {
   reminderDays: number[]
 }
 
+export interface ResponseTrendPoint {
+  date: string
+  count: number
+}
+
 // Survey Analytics Types
 export interface SurveyAnalytics {
   surveyId: string
   totalResponses: number
   completionRate: number
+  uniqueRespondents: number
+  firstResponseAt?: Date
+  lastResponseAt?: Date
+  responseTrend: ResponseTrendPoint[]
   averageCompletionTime?: number
   questionAnalytics: SurveyQuestionAnalytics[]
   demographicBreakdown?: SurveyDemographicBreakdown
+}
+
+export interface SurveyInsights {
+  survey: Survey
+  analytics: SurveyAnalytics
+  responses: SurveyResponse[]
 }
 
 export interface SurveyQuestionAnalytics {
