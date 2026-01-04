@@ -21,6 +21,7 @@ export default async function SurveysPage() {
       userRole={userRole}
       canCreateSurveys={canCreateSurveys}
       canManageAllSurveys={canManageAllSurveys}
+      churchId={(session.user as any)?.churchId || ''}
     />
   )
 }

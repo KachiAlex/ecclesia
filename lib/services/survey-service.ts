@@ -14,10 +14,8 @@ import type {
   SurveyAnalytics,
   SurveyInsights,
   SurveyQuestionAnalytics,
-  SurveyResponseBreakdown
+  SurveyResponseBreakdown,
 } from '@/types/survey'
-
-
 
 export class SurveyService {
   /**

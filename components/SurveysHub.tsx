@@ -1,7 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { format } from 'date-fns'
+import { BarChart4, Loader2, Plus, ShieldCheck, Users, Zap } from 'lucide-react'
+
 import SurveyCreator from './SurveyCreator'
+import { SurveyAnalyticsPanel } from './survey/SurveyAnalyticsPanel'
+import { SurveyResponseFeed } from './survey/SurveyResponseFeed'
+import { useManagedSurveys } from '@/lib/hooks/use-managed-surveys'
+import { useSurveyInsights } from '@/lib/hooks/use-survey-insights'
+import type { Survey } from '@/types/survey'
 
 interface SurveysHubProps {
   userRole: string
@@ -10,33 +18,47 @@ interface SurveysHubProps {
   churchId?: string
 }
 
+const tabs = ['participate', 'manage', 'analytics', 'templates'] as const
+
 export default function SurveysHub({
   userRole,
   canCreateSurveys,
   canManageAllSurveys,
   churchId = ''
 }: SurveysHubProps) {
-  const [activeTab, setActiveTab] = useState<'participate' | 'manage' | 'analytics' | 'templates'>('participate')
+  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>('participate')
   const [showCreator, setShowCreator] = useState(false)
+  const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null)
+
+  const showManageTab = canCreateSurveys
+  const showAnalyticsTab = canCreateSurveys
+  const showTemplatesTab = canCreateSurveys
+
+  const enableManagementFetch = (showManageTab || showAnalyticsTab) && Boolean(churchId)
+  const { surveys, isLoading: isLoadingManage } = useManagedSurveys(churchId, enableManagementFetch)
+
+  useEffect(() => {
+    if (!selectedSurveyId && surveys?.length) {
+      setSelectedSurveyId(surveys[0].id)
+    }
+  }, [selectedSurveyId, surveys])
+
+  const enableAnalytics = showAnalyticsTab && activeTab === 'analytics' && !!selectedSurveyId
+  const { insights, isLoading: isLoadingInsights, isError: insightsError, error: insightsErrorObj } = useSurveyInsights({
+    surveyId: selectedSurveyId || undefined,
+    enabled: enableAnalytics
+  })
 
   const handleSaveSurvey = (surveyData: any) => {
     console.log('Saving survey:', surveyData)
-    // TODO: Implement survey save functionality
     setShowCreator(false)
     setActiveTab('manage')
   }
 
   const handlePreviewSurvey = (surveyData: any) => {
     console.log('Previewing survey:', surveyData)
-    // TODO: Implement survey preview functionality
   }
 
-  // Determine which tabs to show based on permissions
-  const showManageTab = canCreateSurveys
-  const showAnalyticsTab = canCreateSurveys
-  const showTemplatesTab = canCreateSurveys
-
-  // Show survey creator if requested
   if (showCreator) {
     return (
       <SurveyCreator
@@ -48,8 +70,15 @@ export default function SurveysHub({
     )
   }
 
+  const managedEmptyState = !isLoadingManage && (!surveys || surveys.length === 0)
+  const selectedSurvey = useMemo(
+    () => surveys?.find((survey: Survey) => survey.id === selectedSurveyId) || null,
+    [surveys, selectedSurveyId]
+  )
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Surveys</h1>
@@ -134,34 +163,182 @@ export default function SurveysHub({
 
         {activeTab === 'manage' && canCreateSurveys && (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Survey Management</h2>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Survey Management</h2>
+                <p className="text-sm text-gray-500">Draft, publish, and monitor the surveys you created.</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCreator(true)}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-semibold"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
               >
-                + Create Survey
+                <Plus className="h-4 w-4" />
+                Create Survey
               </button>
             </div>
-            <div className="text-gray-600">
-              <p>No surveys created yet.</p>
-              <p className="text-sm mt-2">
-                Create your first survey to start gathering feedback from your congregation.
-              </p>
-            </div>
+
+            {isLoadingManage && (
+              <div className="flex items-center gap-3 rounded-xl border bg-gray-50 p-4 text-sm text-gray-600">
+                <Loader2 className="h-4 w-4 animate-spin text-primary-500" />
+                Loading your surveys...
+              </div>
+            )}
+
+            {managedEmptyState && !isLoadingManage && (
+              <div className="rounded-2xl border border-dashed bg-gray-50 p-6 text-center text-gray-500">
+                <p className="font-medium text-gray-900">No surveys yet</p>
+                <p className="text-sm">Create your first survey to start collecting insight from your congregation.</p>
+              </div>
+            )}
+
+            {!managedEmptyState && !isLoadingManage && surveys && (
+              <ul className="space-y-3">
+                {surveys.map((survey: Survey) => (
+                  <li
+                    key={survey.id}
+                    className={`rounded-2xl border p-4 shadow-sm transition ${
+                      selectedSurveyId === survey.id ? 'border-primary-200 ring-2 ring-primary-100' : 'border-gray-100'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-semibold text-gray-900">{survey.title}</p>
+                        <p className="text-sm text-gray-500">
+                          {survey.status.toLowerCase()} · {survey.responseCount || 0} responses
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-600">
+                          <Users className="h-3.5 w-3.5" />
+                          {survey.targetAudienceType}
+                        </span>
+                        {survey.publishedAt && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-600">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Published {format(new Date(survey.publishedAt), 'MMM d')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-primary-300 hover:text-primary-700"
+                        onClick={() => setSelectedSurveyId(survey.id)}
+                      >
+                        <BarChart4 className="h-4 w-4" />
+                        View analytics
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-primary-300 hover:text-primary-700"
+                      >
+                        <Zap className="h-4 w-4" />
+                        Manage survey
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
         {activeTab === 'analytics' && canCreateSurveys && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Survey Analytics</h2>
-            <div className="text-gray-600">
-              <p>No survey data available yet.</p>
-              <p className="text-sm mt-2">
-                Analytics will appear here once you have active surveys with responses.
-              </p>
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Survey Analytics</h2>
+                <p className="text-sm text-gray-500">
+                  Explore response trends, question-level insights, and individual feedback.
+                </p>
+              </div>
             </div>
+
+            {managedEmptyState && (
+              <div className="rounded-2xl border border-dashed bg-gray-50 p-6 text-center text-gray-500">
+                <p className="font-medium text-gray-900">No surveys to analyze</p>
+                <p className="text-sm">Create a survey first, then come back to review the responses.</p>
+              </div>
+            )}
+
+            {!managedEmptyState && (
+              <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+                <aside className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your surveys</p>
+                  <div className="space-y-2">
+                    {surveys?.map((survey: Survey) => {
+                      const isActive = survey.id === selectedSurveyId
+                      return (
+                        <button
+                          key={survey.id}
+                          type="button"
+                          onClick={() => setSelectedSurveyId(survey.id)}
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                            isActive
+                              ? 'border-primary-200 bg-primary-50 text-primary-900 shadow-sm'
+                              : 'border-gray-100 hover:border-primary-100 hover:bg-gray-50'
+                          }`}
+                        >
+                          <p className="text-sm font-semibold">{survey.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {survey.responseCount || 0} responses · {survey.status.toLowerCase()}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </aside>
+
+                <section className="space-y-6">
+                  {!selectedSurvey && (
+                    <div className="rounded-2xl border border-dashed bg-gray-50 p-6 text-center text-gray-500">
+                      <p className="font-medium text-gray-900">Select a survey</p>
+                      <p className="text-sm">Pick any survey on the left to view its analytics.</p>
+                    </div>
+                  )}
+
+                  {selectedSurvey && enableAnalytics && isLoadingInsights && (
+                    <div className="flex items-center gap-3 rounded-2xl border bg-white p-4 text-gray-600">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary-500" />
+                      Loading analytics for {selectedSurvey.title}...
+                    </div>
+                  )}
+
+                  {selectedSurvey && enableAnalytics && insightsError && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                      <p className="font-semibold">Unable to load analytics</p>
+                      <p>{insightsErrorObj?.message || 'Please try again later.'}</p>
+                    </div>
+                  )}
+
+                  {selectedSurvey && insights && !isLoadingInsights && !insightsError && (
+                    <div className="space-y-6">
+                      <SurveyAnalyticsPanel insights={insights} />
+                      <div className="rounded-2xl border bg-white p-6 shadow-sm ring-1 ring-black/5">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-semibold text-gray-900">Response feed</p>
+                            <p className="text-sm text-gray-500">
+                              Most recent answers for <span className="font-medium">{selectedSurvey.title}</span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-primary-200 hover:text-primary-700"
+                          >
+                            <BarChart4 className="h-3.5 w-3.5" />
+                            Export CSV
+                          </button>
+                        </div>
+                        <SurveyResponseFeed insights={insights} />
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
           </div>
         )}
 
