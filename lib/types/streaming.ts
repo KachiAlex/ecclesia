@@ -18,6 +18,19 @@ export enum PlatformConnectionStatus {
   ERROR = 'ERROR',
 }
 
+export enum MeetingStatus {
+  SCHEDULED = 'SCHEDULED',
+  ACTIVE = 'ACTIVE',
+  ENDED = 'ENDED',
+}
+
+export enum MeetingPlatformStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  ENDED = 'ENDED',
+  FAILED = 'FAILED',
+}
+
 export enum LivestreamStatus {
   SCHEDULED = 'SCHEDULED',
   LIVE = 'LIVE',

@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { PlatformConnectionService } from '@/lib/services/platform-connection-service'
 import { StreamingPlatform, PlatformConnectionStatus } from '@/lib/types/streaming'
 import { encryptCredentials, decryptCredentials } from '@/lib/utils/credential-encryption'
-import { prisma } from '@/lib/firestore'
+import { prisma } from '@/lib/prisma'
 
 // Mock Prisma
-vi.mock('@/lib/firestore', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: {
     platformConnection: {
       upsert: vi.fn(),

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { LivestreamService } from '@/lib/services/livestream-service'
-import { prisma } from '@/lib/firestore'
+import { prisma } from '@/lib/prisma'
 
 /**
  * POST /api/livestreams/[id]/start - Start broadcasting

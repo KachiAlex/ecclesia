@@ -7,17 +7,52 @@ const globalForFirebase = globalThis as typeof globalThis & {
   firebaseDb?: Firestore
   firebaseStorage?: Storage
   firebaseSettingsApplied?: boolean
+  firebaseDisabled?: boolean
 }
 
 let app: App
 let _db: Firestore | null = globalForFirebase.firebaseDb ?? null
 let _storage: Storage | null = globalForFirebase.firebaseStorage ?? null
 
+const hasServiceAccountEnv =
+  Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) ||
+  Boolean(process.env.FIREBASE_SERVICE_ACCOUNT) ||
+  Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+
+if (!hasServiceAccountEnv) {
+  globalForFirebase.firebaseDisabled = true
+}
+
+function createDisabledProxy<T extends object>(feature: string): T {
+  return new Proxy(
+    {},
+    {
+      get() {
+        throw new Error(
+          `Firebase ${feature} is not available. Provide FIREBASE_SERVICE_ACCOUNT_BASE64, FIREBASE_SERVICE_ACCOUNT, or FIREBASE_SERVICE_ACCOUNT_PATH before using Firestore features.`,
+        )
+      },
+      apply() {
+        throw new Error(
+          `Firebase ${feature} is not available. Provide FIREBASE_SERVICE_ACCOUNT_BASE64, FIREBASE_SERVICE_ACCOUNT, or FIREBASE_SERVICE_ACCOUNT_PATH before using Firestore features.`,
+        )
+      },
+    },
+  ) as T
+}
+
+export function isFirebaseConfigured() {
+  return hasServiceAccountEnv
+}
+
 /**
  * Initialize Firebase Admin SDK
  */
 export function initFirebase(): Firestore | null {
   try {
+    if (!hasServiceAccountEnv) {
+      globalForFirebase.firebaseDisabled = true
+    }
     if (!globalForFirebase.firebaseApp) {
       if (getApps().length === 0) {
         // Try to get service account from environment variable (for Vercel/Railway/etc)
@@ -74,9 +109,10 @@ export function initFirebase(): Firestore | null {
             // Don't try fallback - service account is required
             console.error('Firebase initialization failed - service account is required for Firestore access')
           }
-        } else {
+        } else if (!globalForFirebase.firebaseDisabled) {
           console.error('No valid service account found in environment variables')
           console.error('FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_SERVICE_ACCOUNT must be set in Vercel environment variables')
+          globalForFirebase.firebaseDisabled = true
         }
       }
     } else if (getApps().length > 0) {
@@ -153,8 +189,12 @@ export function getFirebaseStorage(): Storage {
 
 // Export db and storage - initialized on first access
 // These are wrapped in getters to ensure lazy initialization
-export const db = getFirestoreDB()
-export const storage = getFirebaseStorage()
+export const db: Firestore = globalForFirebase.firebaseDisabled
+  ? createDisabledProxy<Firestore>('Firestore')
+  : getFirestoreDB()
+export const storage: Storage = globalForFirebase.firebaseDisabled
+  ? createDisabledProxy<Storage>('Storage')
+  : getFirebaseStorage()
 
 /**
  * Helper to convert Firestore timestamp to Date

@@ -1,9 +1,23 @@
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
 
 export async function GET(request: Request) {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json(
+      {
+        items: [],
+        totals: { income: 0, expenses: 0, net: 0 },
+        note: 'Accounting CSV export is skipped during static build.',
+      },
+      { status: 200 },
+    )
+  }
+
   const guarded = await guardApi({ requireChurch: true, allowedRoles: ['ADMIN', 'SUPER_ADMIN', 'BRANCH_ADMIN', 'PASTOR'] })
   if (!guarded.ok) return guarded.response
 

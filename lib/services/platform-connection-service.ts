@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/firestore'
+import { prisma } from '@/lib/prisma'
 import { StreamingPlatform, PlatformConnectionStatus, PlatformCredentials, PlatformConnectionData } from '@/lib/types/streaming'
 import { encryptCredentials, decryptCredentials, validateCredentials } from '@/lib/utils/credential-encryption'
 

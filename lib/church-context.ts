@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { ChurchService } from './services/church-service'
 import { UserService } from './services/user-service'
-import { db } from './firestore'
+import { db, isFirebaseConfigured } from './firestore'
 import { COLLECTIONS } from './firestore-collections'
 import { logger } from '@/lib/logger'
 
@@ -67,28 +67,42 @@ export async function getCurrentChurch(userId?: string) {
   const church = await ChurchService.findById(churchId)
   if (!church) return null
 
-  // Get subscription if exists
-  const subscriptionSnapshot = await db.collection(COLLECTIONS.subscriptions)
-    .where('churchId', '==', churchId)
-    .limit(1)
-    .get()
-
-  let subscription = null
-  if (!subscriptionSnapshot.empty) {
-    const subData = subscriptionSnapshot.docs[0].data()
-    const planDoc = await db.collection(COLLECTIONS.subscriptionPlans)
-      .doc(subData.planId)
-      .get()
-    
-    subscription = {
-      ...subData,
-      plan: planDoc.exists ? planDoc.data() : null,
-    }
+  if (!isFirebaseConfigured()) {
+    return serialize({
+      ...church,
+      subscription: null,
+    })
   }
 
-  return serialize({
-    ...church,
-    subscription,
-  })
+  try {
+    // Get subscription if exists
+    const subscriptionSnapshot = await db
+      .collection(COLLECTIONS.subscriptions)
+      .where('churchId', '==', churchId)
+      .limit(1)
+      .get()
+
+    let subscription = null
+    if (!subscriptionSnapshot.empty) {
+      const subData = subscriptionSnapshot.docs[0].data()
+      const planDoc = await db.collection(COLLECTIONS.subscriptionPlans).doc(subData.planId).get()
+
+      subscription = {
+        ...subData,
+        plan: planDoc.exists ? planDoc.data() : null,
+      }
+    }
+
+    return serialize({
+      ...church,
+      subscription,
+    })
+  } catch (error) {
+    logger.error('tenant.current_church.subscription_fetch_failed', { error })
+    return serialize({
+      ...church,
+      subscription: null,
+    })
+  }
 }
 
