@@ -27,6 +27,7 @@ export interface Survey {
   reminderDays: number[]
   meetingId?: string
   questions: SurveyQuestion[]
+  sections?: SurveySection[]
   responses?: SurveyResponse[]
   responseCount?: number
   createdAt: Date
@@ -38,6 +39,7 @@ export interface Survey {
 export interface SurveyQuestion {
   id: string
   surveyId?: string
+  sectionId?: string
   type: QuestionType
   title: string
   description?: string
@@ -64,6 +66,16 @@ export interface SurveyQuestion {
   yesNoLabels?: { yes?: string; no?: string }
   
   responses?: SurveyQuestionResponse[]
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export interface SurveySection {
+  id: string
+  surveyId?: string
+  title: string
+  description?: string
+  order: number
   createdAt?: Date
   updatedAt?: Date
 }
@@ -218,6 +230,7 @@ export interface CreateSurveyRequest {
   description?: string
   questions: CreateSurveyQuestionRequest[]
   settings: CreateSurveySettingsRequest
+  sections?: SurveySection[]
 }
 
 export interface CreateSurveyQuestionRequest {
@@ -225,6 +238,7 @@ export interface CreateSurveyQuestionRequest {
   title: string
   description?: string
   required: boolean
+  sectionId?: string
   options?: Omit<SurveyQuestionOption, 'id'>[]
   minRating?: number
   maxRating?: number

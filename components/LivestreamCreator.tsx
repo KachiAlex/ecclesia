@@ -27,16 +27,11 @@ interface LivestreamFormData {
 }
 
 interface LivestreamCreatorProps {
-  churchId: string
   onSuccess?: (livestreamId: string) => void
   onError?: (error: string) => void
 }
 
-export default function LivestreamCreator({
-  churchId,
-  onSuccess,
-  onError,
-}: LivestreamCreatorProps) {
+export default function LivestreamCreator({ onSuccess, onError }: LivestreamCreatorProps) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState<LivestreamFormData>({
     title: '',

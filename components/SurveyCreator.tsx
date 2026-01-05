@@ -1,14 +1,62 @@
 'use client'
 
-import { useState } from 'react'
-import { GripVertical, Settings, Users, Save, Eye } from 'lucide-react'
-import { SurveyQuestion, QuestionType, TargetAudience } from '@/types/survey'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+import { GripVertical, Settings, Users, Save, Eye, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
+import { SurveyQuestion, QuestionType, TargetAudience, SurveySection } from '@/types/survey'
+
 import MultipleChoiceQuestion from './survey/MultipleChoiceQuestion'
 import TextQuestion from './survey/TextQuestion'
 import RatingQuestion from './survey/RatingQuestion'
 import YesNoQuestion from './survey/YesNoQuestion'
 import SurveySettings from './SurveySettings'
 import TargetAudienceSelector from './survey/TargetAudienceSelector'
+
+const generateSectionId = () => `section_${Math.random().toString(36).slice(2, 10)}`
+
+const createSection = (order: number, overrides: Partial<SurveySection> = {}): SurveySection => ({
+  ...overrides,
+  id: overrides.id ?? generateSectionId(),
+  title: overrides.title ?? `Section ${order + 1}`,
+  description: overrides.description ?? '',
+  order: overrides.order ?? order
+})
+
+const normalizeSections = (list: SurveySection[]) =>
+  [...list]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((section, index) => ({ ...section, order: index }))
+
+const getSectionLabel = (section: SurveySection, index: number) =>
+  section.title?.trim() ? section.title : `Section ${index + 1}`
+
+const resequenceQuestions = (list: SurveyQuestion[]) =>
+  list.map((question, index) => ({ ...question, order: index }))
+
+const alignQuestionsToSections = (list: SurveyQuestion[], sections: SurveySection[]) => {
+  if (sections.length === 0) {
+    return resequenceQuestions(list)
+  }
+
+  const orderedBySection = sections.flatMap((section) =>
+    list
+      .filter((question) => question.sectionId === section.id)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  )
+
+  const unassigned = list.filter(
+    (question) => !question.sectionId || !sections.some((section) => section.id === question.sectionId)
+  )
+
+  return resequenceQuestions([...orderedBySection, ...unassigned])
+}
+
+const questionTypeOptions: { label: string; type: QuestionType; accent: string }[] = [
+  { label: 'Multiple choice', type: 'MULTIPLE_CHOICE', accent: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+  { label: 'Text', type: 'TEXT', accent: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+  { label: 'Rating', type: 'RATING', accent: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+  { label: 'Yes / No', type: 'YES_NO', accent: 'bg-purple-50 text-purple-700 hover:bg-purple-100' }
+]
 
 interface SurveyCreatorProps {
   userRole: string
@@ -25,15 +73,47 @@ export default function SurveyCreator({
   onPreview,
   initialData
 }: SurveyCreatorProps) {
+  const initialSectionsRef = useRef<SurveySection[] | null>(null)
+
+  if (!initialSectionsRef.current) {
+    const incomingSections =
+      initialData?.sections?.length > 0 ? initialData.sections : [createSection(0)]
+    initialSectionsRef.current = normalizeSections(incomingSections)
+  }
+
+  const seededSections = initialSectionsRef.current as SurveySection[]
+
+  const [sections, setSections] = useState<SurveySection[]>(seededSections)
   const [title, setTitle] = useState(initialData?.title || '')
   const [description, setDescription] = useState(initialData?.description || '')
-  const [questions, setQuestions] = useState<SurveyQuestion[]>(initialData?.questions || [])
-  const [settings, setSettings] = useState(initialData?.settings || {
-    isAnonymous: false,
-    allowMultipleResponses: false,
-    deadline: null,
-    isActive: false
+  const [questions, setQuestions] = useState<SurveyQuestion[]>(() => {
+    const fallbackSectionId = seededSections[0]?.id
+    const baseQuestions = initialData?.questions || []
+    if (!baseQuestions.length) {
+      return []
+    }
+
+    const hydrated = baseQuestions.map((question) => ({
+      ...question,
+      sectionId: question.sectionId || fallbackSectionId
+    }))
+
+    const ordered = seededSections.flatMap((section) =>
+      hydrated
+        .filter((question) => question.sectionId === section.id)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    )
+
+    return ordered.map((question, index) => ({ ...question, order: index }))
   })
+  const [settings, setSettings] = useState(
+    initialData?.settings || {
+      isAnonymous: false,
+      allowMultipleResponses: false,
+      deadline: null,
+      isActive: false
+    }
+  )
   const [targetAudience, setTargetAudience] = useState<TargetAudience>(
     initialData?.targetAudience || {
       type: 'ALL',
@@ -43,43 +123,141 @@ export default function SurveyCreator({
   )
   const [activeTab, setActiveTab] = useState<'builder' | 'settings' | 'audience'>('builder')
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [inlineAddSectionId, setInlineAddSectionId] = useState<string | null>(null)
+  const [showInlineAddMenu, setShowInlineAddMenu] = useState(false)
+  const inlineAddMenuRef = useRef<HTMLDivElement | null>(null)
 
-  const addQuestion = (type: QuestionType) => {
+  const questionsWithIndex = useMemo(
+    () => questions.map((question, index) => ({ question, index })),
+    [questions]
+  )
+
+  const sectionsWithQuestions = useMemo(
+    () =>
+      sections.map((section) => ({
+        section,
+        questions: questionsWithIndex.filter(({ question }) => question.sectionId === section.id)
+      })),
+    [sections, questionsWithIndex]
+  )
+
+  const updateQuestionsState = (updater: (prev: SurveyQuestion[]) => SurveyQuestion[]) => {
+    setQuestions((prev) => alignQuestionsToSections(updater(prev), sections))
+  }
+
+  const updateSectionsState = (updater: (prev: SurveySection[]) => SurveySection[]) => {
+    setSections((prev) => {
+      const next = normalizeSections(updater(prev))
+      setQuestions((prevQuestions) => alignQuestionsToSections(prevQuestions, next))
+      return next
+    })
+  }
+
+  const closeInlineAddMenu = () => {
+    setShowInlineAddMenu(false)
+    setInlineAddSectionId(null)
+  }
+
+  const addSection = () => {
+    updateSectionsState((prev) => [...prev, createSection(prev.length)])
+  }
+
+  const moveSection = (sectionId: string, direction: 'up' | 'down') => {
+    updateSectionsState((prev) => {
+      const index = prev.findIndex((section) => section.id === sectionId)
+      if (index === -1) {
+        return prev
+      }
+      const targetIndex = direction === 'up' ? index - 1 : index + 1
+      if (targetIndex < 0 || targetIndex >= prev.length) {
+        return prev
+      }
+      const next = [...prev]
+      const [section] = next.splice(index, 1)
+      next.splice(targetIndex, 0, section)
+      return next
+    })
+  }
+
+  const updateSectionDetails = (sectionId: string, updates: Partial<SurveySection>) => {
+    setSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, ...updates } : section)))
+  }
+
+  const removeSection = (sectionId: string) => {
+    setSections((prev) => {
+      if (prev.length === 1) {
+        return prev
+      }
+      const index = prev.findIndex((section) => section.id === sectionId)
+      if (index === -1) {
+        return prev
+      }
+      const fallback = prev[index + 1] ?? prev[index - 1]
+      setQuestions((prevQuestions) =>
+        alignQuestionsToSections(
+          prevQuestions.map((question) =>
+            question.sectionId === sectionId ? { ...question, sectionId: fallback.id } : question
+          ),
+          prev.filter((section) => section.id !== sectionId)
+        )
+      )
+      return normalizeSections(prev.filter((section) => section.id !== sectionId))
+    })
+  }
+
+  const getResolvedSectionId = (preferred?: string | null) => {
+    if (preferred && sections.some((section) => section.id === preferred)) {
+      return preferred
+    }
+    return sections[sections.length - 1]?.id || sections[0]?.id
+  }
+
+  const addQuestion = (type: QuestionType, targetSectionId?: string | null) => {
+    const sectionId = getResolvedSectionId(targetSectionId)
+    if (!sectionId) {
+      return
+    }
+
     const newQuestion: SurveyQuestion = {
       id: `q_${Date.now()}`,
+      sectionId,
       type,
       title: '',
       description: '',
       required: false,
-      order: questions.length,
       options: type === 'MULTIPLE_CHOICE' ? [''] : undefined,
       minRating: type === 'RATING' ? 1 : undefined,
       maxRating: type === 'RATING' ? 5 : undefined,
       ratingLabels: type === 'RATING' ? { min: 'Poor', max: 'Excellent' } : undefined
     }
-    setQuestions([...questions, newQuestion])
+    updateQuestionsState((prev) => [...prev, newQuestion])
   }
 
   const updateQuestion = (index: number, updatedQuestion: SurveyQuestion) => {
-    const newQuestions = [...questions]
-    newQuestions[index] = updatedQuestion
-    setQuestions(newQuestions)
+    updateQuestionsState((prev) =>
+      prev.map((question, i) =>
+        i === index
+          ? {
+              ...question,
+              ...updatedQuestion,
+              sectionId: getResolvedSectionId(updatedQuestion.sectionId || question.sectionId)
+            }
+          : question
+      )
+    )
   }
 
   const removeQuestion = (index: number) => {
-    const newQuestions = questions.filter((_, i) => i !== index)
-    // Update order for remaining questions
-    const reorderedQuestions = newQuestions.map((q, i) => ({ ...q, order: i }))
-    setQuestions(reorderedQuestions)
+    updateQuestionsState((prev) => prev.filter((_, i) => i !== index))
   }
 
   const moveQuestion = (fromIndex: number, toIndex: number) => {
-    const newQuestions = [...questions]
-    const [movedQuestion] = newQuestions.splice(fromIndex, 1)
-    newQuestions.splice(toIndex, 0, movedQuestion)
-    // Update order for all questions
-    const reorderedQuestions = newQuestions.map((q, i) => ({ ...q, order: i }))
-    setQuestions(reorderedQuestions)
+    updateQuestionsState((prev) => {
+      const next = [...prev]
+      const [movedQuestion] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, movedQuestion)
+      return next
+    })
   }
 
   const handleDragStart = (index: number) => {
@@ -94,8 +272,16 @@ export default function SurveyCreator({
     }
   }
 
-  const handleDragEnd = () => {
-    setDraggedIndex(null)
+  const handlePreview = () => {
+    const surveyData = {
+      title,
+      description,
+      questions,
+      sections,
+      settings,
+      targetAudience
+    }
+    onPreview?.(surveyData)
   }
 
   const handleSave = () => {
@@ -103,6 +289,7 @@ export default function SurveyCreator({
       title,
       description,
       questions,
+      sections,
       settings,
       targetAudience,
       churchId
@@ -110,200 +297,147 @@ export default function SurveyCreator({
     onSave?.(surveyData)
   }
 
-  const handlePreview = () => {
-    const surveyData = {
-      title,
-      description,
-      questions,
-      settings,
-      targetAudience
-    }
-    onPreview?.(surveyData)
-  }
-
-  const renderQuestion = (question: SurveyQuestion, index: number) => {
-    const commonProps = {
-      question,
-      onChange: (updatedQuestion: SurveyQuestion) => updateQuestion(index, updatedQuestion),
-      onRemove: () => removeQuestion(index)
-    }
-
-    switch (question.type) {
-      case 'MULTIPLE_CHOICE':
-        return <MultipleChoiceQuestion key={question.id} {...commonProps} />
-      case 'TEXT':
-        return <TextQuestion key={question.id} {...commonProps} />
-      case 'RATING':
-        return <RatingQuestion key={question.id} {...commonProps} />
-      case 'YES_NO':
-        return <YesNoQuestion key={question.id} {...commonProps} />
-      default:
-        return null
-    }
-  }
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Create Survey</h1>
-          <p className="text-gray-600">Build your survey and gather feedback</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handlePreview}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-          >
-            <Eye className="w-4 h-4" />
-            Preview
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            Save Survey
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="bg-white rounded-xl border p-2 flex gap-2 w-fit">
-        <button
-          type="button"
-          onClick={() => setActiveTab('builder')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            activeTab === 'builder'
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
-              : 'bg-white text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          Builder
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('settings')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
-            activeTab === 'settings'
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
-              : 'bg-white text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('audience')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
-            activeTab === 'audience'
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
-              : 'bg-white text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Audience
-        </button>
-      </div>
-
-      {/* Tab Content */}
+    <div className="flex h-full flex-col space-y-6">
       {activeTab === 'builder' && (
-        <div className="space-y-6">
-          {/* Survey Basic Info */}
-          <div className="bg-white rounded-xl border p-6 space-y-4">
+        <div className="bg-white rounded-xl border p-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Survey Title *
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter survey title..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
+              <h2 className="text-lg font-semibold">Sections & Questions</h2>
+              <p className="text-sm text-gray-500">
+                Group related questions together and keep long surveys organized.
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe the purpose of this survey..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={addSection}
+              className="inline-flex items-center gap-1 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100"
+            >
+              <span className="text-base leading-none">+</span>
+              Add section
+            </button>
           </div>
 
-          {/* Question Builder */}
-          <div className="bg-white rounded-xl border p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Questions</h2>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => addQuestion('MULTIPLE_CHOICE')}
-                  className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
-                >
-                  + Multiple Choice
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addQuestion('TEXT')}
-                  className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
-                >
-                  + Text
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addQuestion('RATING')}
-                  className="px-3 py-2 text-sm bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100"
-                >
-                  + Rating
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addQuestion('YES_NO')}
-                  className="px-3 py-2 text-sm bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100"
-                >
-                  + Yes/No
-                </button>
-              </div>
-            </div>
-
-            {questions.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <p>No questions added yet.</p>
-                <p className="text-sm mt-1">Click one of the buttons above to add your first question.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {questions.map((question, index) => (
-                  <div
-                    key={question.id}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
-                    className={`border rounded-lg p-4 ${
-                      draggedIndex === index ? 'opacity-50' : ''
-                    } cursor-move`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <GripVertical className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
-                      <div className="flex-1">
-                        {renderQuestion(question, index)}
-                      </div>
-                    </div>
+          <div className="space-y-6">
+            {sectionsWithQuestions.map(({ section, questions: sectionQuestions }) => (
+              <div key={section.id} className="rounded-2xl border border-gray-200 bg-white/80 shadow-sm">
+                <div className="flex flex-col gap-4 border-b border-gray-100 p-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={section.title}
+                      onChange={(e) => updateSectionDetails(section.id, { title: e.target.value })}
+                      className="w-full border-none bg-transparent text-base font-semibold text-gray-900 outline-none placeholder:text-gray-400"
+                      placeholder={getSectionLabel(section, section.order ?? 0)}
+                    />
+                    <textarea
+                      value={section.description || ''}
+                      onChange={(e) => updateSectionDetails(section.id, { description: e.target.value })}
+                      rows={2}
+                      className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-300"
+                      placeholder="Describe this section (optional)"
+                    />
                   </div>
-                ))}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={section.order === 0}
+                      onClick={() => moveSection(section.id, 'up')}
+                      className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:text-gray-900 disabled:opacity-40"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={section.order === sections.length - 1}
+                      onClick={() => moveSection(section.id, 'down')}
+                      className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:text-gray-900 disabled:opacity-40"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeSection(section.id)}
+                      className="rounded-lg border border-red-100 bg-red-50/60 p-2 text-red-600 hover:bg-red-100 disabled:opacity-40"
+                      disabled={sections.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4">
+                  {sectionQuestions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                      No questions in this section yet.
+                    </div>
+                  ) : (
+                    sectionQuestions.map(({ question, index }) => (
+                      <div
+                        key={question.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                        className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm ${
+                          draggedIndex === index ? 'opacity-50' : ''
+                        } cursor-move`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <GripVertical className="mt-1 h-5 w-5 flex-shrink-0 text-gray-400" />
+                          <div className="flex-1">{renderQuestion(question, index)}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  <div
+                    className="pt-1"
+                    ref={inlineAddSectionId === section.id ? inlineAddMenuRef : null}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inlineAddSectionId === section.id && showInlineAddMenu) {
+                          closeInlineAddMenu()
+                        } else {
+                          setInlineAddSectionId(section.id)
+                          setShowInlineAddMenu(true)
+                        }
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 px-4 py-3 text-sm font-semibold text-gray-600 transition-colors hover:border-primary-200 hover:text-primary-700"
+                    >
+                      <span className="text-xl leading-none text-primary-600">+</span>
+                      Add question to {getSectionLabel(section, section.order ?? 0)}
+                    </button>
+
+                    {showInlineAddMenu && inlineAddSectionId === section.id && (
+                      <div className="mt-3 rounded-2xl border bg-white p-3 shadow-lg ring-1 ring-black/5 sm:w-80">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Question type
+                        </p>
+
+                        <div className="grid gap-2">
+                          {questionTypeOptions.map((option) => (
+                            <button
+                              key={option.type}
+                              type="button"
+                              onClick={() => {
+                                addQuestion(option.type, section.id)
+                                closeInlineAddMenu()
+                              }}
+                              className={`w-full rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors ${option.accent}`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}

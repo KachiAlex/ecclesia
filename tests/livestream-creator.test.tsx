@@ -1,12 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import LivestreamCreator from '@/components/LivestreamCreator'
-import { StreamingPlatform } from '@/lib/types/streaming'
 
 describe('LivestreamCreator Component', () => {
-  const churchId = 'test-church-123'
   const mockOnSuccess = vi.fn()
   const mockOnError = vi.fn()
+  const renderCreator = () => render(<LivestreamCreator onSuccess={mockOnSuccess} onError={mockOnError} />)
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -15,25 +14,13 @@ describe('LivestreamCreator Component', () => {
 
   describe('Rendering', () => {
     it('should render the component with title', () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       expect(screen.getByText('Create New Livestream')).toBeInTheDocument()
     })
 
     it('should render all platform options', () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       expect(screen.getByText('Restream')).toBeInTheDocument()
       expect(screen.getByText('YouTube')).toBeInTheDocument()
@@ -42,26 +29,14 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should render form fields', () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       expect(screen.getByPlaceholderText(/Livestream Title/i)).toBeInTheDocument()
       expect(screen.getByPlaceholderText(/Add details about this livestream/i)).toBeInTheDocument()
     })
 
     it('should render submit button', () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       expect(screen.getByRole('button', { name: /Create Livestream/i })).toBeInTheDocument()
     })
@@ -69,13 +44,7 @@ describe('LivestreamCreator Component', () => {
 
   describe('Platform Selection', () => {
     it('should toggle platform selection', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const youtubeButton = screen.getByText('YouTube').closest('button')
       expect(youtubeButton).toBeInTheDocument()
@@ -87,13 +56,7 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should allow multiple platform selection', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const youtubeButton = screen.getByText('YouTube').closest('button')
       const facebookButton = screen.getByText('Facebook').closest('button')
@@ -108,13 +71,7 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should deselect platform when clicked again', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const youtubeButton = screen.getByText('YouTube').closest('button')
 
@@ -132,13 +89,7 @@ describe('LivestreamCreator Component', () => {
 
   describe('Form Validation', () => {
     it('should require title', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const submitButton = screen.getByRole('button', { name: /Create Livestream/i })
       fireEvent.click(submitButton)
@@ -149,13 +100,7 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should require at least one platform', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const titleInput = screen.getByPlaceholderText(/Livestream Title/i)
       fireEvent.change(titleInput, { target: { value: 'Test Livestream' } })
@@ -177,13 +122,7 @@ describe('LivestreamCreator Component', () => {
       })
       global.fetch = mockFetch
 
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const titleInput = screen.getByPlaceholderText(/Livestream Title/i)
       fireEvent.change(titleInput, { target: { value: 'Test Livestream' } })
@@ -212,13 +151,7 @@ describe('LivestreamCreator Component', () => {
       })
       global.fetch = mockFetch
 
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const titleInput = screen.getByPlaceholderText(/Livestream Title/i)
       fireEvent.change(titleInput, { target: { value: 'Test Livestream' } })
@@ -241,13 +174,7 @@ describe('LivestreamCreator Component', () => {
       })
       global.fetch = mockFetch
 
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const titleInput = screen.getByPlaceholderText(/Livestream Title/i)
       fireEvent.change(titleInput, { target: { value: 'Test Livestream' } })
@@ -265,17 +192,14 @@ describe('LivestreamCreator Component', () => {
   })
 
   describe('Platform-Specific Settings', () => {
-    it('should show YouTube settings when YouTube is selected', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+    const selectPlatform = async (label: string) => {
+      renderCreator()
+      const platformButton = screen.getByText(label).closest('button')
+      fireEvent.click(platformButton!)
+    }
 
-      const youtubeButton = screen.getByText('YouTube').closest('button')
-      fireEvent.click(youtubeButton!)
+    it('should show YouTube settings when YouTube is selected', async () => {
+      await selectPlatform('YouTube')
 
       await waitFor(() => {
         expect(screen.getByText('YouTube Settings')).toBeInTheDocument()
@@ -283,16 +207,7 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should show Facebook settings when Facebook is selected', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
-
-      const facebookButton = screen.getByText('Facebook').closest('button')
-      fireEvent.click(facebookButton!)
+      await selectPlatform('Facebook')
 
       await waitFor(() => {
         expect(screen.getByText('Facebook Settings')).toBeInTheDocument()
@@ -300,16 +215,7 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should show Instagram settings when Instagram is selected', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
-
-      const instagramButton = screen.getByText('Instagram').closest('button')
-      fireEvent.click(instagramButton!)
+      await selectPlatform('Instagram')
 
       await waitFor(() => {
         expect(screen.getByText('Instagram Settings')).toBeInTheDocument()
@@ -317,16 +223,7 @@ describe('LivestreamCreator Component', () => {
     })
 
     it('should show Restream settings when Restream is selected', async () => {
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
-
-      const restreamButton = screen.getByText('Restream').closest('button')
-      fireEvent.click(restreamButton!)
+      await selectPlatform('Restream')
 
       await waitFor(() => {
         expect(screen.getByText('Restream Settings')).toBeInTheDocument()
@@ -342,13 +239,7 @@ describe('LivestreamCreator Component', () => {
       })
       global.fetch = mockFetch
 
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const titleInput = screen.getByPlaceholderText(/Livestream Title/i) as HTMLInputElement
       fireEvent.change(titleInput, { target: { value: 'Test Livestream' } })
@@ -382,13 +273,7 @@ describe('LivestreamCreator Component', () => {
       )
       global.fetch = mockFetch
 
-      render(
-        <LivestreamCreator
-          churchId={churchId}
-          onSuccess={mockOnSuccess}
-          onError={mockOnError}
-        />
-      )
+      renderCreator()
 
       const titleInput = screen.getByPlaceholderText(/Livestream Title/i)
       fireEvent.change(titleInput, { target: { value: 'Test Livestream' } })
