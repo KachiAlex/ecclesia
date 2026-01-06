@@ -1281,6 +1281,7 @@ model Survey {
   meetingId             String?               // For meeting-linked surveys
   
   // Relations
+  sections              SurveySection[]
   questions             SurveyQuestion[]
   responses             SurveyResponse[]
   
@@ -1301,6 +1302,8 @@ model SurveyQuestion {
   id                    String                @id @default(cuid())
   surveyId              String
   survey                Survey                @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  sectionId             String?
+  section               SurveySection?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   
   // Question details
   type                  SurveyQuestionType
@@ -1320,7 +1323,23 @@ model SurveyQuestion {
   
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
-  
+
+  @@index([surveyId])
+  @@index([sectionId])
+  @@index([order])
+}
+
+model SurveySection {
+  id          String         @id @default(cuid())
+  surveyId    String
+  survey      Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int
+  questions   SurveyQuestion[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
   @@index([surveyId])
   @@index([order])
 }

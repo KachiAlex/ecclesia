@@ -272,6 +272,10 @@ export default function SurveyCreator({
     }
   }
 
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+  }
+
   const handlePreview = () => {
     const surveyData = {
       title,
