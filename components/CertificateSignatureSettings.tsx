@@ -89,7 +89,7 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
           signatureName: data.signatureName,
         })
         setPreviewUrl(data.signatureUrl)
-        
+
         showMessage('success', 'Pastor signature has been updated successfully')
       } else {
         const error = await response.json()
@@ -147,7 +147,7 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
       if (ctx) {
         ctx.clearRect(0, 0, 1, 1)
       }
-      
+
       canvas.toBlob(async (blob) => {
         if (blob) {
           formData.append('signature', blob, 'transparent.png')
@@ -160,9 +160,9 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
           })
 
           if (response.ok) {
-            setSettings(prev => ({ ...prev, signatureUrl: undefined }))
+            setSettings((prev) => ({ ...prev, signatureUrl: undefined }))
             setPreviewUrl(null)
-            
+
             showMessage('success', 'Pastor signature has been removed')
           }
         }
@@ -183,17 +183,19 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
           Certificate Signature Settings
         </h2>
         <p className="text-gray-600">
-          Customize the pastor's signature and title that appears on course completion certificates
+          Customize the pastor&apos;s signature and title that appears on course completion certificates
         </p>
       </div>
 
       {/* Message Display */}
       {message && (
-        <div className={`mb-6 p-4 rounded-lg border ${
-          message.type === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-800' 
-            : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
+        <div
+          className={`mb-6 p-4 rounded-lg border ${
+            message.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
           <div className="flex items-center gap-2">
             {message.type === 'success' ? (
               <Check className="h-4 w-4" />
@@ -209,15 +211,15 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
         {/* Signature Image Upload */}
         <div className="space-y-4">
           <label className="block text-sm font-medium text-gray-700">
-            Pastor's Signature Image
+            Pastor&apos;s Signature Image
           </label>
-          
+
           {previewUrl ? (
             <div className="space-y-3">
               <div className="relative inline-block">
                 <img
                   src={previewUrl}
-                  alt="Pastor's signature"
+                  alt="Pastor&apos;s signature"
                   className="max-w-xs max-h-24 border border-gray-200 rounded-lg bg-white p-2"
                 />
                 <button
@@ -232,9 +234,7 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
           ) : (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               <Upload className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm text-gray-600">
-                No signature uploaded yet
-              </p>
+              <p className="mt-2 text-sm text-gray-600">No signature uploaded yet</p>
             </div>
           )}
 
@@ -253,54 +253,42 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
               </div>
             )}
           </div>
-          
+
           <p className="text-xs text-gray-500">
-            Upload a clear image of the pastor's signature. Supported formats: PNG, JPG, GIF. Max size: 2MB.
+            Upload a clear image of the pastor&apos;s signature. Supported formats: PNG, JPG, GIF. Max size: 2MB.
           </p>
         </div>
 
         {/* Title and Name Settings */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Pastor Title
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Pastor Title</label>
             <input
               type="text"
               value={settings.signatureTitle}
-              onChange={(e) => setSettings(prev => ({ ...prev, signatureTitle: e.target.value }))}
+              onChange={(e) => setSettings((prev) => ({ ...prev, signatureTitle: e.target.value }))}
               placeholder="e.g., Lead Pastor, Senior Pastor"
               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
-            <p className="text-xs text-gray-500">
-              The title that appears below the signature line
-            </p>
+            <p className="text-xs text-gray-500">The title that appears below the signature line</p>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Pastor Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Pastor Name</label>
             <input
               type="text"
               value={settings.signatureName}
-              onChange={(e) => setSettings(prev => ({ ...prev, signatureName: e.target.value }))}
+              onChange={(e) => setSettings((prev) => ({ ...prev, signatureName: e.target.value }))}
               placeholder="e.g., John Smith"
               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
-            <p className="text-xs text-gray-500">
-              The pastor's name (optional)
-            </p>
+            <p className="text-xs text-gray-500">The pastor&apos;s name (optional)</p>
           </div>
         </div>
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <Button
-            onClick={handleUpdateSettings}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-          >
+          <Button onClick={handleUpdateSettings} disabled={isLoading} className="flex items-center gap-2">
             {isLoading ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             ) : (
@@ -317,8 +305,8 @@ export function CertificateSignatureSettings({ churchId }: CertificateSignatureS
             <div className="text-sm">
               <p className="font-medium text-blue-900">Certificate Preview</p>
               <p className="text-blue-700 mt-1">
-                The signature and title will appear at the bottom of course completion certificates. 
-                Changes will apply to all new certificates generated after saving.
+                The signature and title will appear at the bottom of course completion certificates. Changes will apply
+                to all new certificates generated after saving.
               </p>
             </div>
           </div>
