@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -117,15 +117,7 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
   const [staffMember, setStaffMember] = useState<StaffMember | null>(null)
   const [staffSalary, setStaffSalary] = useState<Salary | null>(null)
 
-  useEffect(() => {
-    if (isStaffView && userId) {
-      loadStaffData()
-    } else {
-      loadData()
-    }
-  }, [isStaffView, userId])
-
-  const loadStaffData = async () => {
+  const loadStaffData = useCallback(async () => {
     try {
       setStaffLoading(true)
       setStaffError('')
@@ -161,9 +153,9 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
     } finally {
       setStaffLoading(false)
     }
-  }
+  }, [userId])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setStaffLoading(true)
       setStaffError('')
@@ -223,7 +215,15 @@ export default function PayrollDashboard({ isStaffView = false, userId }: Payrol
       setLoading(false)
       setStaffLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (isStaffView && userId) {
+      loadStaffData()
+    } else {
+      loadData()
+    }
+  }, [isStaffView, userId, loadStaffData, loadData])
 
   const staffLevelMap = useMemo(() => {
     return staffLevels.reduce<Record<string, StaffLevelOption>>((acc, level) => {

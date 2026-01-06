@@ -59,6 +59,12 @@ export default function SurveysHub({
     console.log('Previewing survey:', surveyData)
   }
 
+  const managedEmptyState = !isLoadingManage && (!surveys || surveys.length === 0)
+  const selectedSurvey = useMemo(
+    () => surveys?.find((survey: Survey) => survey.id === selectedSurveyId) || null,
+    [surveys, selectedSurveyId]
+  )
+
   if (showCreator) {
     return (
       <SurveyCreator
@@ -69,12 +75,6 @@ export default function SurveysHub({
       />
     )
   }
-
-  const managedEmptyState = !isLoadingManage && (!surveys || surveys.length === 0)
-  const selectedSurvey = useMemo(
-    () => surveys?.find((survey: Survey) => survey.id === selectedSurveyId) || null,
-    [surveys, selectedSurveyId]
-  )
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">

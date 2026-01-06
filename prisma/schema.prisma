@@ -1445,7 +1445,6 @@ enum LivestreamPlatformStatus {
   PENDING
   LIVE
   ENDED
-  FAILED
 }
 
 model Livestream {

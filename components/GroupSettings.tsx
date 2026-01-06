@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 type Unit = {
   id: string
@@ -96,25 +96,20 @@ export default function GroupSettings({ unitId, unit, members, isHead, isAdmin, 
   const [newRuleDescription, setNewRuleDescription] = useState('')
   const [pinnedMessage, setPinnedMessage] = useState(settings.pinnedRules || '')
 
-  useEffect(() => {
-    loadSettings()
-    generateInviteLink()
-  }, [unitId])
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const res = await fetch(`/api/units/${unitId}/settings`)
       if (res.ok) {
         const data = await res.json()
-        setSettings(data.settings || settings)
+        setSettings((prev) => data.settings || prev)
         setPinnedMessage(data.settings?.pinnedRules || '')
       }
     } catch (error) {
       console.error('Error loading settings:', error)
     }
-  }
+  }, [unitId])
 
-  const generateInviteLink = async () => {
+  const generateInviteLink = useCallback(async () => {
     setGeneratingLink(true)
     try {
       const res = await fetch(`/api/units/${unitId}/invite-link`, {
@@ -129,7 +124,12 @@ export default function GroupSettings({ unitId, unit, members, isHead, isAdmin, 
     } finally {
       setGeneratingLink(false)
     }
-  }
+  }, [unitId])
+
+  useEffect(() => {
+    loadSettings()
+    generateInviteLink()
+  }, [loadSettings, generateInviteLink])
 
   const saveGeneralSettings = async () => {
     setLoading(true)

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+
 import { Upload, X, PenTool, Save, Trash2 } from 'lucide-react'
 
 interface SignatureData {
@@ -43,14 +44,7 @@ export function SignatureUpload({ onSignatureChange }: SignatureUploadProps) {
     getCurrentChurch()
   }, [])
 
-  // Load existing signature settings
-  useEffect(() => {
-    if (churchId) {
-      loadSignature()
-    }
-  }, [churchId])
-
-  const loadSignature = async () => {
+  const loadSignature = useCallback(async () => {
     if (!churchId) return
     
     try {
@@ -67,7 +61,14 @@ export function SignatureUpload({ onSignatureChange }: SignatureUploadProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [churchId, onSignatureChange])
+
+  // Load existing signature settings
+  useEffect(() => {
+    if (churchId) {
+      loadSignature()
+    }
+  }, [churchId, loadSignature])
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]

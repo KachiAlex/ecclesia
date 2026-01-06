@@ -20,7 +20,7 @@ export default function MeetingsHub({
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Meetings</h1>
-          <p className="text-gray-600 mt-1">You don't have access to meetings.</p>
+          <p className="text-gray-600 mt-1">You don&rsquo;t have access to meetings.</p>
         </div>
       </div>
     )

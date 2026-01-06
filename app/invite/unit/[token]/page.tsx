@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
@@ -30,9 +31,26 @@ export default function UnitInvitePage({ params }: { params: { token: string } }
   const [error, setError] = useState('')
   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null)
 
+  const loadInviteDetails = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/invite/unit/${params.token}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to load invite details')
+      }
+
+      setInviteDetails(data)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load invite')
+    } finally {
+      setLoading(false)
+    }
+  }, [params.token])
+
   useEffect(() => {
     if (status === 'loading') return
-    
+
     if (!session) {
       // Redirect to login with return URL
       router.push(`/auth/signin?callbackUrl=${encodeURIComponent(window.location.href)}`)
@@ -40,29 +58,12 @@ export default function UnitInvitePage({ params }: { params: { token: string } }
     }
 
     loadInviteDetails()
-  }, [session, status, params.token])
-
-  const loadInviteDetails = async () => {
-    try {
-      const res = await fetch(`/api/invite/unit/${params.token}`)
-      const data = await res.json()
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load invite details')
-      }
-      
-      setInviteDetails(data)
-    } catch (err: any) {
-      setError(err.message || 'Failed to load invite')
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [session, status, router, loadInviteDetails])
 
   const acceptInvite = async () => {
     setAccepting(true)
     setError('')
-    
+
     try {
       const res = await fetch(`/api/invite/unit/${params.token}/accept`, {
         method: 'POST'
@@ -137,7 +138,7 @@ export default function UnitInvitePage({ params }: { params: { token: string } }
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">You're Invited!</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">You&apo;re Invited!</h1>
             <p className="text-gray-600 text-sm sm:text-base">
               {inviteDetails.invitedBy.firstName || inviteDetails.invitedBy.lastName 
                 ? `${inviteDetails.invitedBy.firstName} ${inviteDetails.invitedBy.lastName}`.trim()
