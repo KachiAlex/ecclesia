@@ -101,6 +101,14 @@ export default async function SettingsPage() {
           <div className="text-lg font-semibold">Branding</div>
           <div className="text-sm text-gray-600 mt-1">Logo, colors, and custom domain.</div>
         </Link>
+
+        <Link
+          href="/settings/streaming-platforms"
+          className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow"
+        >
+          <div className="text-lg font-semibold">Streaming Platforms</div>
+          <div className="text-sm text-gray-600 mt-1">Connect YouTube, Facebook, and Restream for livestreaming.</div>
+        </Link>
       </div>
     </div>
   )
