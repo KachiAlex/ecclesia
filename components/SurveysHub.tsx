@@ -409,6 +409,17 @@ export default function SurveysHub({
           </div>
         )}
 
+        {activeTab === 'participate' && showCreator && (
+          <div className="mb-8 rounded-3xl border bg-white p-4 shadow-lg ring-1 ring-black/5">
+            <SurveyCreator
+              userRole={userRole}
+              churchId={churchId}
+              onSave={handleSaveSurvey}
+              onPreview={handlePreviewSurvey}
+            />
+          </div>
+        )}
+
         {activeTab === 'manage' && canCreateSurveys && (
           <div>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -418,14 +429,25 @@ export default function SurveysHub({
               </div>
               <button
                 type="button"
-                onClick={() => setShowCreator(true)}
+                onClick={() => setShowCreator((prev) => !prev)}
                 disabled={isSavingSurvey}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus className="h-4 w-4" />
-                {isSavingSurvey ? 'Saving...' : 'Create Survey'}
+                {showCreator ? 'Hide builder' : isSavingSurvey ? 'Saving...' : 'Create Survey'}
               </button>
             </div>
+
+            {showCreator && (
+              <div className="mb-8 rounded-3xl border bg-white p-4 shadow-lg ring-1 ring-black/5">
+                <SurveyCreator
+                  userRole={userRole}
+                  churchId={churchId}
+                  onSave={handleSaveSurvey}
+                  onPreview={handlePreviewSurvey}
+                />
+              </div>
+            )}
 
             {isLoadingManage && (
               <div className="flex items-center gap-3 rounded-xl border bg-gray-50 p-4 text-sm text-gray-600">
