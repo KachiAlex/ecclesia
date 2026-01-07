@@ -24,7 +24,8 @@ export class SurveyService {
   static async createSurvey(
     churchId: string,
     createdBy: string,
-    data: CreateSurveyRequest
+    data: CreateSurveyRequest,
+    intent: 'draft' | 'publish' = 'draft'
   ): Promise<Survey> {
     const sectionsInput =
       data.sections && data.sections.length > 0
@@ -55,7 +56,9 @@ export class SurveyService {
           sendOnPublish: data.settings.sendOnPublish,
           sendReminders: data.settings.sendReminders,
           reminderDays: data.settings.reminderDays,
-          meetingId: data.settings.meetingId
+          meetingId: data.settings.meetingId,
+          status: intent === 'publish' ? 'ACTIVE' : 'DRAFT',
+          publishedAt: intent === 'publish' ? new Date() : undefined
         }
       })
 
