@@ -108,6 +108,46 @@ export default function SurveysHub({
     console.log('Previewing survey:', surveyData)
   }
 
+  const publishSurvey = useCallback(async (surveyId: string) => {
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/publish`, {
+        method: 'POST'
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Unable to publish survey')
+      }
+      setToast({ message: 'Survey published successfully!', tone: 'success' })
+      await refreshManaged()
+    } catch (error) {
+      console.error('Error publishing survey:', error)
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to publish survey',
+        tone: 'error'
+      })
+    }
+  }, [refreshManaged])
+
+  const closeSurvey = useCallback(async (surveyId: string) => {
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/close`, {
+        method: 'POST'
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Unable to close survey')
+      }
+      setToast({ message: 'Survey closed successfully.', tone: 'success' })
+      await refreshManaged()
+    } catch (error) {
+      console.error('Error closing survey:', error)
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to close survey',
+        tone: 'error'
+      })
+    }
+  }, [refreshManaged])
+
   const managedEmptyState = !isLoadingManage && (!surveys || surveys.length === 0)
   const selectedSurvey = useMemo(
     () => surveys?.find((survey: Survey) => survey.id === selectedSurveyId) || null,
@@ -302,13 +342,26 @@ export default function SurveysHub({
                         <BarChart4 className="h-4 w-4" />
                         View analytics
                       </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-primary-300 hover:text-primary-700"
-                      >
-                        <Zap className="h-4 w-4" />
-                        Manage survey
-                      </button>
+                      {survey.status === 'DRAFT' && (
+                        <button
+                          type="button"
+                          onClick={() => publishSurvey(survey.id)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-primary-700 hover:border-primary-300"
+                        >
+                          <Zap className="h-4 w-4" />
+                          Publish survey
+                        </button>
+                      )}
+                      {survey.status === 'ACTIVE' && (
+                        <button
+                          type="button"
+                          onClick={() => closeSurvey(survey.id)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-rose-600 hover:border-rose-300"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          Close survey
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
