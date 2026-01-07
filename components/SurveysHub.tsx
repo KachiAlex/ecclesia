@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
 import { format } from 'date-fns'
 import { BarChart4, Loader2, Plus, ShieldCheck, Users, Zap } from 'lucide-react'
 
@@ -20,6 +21,8 @@ interface SurveysHubProps {
 
 const tabs = ['participate', 'manage', 'analytics', 'templates'] as const
 
+type ToastState = { message: string; tone: 'success' | 'error' } | null
+
 export default function SurveysHub({
   userRole,
   canCreateSurveys,
@@ -29,13 +32,18 @@ export default function SurveysHub({
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>('participate')
   const [showCreator, setShowCreator] = useState(false)
   const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null)
+  const [isSavingSurvey, setIsSavingSurvey] = useState(false)
+  const [toast, setToast] = useState<ToastState>(null)
 
   const showManageTab = canCreateSurveys
   const showAnalyticsTab = canCreateSurveys
   const showTemplatesTab = canCreateSurveys
 
   const enableManagementFetch = (showManageTab || showAnalyticsTab) && Boolean(churchId)
-  const { surveys, isLoading: isLoadingManage } = useManagedSurveys(churchId, enableManagementFetch)
+  const { surveys, isLoading: isLoadingManage, refresh: refreshManaged } = useManagedSurveys(
+    churchId,
+    enableManagementFetch
+  )
 
   useEffect(() => {
     if (!selectedSurveyId && surveys?.length) {
@@ -49,11 +57,52 @@ export default function SurveysHub({
     enabled: enableAnalytics
   })
 
-  const handleSaveSurvey = (surveyData: any) => {
-    console.log('Saving survey:', surveyData)
-    setShowCreator(false)
-    setActiveTab('manage')
-  }
+  const handleSaveSurvey = useCallback(
+    async (surveyData: any) => {
+      if (!churchId) {
+        setToast({
+          message: 'Please select a church before creating surveys.',
+          tone: 'error'
+        })
+        return
+      }
+
+      setIsSavingSurvey(true)
+      try {
+        const response = await fetch('/api/surveys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...surveyData,
+            churchId
+          })
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}))
+          throw new Error(payload?.error || 'Unable to create survey')
+        }
+
+        const payload = await response.json().catch(() => ({}))
+        setToast({ message: 'Survey created successfully!', tone: 'success' })
+        setShowCreator(false)
+        setActiveTab('manage')
+        if (payload?.survey?.id) {
+          setSelectedSurveyId(payload.survey.id)
+        }
+        await refreshManaged()
+      } catch (error) {
+        console.error('Error creating survey:', error)
+        setToast({
+          message: error instanceof Error ? error.message : 'Failed to create survey',
+          tone: 'error'
+        })
+      } finally {
+        setIsSavingSurvey(false)
+      }
+    },
+    [churchId, refreshManaged]
+  )
 
   const handlePreviewSurvey = (surveyData: any) => {
     console.log('Previewing survey:', surveyData)
@@ -64,6 +113,12 @@ export default function SurveysHub({
     () => surveys?.find((survey: Survey) => survey.id === selectedSurveyId) || null,
     [surveys, selectedSurveyId]
   )
+
+  useEffect(() => {
+    if (!toast) return
+    const timeout = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [toast])
 
   if (showCreator) {
     return (
@@ -78,13 +133,29 @@ export default function SurveysHub({
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-50 flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${
+            toast.tone === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
+          }`}
+        >
+          <span>{toast.message}</span>
+          <button
+            type="button"
+            className="text-white/80 transition hover:text-white"
+            onClick={() => setToast(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Surveys</h1>
         <p className="text-gray-600 mt-1">
-          {canCreateSurveys 
-            ? 'Create surveys and gather feedback from your congregation.' 
+          {canCreateSurveys
+            ? 'Create surveys and gather feedback from your congregation.'
             : 'Participate in surveys and provide your feedback.'
           }
         </p>
@@ -103,7 +174,7 @@ export default function SurveysHub({
         >
           My Surveys
         </button>
-        
+
         {showManageTab && (
           <button
             type="button"
@@ -171,10 +242,11 @@ export default function SurveysHub({
               <button
                 type="button"
                 onClick={() => setShowCreator(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
+                disabled={isSavingSurvey}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus className="h-4 w-4" />
-                Create Survey
+                {isSavingSurvey ? 'Saving...' : 'Create Survey'}
               </button>
             </div>
 

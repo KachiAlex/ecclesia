@@ -26,38 +26,96 @@ export class SurveyService {
     createdBy: string,
     data: CreateSurveyRequest
   ): Promise<Survey> {
-    const survey = await prisma.survey.create({
-      data: {
-        churchId,
-        createdBy,
-        title: data.title,
-        description: data.description,
-        isAnonymous: data.settings.isAnonymous,
-        allowMultipleResponses: data.settings.allowMultipleResponses,
-        deadline: data.settings.deadline,
-        targetAudienceType: data.settings.targetAudienceType,
-        targetBranchIds: data.settings.targetBranchIds || [],
-        targetGroupIds: data.settings.targetGroupIds || [],
-        targetUserIds: data.settings.targetUserIds || [],
-        sendOnPublish: data.settings.sendOnPublish,
-        sendReminders: data.settings.sendReminders,
-        reminderDays: data.settings.reminderDays,
-        meetingId: data.settings.meetingId,
-        questions: {
-          create: data.questions.map((question: any, index: number) => ({
-            type: question.type,
-            title: question.title,
-            description: question.description,
-            required: question.required,
-            order: index,
-            options: question.options ? question.options : undefined,
-            minRating: question.minRating,
-            maxRating: question.maxRating,
-            ratingLabels: question.ratingLabels ? question.ratingLabels : undefined,
-          }))
+    const sectionsInput =
+      data.sections && data.sections.length > 0
+        ? data.sections
+        : [
+            {
+              id: 'default-section',
+              title: 'Section 1',
+              description: '',
+              order: 0
+            }
+          ]
+
+    const survey = await prisma.$transaction(async (tx) => {
+      const createdSurvey = await tx.survey.create({
+        data: {
+          churchId,
+          createdBy,
+          title: data.title,
+          description: data.description,
+          isAnonymous: data.settings.isAnonymous,
+          allowMultipleResponses: data.settings.allowMultipleResponses,
+          deadline: data.settings.deadline,
+          targetAudienceType: data.settings.targetAudienceType,
+          targetBranchIds: data.settings.targetBranchIds || [],
+          targetGroupIds: data.settings.targetGroupIds || [],
+          targetUserIds: data.settings.targetUserIds || [],
+          sendOnPublish: data.settings.sendOnPublish,
+          sendReminders: data.settings.sendReminders,
+          reminderDays: data.settings.reminderDays,
+          meetingId: data.settings.meetingId
         }
-      },
+      })
+
+      const sectionIdMap = new Map<string, string>()
+      const orderedSections = sectionsInput
+        .slice()
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+      for (let index = 0; index < orderedSections.length; index += 1) {
+        const section = orderedSections[index]
+        const createdSection = await tx.surveySection.create({
+          data: {
+            surveyId: createdSurvey.id,
+            title: section.title || `Section ${index + 1}`,
+            description: section.description || '',
+            order: section.order ?? index
+          }
+        })
+        if (section.id) {
+          sectionIdMap.set(section.id, createdSection.id)
+        } else {
+          sectionIdMap.set(`__generated_section_${index}`, createdSection.id)
+        }
+      }
+
+      const fallbackSectionId =
+        sectionIdMap.get(sectionsInput[0]?.id || 'default-section') ||
+        Array.from(sectionIdMap.values())[0]
+
+      await Promise.all(
+        data.questions.map((question: any, index: number) =>
+          tx.surveyQuestion.create({
+            data: {
+              surveyId: createdSurvey.id,
+              sectionId: question.sectionId
+                ? sectionIdMap.get(question.sectionId) ?? fallbackSectionId
+                : fallbackSectionId,
+              type: question.type,
+              title: question.title,
+              description: question.description,
+              required: question.required,
+              order: index,
+              options: question.options ?? undefined,
+              minRating: question.minRating,
+              maxRating: question.maxRating,
+              ratingLabels: question.ratingLabels ?? undefined
+            }
+          })
+        )
+      )
+
+      return createdSurvey
+    })
+
+    const hydratedSurvey = await prisma.survey.findUnique({
+      where: { id: survey.id },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -72,7 +130,11 @@ export class SurveyService {
       }
     })
 
-    return this.transformSurveyFromPrisma(survey)
+    if (!hydratedSurvey) {
+      throw new Error('Failed to create survey')
+    }
+
+    return this.transformSurveyFromPrisma(hydratedSurvey)
   }
 
   /**
@@ -82,6 +144,9 @@ export class SurveyService {
     const survey = await prisma.survey.findUnique({
       where: { id: surveyId },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -93,12 +158,14 @@ export class SurveyService {
             email: true
           }
         },
-        responses: userId ? {
-          where: { userId },
-          include: {
-            questionResponses: true
-          }
-        } : false
+        responses: userId
+          ? {
+              where: { userId },
+              include: {
+                questionResponses: true
+              }
+            }
+          : false
       }
     })
 
@@ -170,6 +237,9 @@ export class SurveyService {
       where: whereClause,
       orderBy,
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -218,6 +288,9 @@ export class SurveyService {
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -283,6 +356,9 @@ export class SurveyService {
       where: { id: surveyId },
       data: updateData,
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -324,6 +400,9 @@ export class SurveyService {
         publishedAt: new Date()
       },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -365,6 +444,9 @@ export class SurveyService {
         closedAt: new Date()
       },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -395,6 +477,7 @@ export class SurveyService {
     const survey = await prisma.survey.findUnique({
       where: { id: surveyId },
       include: {
+        sections: true,
         questions: true,
         responses: userId ? { where: { userId } } : false
       }
@@ -645,6 +728,9 @@ export class SurveyService {
       },
       orderBy: { createdAt: 'desc' },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -675,6 +761,9 @@ export class SurveyService {
     const surveyRecord = await prisma.survey.findUnique({
       where: { id: surveyId },
       include: {
+        sections: {
+          orderBy: { order: 'asc' }
+        },
         questions: {
           orderBy: { order: 'asc' }
         },
@@ -729,66 +818,6 @@ export class SurveyService {
       analytics,
       responses
     }
-  }
-
-  /**
-   * Helper: Transform Prisma survey to our Survey type
-   */
-  private static transformSurveyFromPrisma(survey: any): Survey {
-    return {
-      id: survey.id,
-      churchId: survey.churchId,
-      branchId: survey.branchId,
-      createdBy: survey.createdBy,
-      title: survey.title,
-      description: survey.description,
-      status: survey.status as SurveyStatus,
-      isAnonymous: survey.isAnonymous,
-      allowMultipleResponses: survey.allowMultipleResponses,
-      deadline: survey.deadline,
-      targetAudience: {
-        type: survey.targetAudienceType as TargetAudienceType,
-        branchIds: survey.targetBranchIds || undefined,
-        groupIds: survey.targetGroupIds || undefined,
-        roleIds: survey.targetUserIds || undefined
-      },
-      targetAudienceType: survey.targetAudienceType as TargetAudienceType,
-      targetBranchIds: survey.targetBranchIds || undefined,
-      targetGroupIds: survey.targetGroupIds || undefined,
-      targetUserIds: survey.targetUserIds || undefined,
-      sendOnPublish: survey.sendOnPublish,
-      sendReminders: survey.sendReminders,
-      reminderDays: survey.reminderDays,
-      meetingId: survey.meetingId,
-      questions: survey.questions?.map((q: any) => ({
-        id: q.id,
-        surveyId: q.surveyId,
-        type: q.type,
-        title: q.title,
-        description: q.description,
-        required: q.required,
-        order: q.order,
-        options: this.normalizeQuestionOptions(q.options),
-        allowMultiple: q.allowMultiple,
-        minRating: q.minRating,
-        maxRating: q.maxRating,
-        ratingLabels: q.ratingLabels || undefined,
-        createdAt: q.createdAt,
-        updatedAt: q.updatedAt
-      })) || [],
-      responses: survey.responses?.map((r: any) => this.transformResponseFromPrisma(r)) || [],
-      responseCount: survey._count?.responses ?? survey.responses?.length ?? 0,
-      createdAt: survey.createdAt,
-      updatedAt: survey.updatedAt,
-      publishedAt: survey.publishedAt,
-      closedAt: survey.closedAt
-    }
-  }
-
-  /**
-   * Helper: Transform Prisma response to our SurveyResponse type
-   */
-  private static transformResponseFromPrisma(response: any): SurveyResponse {
     return {
       id: response.id,
       surveyId: response.surveyId,
