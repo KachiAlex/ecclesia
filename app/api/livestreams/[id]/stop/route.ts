@@ -10,6 +10,8 @@ import { prisma } from '@/lib/prisma'
  * Property 4: Platform Failure Isolation
  */
 
+export const runtime = 'nodejs'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }

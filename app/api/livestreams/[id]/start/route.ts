@@ -6,9 +6,10 @@ import { prisma } from '@/lib/prisma'
 
 /**
  * POST /api/livestreams/[id]/start - Start broadcasting
- * Requirements: 1.2, 1.4
- * Property 2: Livestream Multi-Platform Broadcasting
+ * Requirements: 1.4
  */
+
+export const runtime = 'nodejs'
 
 export async function POST(
   request: NextRequest,

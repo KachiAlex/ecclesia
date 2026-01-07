@@ -11,6 +11,8 @@ import { prisma } from '@/lib/prisma'
  * Requirements: 2.1, 2.2, 6.3
  */
 
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

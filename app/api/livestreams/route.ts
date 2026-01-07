@@ -13,6 +13,8 @@ import { UserRole } from '@/types'
  * Requirements: 1.1, 1.2, 6.1, 6.2
  */
 
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

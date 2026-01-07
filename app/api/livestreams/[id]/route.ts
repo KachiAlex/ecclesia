@@ -11,6 +11,8 @@ import { prisma } from '@/lib/prisma'
  * Requirements: 1.1, 1.3, 6.1
  */
 
+export const runtime = 'nodejs'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
