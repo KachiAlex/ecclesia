@@ -38,12 +38,16 @@ export class LivestreamService {
         throw new Error('At least one platform must be selected')
       }
 
-      // Ensure each selected platform is connected and ready
-      await Promise.all(
-        data.platforms.map(async (platform) => {
-          const connection = await PlatformConnectionService.getConnection(churchId, platform.platform)
-          if (!connection || connection.status !== PlatformConnectionStatus.CONNECTED) {
-            throw new Error(`Platform ${platform.platform} is not connected`)
+      const platformCreatePayload = await Promise.all(
+        data.platforms.map(async (p) => {
+          const connection = await PlatformConnectionService.getConnection(churchId, p.platform)
+          const connected = connection?.status === PlatformConnectionStatus.CONNECTED
+
+          return {
+            platform: p.platform,
+            status: connected ? LivestreamPlatformStatus.PENDING : LivestreamPlatformStatus.FAILED,
+            settings: p.settings || {},
+            error: connected ? null : `Platform ${p.platform} is not connected`,
           }
         })
       )
@@ -60,11 +64,7 @@ export class LivestreamService {
           startAt,
           createdBy: userId,
           platforms: {
-            create: data.platforms.map((p) => ({
-              platform: p.platform,
-              status: LivestreamPlatformStatus.PENDING,
-              settings: p.settings || {},
-            })),
+            create: platformCreatePayload,
           },
         },
         include: {
@@ -73,14 +73,16 @@ export class LivestreamService {
       })
 
       await Promise.all(
-        livestream.platforms.map((platform) =>
-          this.provisionPlatformLivestream(livestream, platform, {
-            title: data.title,
-            description: data.description,
-            thumbnail: data.thumbnail,
-            startAt,
-          })
-        )
+        livestream.platforms
+          .filter((platform) => platform.status !== LivestreamPlatformStatus.FAILED)
+          .map((platform) =>
+            this.provisionPlatformLivestream(livestream, platform, {
+              title: data.title,
+              description: data.description,
+              thumbnail: data.thumbnail,
+              startAt,
+            })
+          )
       )
 
       const refreshed = await prisma.livestream.findUnique({
