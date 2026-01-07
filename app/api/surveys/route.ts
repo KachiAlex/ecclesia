@@ -8,6 +8,36 @@ import { getCurrentChurchId } from '@/lib/church-context'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+async function resolveChurchId(
+  providedChurchId: string | null,
+  sessionUserId?: string
+): Promise<string | null> {
+  const candidates: Array<string | null | undefined> = [providedChurchId]
+
+  if (sessionUserId) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: sessionUserId },
+      select: { churchId: true }
+    })
+    candidates.push(dbUser?.churchId)
+  }
+
+  candidates.push(await getCurrentChurchId(sessionUserId))
+
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const churchExists = await prisma.church.findUnique({
+      where: { id: candidate },
+      select: { id: true }
+    })
+    if (churchExists) {
+      return churchExists.id
+    }
+  }
+
+  return null
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,22 +48,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const queryChurchId = searchParams.get('churchId')
 
-    const sessionUser = session.user as { id?: string; churchId?: string }
+    const sessionUser = session.user as { id?: string }
     const sessionUserId = sessionUser?.id
 
-    let resolvedChurchId = queryChurchId || sessionUser?.churchId || null
-
-    if (!resolvedChurchId && sessionUserId) {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: sessionUserId },
-        select: { churchId: true }
-      })
-      resolvedChurchId = dbUser?.churchId || null
-    }
-
-    if (!resolvedChurchId) {
-      resolvedChurchId = await getCurrentChurchId(sessionUserId || undefined)
-    }
+    const resolvedChurchId = await resolveChurchId(queryChurchId, sessionUserId)
 
     if (!resolvedChurchId) {
       return NextResponse.json(
@@ -70,22 +88,10 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const { churchId, intent = 'draft', ...surveyData } = data
 
-    const sessionUser = session.user as { id?: string; churchId?: string }
+    const sessionUser = session.user as { id?: string }
     const sessionUserId = sessionUser?.id
 
-    let resolvedChurchId = churchId || sessionUser?.churchId || null
-
-    if (!resolvedChurchId && sessionUserId) {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: sessionUserId },
-        select: { churchId: true }
-      })
-      resolvedChurchId = dbUser?.churchId || null
-    }
-
-    if (!resolvedChurchId) {
-      resolvedChurchId = await getCurrentChurchId(sessionUserId || undefined)
-    }
+    const resolvedChurchId = await resolveChurchId(churchId, sessionUserId)
 
     if (!resolvedChurchId) {
       return NextResponse.json(
