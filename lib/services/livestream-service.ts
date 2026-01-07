@@ -45,7 +45,7 @@ export class LivestreamService {
 
           return {
             platform: p.platform,
-            status: connected ? LivestreamPlatformStatus.PENDING : LivestreamPlatformStatus.FAILED,
+            status: LivestreamPlatformStatus.PENDING,
             settings: p.settings || {},
             error: connected ? null : `Platform ${p.platform} is not connected`,
           }
@@ -74,7 +74,7 @@ export class LivestreamService {
 
       await Promise.all(
         livestream.platforms
-          .filter((platform) => platform.status !== LivestreamPlatformStatus.FAILED)
+          .filter((platform) => !platform.error)
           .map((platform) =>
             this.provisionPlatformLivestream(livestream, platform, {
               title: data.title,
@@ -299,6 +299,7 @@ export class LivestreamService {
     error?: string
   ): Promise<void> {
     try {
+      const safeStatus = status === LivestreamPlatformStatus.FAILED ? LivestreamPlatformStatus.PENDING : status
       await prisma.livestreamPlatform.update({
         where: {
           livestreamId_platform: {
@@ -307,7 +308,7 @@ export class LivestreamService {
           },
         },
         data: {
-          status,
+          status: safeStatus,
           error: error || null,
         },
       })
@@ -371,7 +372,7 @@ export class LivestreamService {
         ? livestream.platforms.map((platform: any) => ({
             id: platform.id,
             platform: platform.platform,
-            status: platform.status,
+            status: platform.error ? LivestreamPlatformStatus.FAILED : platform.status,
             url: platform.url || undefined,
             error: platform.error || undefined,
             settings: platform.settings || undefined,
@@ -408,7 +409,7 @@ export class LivestreamService {
       await prisma.livestreamPlatform.update({
         where: { id: platform.id },
         data: {
-          status: LivestreamPlatformStatus.FAILED,
+          status: LivestreamPlatformStatus.PENDING,
           error: error instanceof Error ? error.message : 'Failed to provision platform',
         },
       })
@@ -420,7 +421,7 @@ export class LivestreamService {
       await prisma.livestreamPlatform.update({
         where: { id: platform.id },
         data: {
-          status: LivestreamPlatformStatus.FAILED,
+          status: LivestreamPlatformStatus.PENDING,
           error: 'Platform stream not provisioned',
         },
       })
@@ -441,7 +442,7 @@ export class LivestreamService {
       await prisma.livestreamPlatform.update({
         where: { id: platform.id },
         data: {
-          status: LivestreamPlatformStatus.FAILED,
+          status: LivestreamPlatformStatus.PENDING,
           error: error instanceof Error ? error.message : 'Failed to start broadcasting',
         },
       })
@@ -467,7 +468,7 @@ export class LivestreamService {
       await prisma.livestreamPlatform.update({
         where: { id: platform.id },
         data: {
-          status: LivestreamPlatformStatus.FAILED,
+          status: LivestreamPlatformStatus.ENDED,
           error: error instanceof Error ? error.message : 'Failed to stop broadcasting',
         },
       })
