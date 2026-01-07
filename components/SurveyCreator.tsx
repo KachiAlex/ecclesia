@@ -2,14 +2,27 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { GripVertical, Settings, Users, Save, Eye, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
+import {
+  BarChart2,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  GripVertical,
+  Layers,
+  Loader2,
+  Settings,
+  ShieldCheck,
+  Target,
+  Trash2
+} from 'lucide-react'
 import { SurveyQuestion, QuestionType, TargetAudience, SurveySection } from '@/types/survey'
 
 import MultipleChoiceQuestion from './survey/MultipleChoiceQuestion'
 import TextQuestion from './survey/TextQuestion'
 import RatingQuestion from './survey/RatingQuestion'
 import YesNoQuestion from './survey/YesNoQuestion'
-import SurveySettings from './SurveySettings'
+import SurveySettings, { SurveySettingsFormState } from './SurveySettings'
 import TargetAudienceSelector from './survey/TargetAudienceSelector'
 
 const generateSectionId = () => `section_${Math.random().toString(36).slice(2, 10)}`
@@ -58,10 +71,29 @@ const questionTypeOptions: { label: string; type: QuestionType; accent: string }
   { label: 'Yes / No', type: 'YES_NO', accent: 'bg-purple-50 text-purple-700 hover:bg-purple-100' }
 ]
 
+const defaultSettings: SurveySettingsFormState = {
+  isAnonymous: false,
+  allowMultipleResponses: false,
+  deadline: null,
+  isActive: false,
+  requiresApproval: false,
+  showProgressBar: true,
+  randomizeQuestions: false,
+  allowSaveAndContinue: true,
+  sendNotifications: true,
+  collectMetadata: true,
+  sendOnPublish: true,
+  sendReminders: true,
+  reminderDays: [3, 1],
+  meetingId: null
+}
+
+type SurveyCreatorIntent = 'draft' | 'publish'
+
 interface SurveyCreatorProps {
   userRole: string
   churchId: string
-  onSave?: (surveyData: any) => void
+  onSave?: (surveyData: any, intent: SurveyCreatorIntent) => Promise<void> | void
   onPreview?: (surveyData: any) => void
   initialData?: any
 }
@@ -106,19 +138,16 @@ export default function SurveyCreator({
 
     return ordered.map((question, index) => ({ ...question, order: index }))
   })
-  const [settings, setSettings] = useState(
-    initialData?.settings || {
-      isAnonymous: false,
-      allowMultipleResponses: false,
-      deadline: null,
-      isActive: false
-    }
-  )
+  const [settings, setSettings] = useState<SurveySettingsFormState>(() => ({
+    ...defaultSettings,
+    ...(initialData?.settings || {})
+  }))
   const [targetAudience, setTargetAudience] = useState<TargetAudience>(
     initialData?.targetAudience || {
       type: 'ALL',
       groupIds: [],
-      roleIds: []
+      roleIds: [],
+      userIds: []
     }
   )
   const [activeTab, setActiveTab] = useState<'builder' | 'settings' | 'audience'>('builder')
@@ -126,6 +155,7 @@ export default function SurveyCreator({
   const [inlineAddSectionId, setInlineAddSectionId] = useState<string | null>(null)
   const [showInlineAddMenu, setShowInlineAddMenu] = useState(false)
   const inlineAddMenuRef = useRef<HTMLDivElement | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const questionsWithIndex = useMemo(
     () => questions.map((question, index) => ({ question, index })),
@@ -297,33 +327,109 @@ export default function SurveyCreator({
     }
   }
 
+  const buildPayload = () => ({
+    title: title.trim(),
+    description: description.trim(),
+    questions,
+    sections,
+    settings,
+    targetAudience,
+    churchId
+  })
+
   const handlePreview = () => {
-    const surveyData = {
-      title,
-      description,
-      questions,
-      sections,
-      settings,
-      targetAudience
-    }
-    onPreview?.(surveyData)
+    onPreview?.(buildPayload())
   }
 
-  const handleSave = () => {
-    const surveyData = {
-      title,
-      description,
-      questions,
-      sections,
-      settings,
-      targetAudience,
-      churchId
+  const canPublish = title.trim().length > 0 && questions.length > 0
+
+  const handleSubmit = async (intent: SurveyCreatorIntent) => {
+    if (intent === 'publish' && !canPublish) {
+      return
     }
-    onSave?.(surveyData)
+    setIsSubmitting(true)
+    try {
+      await onSave?.(buildPayload(), intent)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="flex h-full flex-col space-y-6">
+      <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary-600">Survey overview</p>
+            <h1 className="mt-1 text-2xl font-bold text-gray-900">
+              {initialData ? 'Update your survey' : 'Create a new survey'}
+            </h1>
+            <p className="text-sm text-gray-500">
+              Draft your questions, choose the right audience, then publish when you’re ready.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary-500" />
+              Draft mode
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Autosave coming soon
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700">Survey title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Church Growth Pulse – Q1 2026"
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-base font-semibold text-gray-900 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-300"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Share context or goals for this survey. Members will see this before they respond."
+              rows={3}
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-300"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          {[
+            { id: 'builder', icon: Layers, label: 'Questions' },
+            { id: 'settings', icon: Settings, label: 'Settings' },
+            { id: 'audience', icon: Target, label: 'Audience' }
+          ].map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? 'border-primary-200 bg-primary-50 text-primary-700 shadow-sm'
+                    : 'border-gray-200 text-gray-600 hover:border-primary-200 hover:text-primary-700'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {activeTab === 'builder' && (
         <div className="bg-white rounded-xl border p-6 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -482,6 +588,49 @@ export default function SurveyCreator({
           churchId={churchId}
         />
       )}
+      <div className="sticky bottom-6 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <BarChart2 className="h-4 w-4 text-primary-500" />
+          {questions.length} question{questions.length === 1 ? '' : 's'} • {sections.length}{' '}
+          section{sections.length === 1 ? '' : 's'}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-primary-200 hover:text-primary-700"
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit('draft')}
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+            ) : (
+              <ShieldCheck className="h-4 w-4 text-gray-500" />
+            )}
+            Save as draft
+          </button>
+          <button
+            type="button"
+            disabled={!canPublish || isSubmitting}
+            onClick={() => handleSubmit('publish')}
+            className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-white" />
+            )}
+            Publish survey
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

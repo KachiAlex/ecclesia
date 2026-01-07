@@ -85,6 +85,7 @@ export interface TargetAudience {
   branchIds?: string[]
   groupIds?: string[]
   roleIds?: string[]
+  userIds?: string[]
 }
 
 export interface SurveyQuestionOption {

@@ -1,8 +1,8 @@
 'use client'
 
-import { Calendar, Clock, Users, Shield, RefreshCw } from 'lucide-react'
+import { Clock, Users, Shield, RefreshCw } from 'lucide-react'
 
-interface SurveySettings {
+export interface SurveySettingsFormState {
   isAnonymous: boolean
   allowMultipleResponses: boolean
   deadline: string | null
@@ -13,19 +13,33 @@ interface SurveySettings {
   allowSaveAndContinue?: boolean
   sendNotifications?: boolean
   collectMetadata?: boolean
+  sendOnPublish: boolean
+  sendReminders: boolean
+  reminderDays: number[]
+  meetingId?: string | null
 }
 
 interface SurveySettingsProps {
-  settings: SurveySettings
-  onChange: (settings: SurveySettings) => void
+  settings: SurveySettingsFormState
+  onChange: (settings: SurveySettingsFormState) => void
 }
 
 export default function SurveySettings({
   settings,
   onChange
 }: SurveySettingsProps) {
-  const updateSetting = (key: keyof SurveySettings, value: any) => {
+  const updateSetting = (key: keyof SurveySettingsFormState, value: any) => {
     onChange({ ...settings, [key]: value })
+  }
+
+  const toggleReminderDay = (day: number) => {
+    const next = new Set(settings.reminderDays || [])
+    if (next.has(day)) {
+      next.delete(day)
+    } else {
+      next.add(day)
+    }
+    onChange({ ...settings, reminderDays: Array.from(next).sort((a, b) => a - b) })
   }
 
   return (
@@ -81,6 +95,19 @@ export default function SurveySettings({
               <p className="text-xs text-gray-600">Survey must be approved by an admin before going live</p>
             </div>
           </label>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Link to meeting/event (optional)
+            </label>
+            <input
+              type="text"
+              value={settings.meetingId || ''}
+              onChange={(e) => updateSetting('meetingId', e.target.value || null)}
+              placeholder="Enter meeting ID or leave blank"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -204,6 +231,52 @@ export default function SurveySettings({
               <p className="text-xs text-gray-600">Record submission time, device info, etc. (respects anonymity setting)</p>
             </div>
           </label>
+
+          <div className="rounded-2xl border border-dashed border-gray-200 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Publish notifications</p>
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.sendOnPublish}
+                onChange={(e) => updateSetting('sendOnPublish', e.target.checked)}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              Notify targeted members immediately when the survey goes live
+            </label>
+          </div>
+
+          <div className="rounded-2xl border border-dashed border-gray-200 p-4">
+            <label className="flex items-center justify-between text-sm font-medium text-gray-900">
+              <span>Send reminder nudges</span>
+              <input
+                type="checkbox"
+                checked={settings.sendReminders}
+                onChange={(e) => updateSetting('sendReminders', e.target.checked)}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+            </label>
+            <p className="mt-2 text-xs text-gray-500">Choose when automatic reminders go out</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[7, 3, 1].map((day) => {
+                const isActive = settings.reminderDays?.includes(day)
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleReminderDay(day)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      isActive
+                        ? 'border-primary-300 bg-primary-50 text-primary-700'
+                        : 'border-gray-200 text-gray-500 hover:border-primary-200 hover:text-primary-700'
+                    }`}
+                    disabled={!settings.sendReminders}
+                  >
+                    {day} day{day === 1 ? '' : 's'} before
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -217,6 +290,12 @@ export default function SurveySettings({
             <p>• Closes on {new Date(settings.deadline).toLocaleDateString()} at {new Date(settings.deadline).toLocaleTimeString()}</p>
           )}
           <p>• Survey is {settings.isActive ? 'active and accepting responses' : 'inactive (draft mode)'}</p>
+          <p>• {settings.sendOnPublish ? 'Members get an instant publish notification' : 'No publish notification will be sent'}</p>
+          <p>
+            • {settings.sendReminders && settings.reminderDays?.length
+              ? `Reminders scheduled ${settings.reminderDays.map((day) => `${day}d`).join(', ')} before deadline`
+              : 'Reminders are disabled'}
+          </p>
         </div>
       </div>
     </div>
