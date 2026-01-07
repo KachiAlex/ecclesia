@@ -91,11 +91,40 @@ async function ensureChurchRecord(churchId: string): Promise<string | null> {
   }
 }
 
-async function ensureUserRecord(userId: string): Promise<string | null> {
-  if (!userId) return null
+interface SessionUserFallback {
+  id?: string | null
+  email?: string | null
+  name?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  churchId?: string | null
+}
+
+async function ensureUserRecord(
+  userId: string | null | undefined,
+  fallbackUser?: SessionUserFallback
+): Promise<string | null> {
+  let resolvedUserId = userId ?? fallbackUser?.id ?? null
+  let remoteUser = resolvedUserId ? await UserService.findById(resolvedUserId).catch(() => null) : null
+
+  if (!resolvedUserId && fallbackUser?.email) {
+    remoteUser = await UserService.findByEmail(fallbackUser.email).catch(() => null)
+    if (remoteUser) {
+      resolvedUserId = remoteUser.id
+    }
+  }
+
+  if (!resolvedUserId && fallbackUser?.email) {
+    // Use deterministic pseudo-id derived from email to allow consistent lookups
+    resolvedUserId = `email:${fallbackUser.email.trim().toLowerCase()}`
+  }
+
+  if (!resolvedUserId) {
+    return null
+  }
 
   const existing = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: resolvedUserId },
     select: { id: true }
   })
 
@@ -104,44 +133,75 @@ async function ensureUserRecord(userId: string): Promise<string | null> {
   }
 
   try {
-    const remoteUser = await UserService.findById(userId)
-    if (!remoteUser) {
+    if (!remoteUser && resolvedUserId) {
+      remoteUser = await UserService.findById(resolvedUserId).catch(() => null)
+    }
+
+    const baseUser =
+      remoteUser ||
+      (fallbackUser
+        ? {
+            id: resolvedUserId,
+            email:
+              fallbackUser.email ||
+              (resolvedUserId ? `${resolvedUserId}@ecclesia.local` : null),
+            firstName: fallbackUser.firstName || fallbackUser.name?.split(' ')?.[0] || 'Member',
+            lastName:
+              fallbackUser.lastName ||
+              (fallbackUser.name?.split(' ')?.slice(1).join(' ') || ''),
+            role: 'MEMBER',
+            churchId: fallbackUser.churchId || null,
+            phone: null,
+            branchId: null,
+            profileImage: null,
+            bio: null,
+            dateOfBirth: null,
+            address: null,
+            city: null,
+            state: null,
+            zipCode: null,
+            country: null,
+            password: undefined
+          }
+        : null)
+
+    if (!baseUser) {
       return null
     }
 
-    const linkedChurchId = remoteUser.churchId
-      ? await ensureChurchRecord(remoteUser.churchId)
+    const linkedChurchId = baseUser.churchId
+      ? await ensureChurchRecord(baseUser.churchId)
       : null
 
     const normalizedEmail =
-      remoteUser.email?.trim().toLowerCase() || `${remoteUser.id}@ecclesia.local`
+      baseUser.email?.trim().toLowerCase() || `${baseUser.id}@ecclesia.local`
 
     const hashedPassword =
-      remoteUser.password && remoteUser.password.startsWith('$2')
-        ? remoteUser.password
-        : await bcrypt.hash(remoteUser.password || normalizedEmail, 10)
+      baseUser.password && baseUser.password.startsWith?.('$2')
+        ? baseUser.password
+        : await bcrypt.hash(baseUser.password || normalizedEmail, 10)
 
     const created = await prisma.user.create({
       data: {
-        id: remoteUser.id,
+        id: baseUser.id,
         email: normalizedEmail,
         password: hashedPassword,
-        firstName: remoteUser.firstName || 'Member',
-        lastName: remoteUser.lastName || '',
-        role: (remoteUser.role?.toUpperCase() as any) || 'MEMBER',
-        phone: remoteUser.phone || null,
+        firstName: baseUser.firstName || 'Member',
+        lastName: baseUser.lastName || '',
+        role: (baseUser.role?.toUpperCase() as any) || 'MEMBER',
+        phone: baseUser.phone || null,
         churchId: linkedChurchId,
-        branchId: remoteUser.branchId || null,
-        profileImage: remoteUser.profileImage || null,
-        bio: remoteUser.bio || null,
-        dateOfBirth: remoteUser.dateOfBirth
-          ? new Date(remoteUser.dateOfBirth)
+        branchId: baseUser.branchId || null,
+        profileImage: baseUser.profileImage || null,
+        bio: baseUser.bio || null,
+        dateOfBirth: baseUser.dateOfBirth
+          ? new Date(baseUser.dateOfBirth)
           : null,
-        address: remoteUser.address || null,
-        city: remoteUser.city || null,
-        state: remoteUser.state || null,
-        zipCode: remoteUser.zipCode || null,
-        country: remoteUser.country || null
+        address: baseUser.address || null,
+        city: baseUser.city || null,
+        state: baseUser.state || null,
+        zipCode: baseUser.zipCode || null,
+        country: baseUser.country || null
       }
     })
 
@@ -163,9 +223,10 @@ export async function GET(request: NextRequest) {
     const queryChurchId = searchParams.get('churchId')
 
     const sessionUser = session.user as { id?: string; churchId?: string | null }
-    const sessionUserId = sessionUser?.id || undefined
+    const sessionUserId = sessionUser?.id || null
 
-    const ensuredUserId = await ensureUserRecord(sessionUserId || '')
+    const ensuredUserId = await ensureUserRecord(sessionUserId, sessionUser)
+
     if (!ensuredUserId) {
       return NextResponse.json(
         { error: 'Unable to load surveys for this user.' },
@@ -214,7 +275,8 @@ export async function POST(request: NextRequest) {
     const sessionUser = session.user as { id?: string; churchId?: string | null }
     const sessionUserId = sessionUser?.id || ''
 
-    const ensuredUserId = await ensureUserRecord(sessionUserId)
+    const ensuredUserId = await ensureUserRecord(sessionUserId, sessionUser)
+
     if (!ensuredUserId) {
       return NextResponse.json(
         { error: 'Unable to identify the current user. Please re-authenticate.' },
