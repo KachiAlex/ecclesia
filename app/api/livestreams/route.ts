@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options'
 import { LivestreamService } from '@/lib/services/livestream-service'
 import { StreamingPlatform, LivestreamStatus } from '@/lib/types/streaming'
 import { prisma } from '@/lib/prisma'
+import { getCurrentChurchId } from '@/lib/church-context'
+import { UserRole } from '@/types'
 
 /**
  * GET /api/livestreams - List livestreams
@@ -15,18 +17,41 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's church
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { churchId: true, role: true },
-    })
+    const sessionUser = session.user as { id?: string; email?: string; role?: UserRole; churchId?: string }
 
-    if (!user?.churchId) {
-      return NextResponse.json({ error: 'User not associated with a church' }, { status: 400 })
+    // Attempt to hydrate user from database (prefer ID, fallback to email)
+    let dbUser =
+      sessionUser.id
+        ? await prisma.user.findUnique({
+            where: { id: sessionUser.id },
+            select: { id: true, churchId: true, role: true },
+          })
+        : null
+
+    if (!dbUser && sessionUser.email) {
+      dbUser = await prisma.user.findUnique({
+        where: { email: sessionUser.email },
+        select: { id: true, churchId: true, role: true },
+      })
+    }
+
+    const resolvedUser = dbUser || (sessionUser.id ? { id: sessionUser.id, churchId: sessionUser.churchId, role: sessionUser.role } : null)
+
+    if (!resolvedUser?.id) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    let churchId = resolvedUser.churchId || sessionUser.churchId
+    if (!churchId) {
+      churchId = await getCurrentChurchId(resolvedUser.id)
+    }
+
+    if (!churchId) {
+      return NextResponse.json({ error: 'No church selected' }, { status: 400 })
     }
 
     // Get query parameters
@@ -34,7 +59,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as LivestreamStatus | null
 
     // Get livestreams
-    const livestreams = await LivestreamService.getLivestreams(user.churchId, status || undefined)
+    const livestreams = await LivestreamService.getLivestreams(churchId, status || undefined)
 
     return NextResponse.json({
       success: true,
@@ -53,22 +78,46 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, churchId: true, role: true },
-    })
+    const sessionUser = session.user as { id?: string; email?: string; role?: UserRole; churchId?: string }
 
-    if (!user?.churchId) {
-      return NextResponse.json({ error: 'User not associated with a church' }, { status: 400 })
+    // Hydrate user info
+    let dbUser =
+      sessionUser.id
+        ? await prisma.user.findUnique({
+            where: { id: sessionUser.id },
+            select: { id: true, churchId: true, role: true },
+          })
+        : null
+
+    if (!dbUser && sessionUser.email) {
+      dbUser = await prisma.user.findUnique({
+        where: { email: sessionUser.email },
+        select: { id: true, churchId: true, role: true },
+      })
+    }
+
+    const resolvedUser = dbUser || (sessionUser.id ? { id: sessionUser.id, churchId: sessionUser.churchId, role: sessionUser.role } : null)
+
+    if (!resolvedUser?.id) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    let churchId = resolvedUser.churchId || sessionUser.churchId
+    if (!churchId) {
+      churchId = await getCurrentChurchId(resolvedUser.id)
+    }
+
+    if (!churchId) {
+      return NextResponse.json({ error: 'No church selected' }, { status: 400 })
     }
 
     // Check permissions (only admins and pastors can create livestreams)
-    if (!['ADMIN', 'PASTOR', 'LEADER'].includes(user.role)) {
+    const role = (resolvedUser.role || sessionUser.role) as UserRole | undefined
+    if (!role || !['ADMIN', 'PASTOR', 'LEADER', 'SUPER_ADMIN'].includes(role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -109,8 +158,8 @@ export async function POST(request: NextRequest) {
 
     // Create livestream
     const livestream = await LivestreamService.createLivestream(
-      user.churchId,
-      user.id,
+      churchId,
+      resolvedUser.id,
       {
         title: body.title,
         description: body.description,
