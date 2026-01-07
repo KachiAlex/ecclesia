@@ -1,12 +1,8 @@
-'use server'
-
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 
 import { authOptions } from '@/lib/auth-options'
 import { SurveyService } from '@/lib/services/survey-service'
-
-export const dynamic = 'force-dynamic'
 
 export async function POST(
   _request: NextRequest,
