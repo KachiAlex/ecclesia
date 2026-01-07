@@ -4,15 +4,20 @@ import { authOptions } from '@/lib/auth-options'
 import { SurveyService } from '@/lib/services/survey-service'
 import { prisma } from '@/lib/prisma'
 import { getCurrentChurchId } from '@/lib/church-context'
+import { ChurchService, generateSlug } from '@/lib/services/church-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 async function resolveChurchId(
   providedChurchId: string | null,
-  sessionUserId?: string
+  sessionUserId?: string,
+  sessionUserChurchId?: string | null
 ): Promise<string | null> {
-  const candidates: Array<string | null | undefined> = [providedChurchId]
+  const candidates: Array<string | null | undefined> = [
+    providedChurchId,
+    sessionUserChurchId
+  ]
 
   if (sessionUserId) {
     const dbUser = await prisma.user.findUnique({
@@ -26,16 +31,62 @@ async function resolveChurchId(
 
   for (const candidate of candidates) {
     if (!candidate) continue
-    const churchExists = await prisma.church.findUnique({
-      where: { id: candidate },
-      select: { id: true }
-    })
-    if (churchExists) {
-      return churchExists.id
+    const ensuredChurchId = await ensureChurchRecord(candidate)
+    if (ensuredChurchId) {
+      return ensuredChurchId
     }
   }
 
   return null
+}
+
+async function ensureChurchRecord(churchId: string): Promise<string | null> {
+  const existing = await prisma.church.findUnique({
+    where: { id: churchId },
+    select: { id: true }
+  })
+
+  if (existing) {
+    return existing.id
+  }
+
+  try {
+    const remoteChurch = await ChurchService.findById(churchId)
+    if (!remoteChurch) {
+      return null
+    }
+
+    const slugSource =
+      remoteChurch.slug ||
+      (remoteChurch.name ? generateSlug(remoteChurch.name) : `church-${churchId.slice(0, 6)}`)
+
+    const created = await prisma.church.create({
+      data: {
+        id: churchId,
+        name: remoteChurch.name || 'Untitled Church',
+        slug: slugSource,
+        logo: remoteChurch.logo || null,
+        primaryColor: remoteChurch.primaryColor || null,
+        secondaryColor: remoteChurch.secondaryColor || null,
+        address: remoteChurch.address || null,
+        city: remoteChurch.city || null,
+        state: remoteChurch.state || null,
+        zipCode: remoteChurch.zipCode || null,
+        country: remoteChurch.country || null,
+        phone: remoteChurch.phone || null,
+        email: remoteChurch.email || remoteChurch.organizationEmail || null,
+        website: remoteChurch.website || null,
+        description: remoteChurch.description || remoteChurch.tagline || null,
+        customDomain: remoteChurch.customDomain || null,
+        domainVerified: remoteChurch.domainVerified ?? false
+      }
+    })
+
+    return created.id
+  } catch (error) {
+    console.error('Failed to ensure church record:', error)
+    return null
+  }
 }
 
 export async function GET(request: NextRequest) {
