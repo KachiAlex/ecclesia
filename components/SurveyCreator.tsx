@@ -276,6 +276,27 @@ export default function SurveyCreator({
     setDraggedIndex(null)
   }
 
+  const renderQuestion = (question: SurveyQuestion, index: number) => {
+    const sharedProps = {
+      question,
+      onChange: (updated: SurveyQuestion) => updateQuestion(index, updated),
+      onRemove: () => removeQuestion(index)
+    }
+
+    switch (question.type) {
+      case 'MULTIPLE_CHOICE':
+        return <MultipleChoiceQuestion {...sharedProps} />
+      case 'TEXT':
+        return <TextQuestion {...sharedProps} />
+      case 'RATING':
+        return <RatingQuestion {...sharedProps} />
+      case 'YES_NO':
+        return <YesNoQuestion {...sharedProps} />
+      default:
+        return null
+    }
+  }
+
   const handlePreview = () => {
     const surveyData = {
       title,
