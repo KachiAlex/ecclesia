@@ -261,6 +261,7 @@ model Church {
   // Multi-Platform Streaming
   platformConnections   PlatformConnection[]  @relation("PlatformConnections")
   livestreams           Livestream[]          @relation("Livestreams")
+  externalLivestreamConfig ExternalLivestreamConfig?
   meetings              Meeting[]             @relation("Meetings")
   
   createdAt             DateTime              @default(now())
@@ -1524,6 +1525,26 @@ model LivestreamPlatform {
   @@index([livestreamId])
   @@index([platform])
   @@index([status])
+}
+
+model ExternalLivestreamConfig {
+  id          String            @id @default(cuid())
+  churchId    String            @unique
+  church      Church             @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  enabled     Boolean           @default(false)
+  platform    StreamingPlatform
+  url         String?
+  title       String?
+  description String?
+  scheduledAt DateTime?
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([churchId])
+  @@index([platform])
+  @@index([enabled])
 }
 
 // Multi-Platform Streaming - Meetings (Enhanced)

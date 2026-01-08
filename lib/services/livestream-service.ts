@@ -9,12 +9,87 @@ import {
 import { PlatformConnectionService } from './platform-connection-service'
 import { PlatformClientFactory } from '@/lib/clients/platform-client-factory'
 
+export type ExternalLivestreamConfig = {
+  id: string
+  churchId: string
+  enabled: boolean
+  platform: StreamingPlatform
+  url?: string
+  title?: string
+  description?: string
+  scheduledAt?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type UpsertExternalLivestreamConfigInput = {
+  enabled: boolean
+  platform: StreamingPlatform
+  url?: string
+  title?: string
+  description?: string
+  scheduledAt?: Date
+}
+
 /**
  * Livestream Service
  * Manages livestream creation, updates, and multi-platform broadcasting
  * Requirements: 1.1, 1.2, 1.3, 1.4, 6.1, 6.2
  */
 export class LivestreamService {
+  static async findByChurch(churchId: string): Promise<ExternalLivestreamConfig | null> {
+    const config = await prisma.externalLivestreamConfig.findUnique({ where: { churchId } })
+    if (!config) return null
+    return {
+      id: config.id,
+      churchId: config.churchId,
+      enabled: config.enabled,
+      platform: config.platform,
+      url: config.url || undefined,
+      title: config.title || undefined,
+      description: config.description || undefined,
+      scheduledAt: config.scheduledAt || undefined,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    }
+  }
+
+  static async upsertByChurch(churchId: string, input: UpsertExternalLivestreamConfigInput): Promise<ExternalLivestreamConfig> {
+    const updated = await prisma.externalLivestreamConfig.upsert({
+      where: { churchId },
+      create: {
+        churchId,
+        enabled: input.enabled,
+        platform: input.platform,
+        url: input.enabled ? input.url || null : null,
+        title: input.title || null,
+        description: input.description || null,
+        scheduledAt: input.scheduledAt || null,
+      },
+      update: {
+        enabled: input.enabled,
+        platform: input.platform,
+        url: input.enabled ? input.url || null : null,
+        title: input.title || null,
+        description: input.description || null,
+        scheduledAt: input.scheduledAt || null,
+      },
+    })
+
+    return {
+      id: updated.id,
+      churchId: updated.churchId,
+      enabled: updated.enabled,
+      platform: updated.platform,
+      url: updated.url || undefined,
+      title: updated.title || undefined,
+      description: updated.description || undefined,
+      scheduledAt: updated.scheduledAt || undefined,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    }
+  }
+
   /**
    * Create a new livestream
    * Property 2: Livestream Multi-Platform Broadcasting - attempts to broadcast to all selected platforms

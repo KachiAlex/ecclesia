@@ -8,6 +8,21 @@ import {
   StreamingPlatform,
 } from '@/lib/types/streaming'
 
+type ExternalLivestreamConfig = {
+  enabled: boolean
+  platform: StreamingPlatform
+  url?: string
+  title?: string
+  description?: string
+  scheduledAt?: string
+}
+
+type DisplayedPlatform = {
+  platform: StreamingPlatform
+  url: string
+  source: 'managed' | 'external'
+}
+
 const PLATFORM_META: Record<
   StreamingPlatform,
   { label: string; icon: string; accent: string }
@@ -24,7 +39,7 @@ const PLATFORM_META: Record<
 
 const STATUS_META: Record<LivestreamPlatformStatus, string> = {
   [LivestreamPlatformStatus.PENDING]: 'bg-amber-50 text-amber-700',
-  [LivestreamPlatformStatus.ACTIVE]: 'bg-green-50 text-green-700',
+  [LivestreamPlatformStatus.LIVE]: 'bg-green-50 text-green-700',
   [LivestreamPlatformStatus.ENDED]: 'bg-gray-100 text-gray-600',
   [LivestreamPlatformStatus.FAILED]: 'bg-red-50 text-red-700',
 }
@@ -56,6 +71,16 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
   const [showCreator, setShowCreator] = useState(false)
   const [creatorError, setCreatorError] = useState<string | null>(null)
 
+  const [externalConfig, setExternalConfig] = useState<ExternalLivestreamConfig | null>(null)
+  const [showExternalEditor, setShowExternalEditor] = useState(false)
+  const [externalSaving, setExternalSaving] = useState(false)
+  const [externalPlatform, setExternalPlatform] = useState<StreamingPlatform>(StreamingPlatform.YOUTUBE)
+  const [externalEnabled, setExternalEnabled] = useState(true)
+  const [externalUrl, setExternalUrl] = useState('')
+  const [externalTitle, setExternalTitle] = useState('')
+  const [externalDescription, setExternalDescription] = useState('')
+  const [externalScheduledAt, setExternalScheduledAt] = useState('')
+
   const loadLivestreams = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -74,9 +99,27 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
     }
   }, [])
 
+  const loadExternalConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/livestream', { cache: 'no-store' })
+      if (!res.ok) {
+        setExternalConfig(null)
+        return
+      }
+      const data = (await res.json()) as ExternalLivestreamConfig | null
+      setExternalConfig(data)
+    } catch {
+      setExternalConfig(null)
+    }
+  }, [])
+
   useEffect(() => {
     loadLivestreams()
   }, [loadLivestreams])
+
+  useEffect(() => {
+    loadExternalConfig()
+  }, [loadExternalConfig])
 
   const activeLivestream = useMemo(() => {
     if (!livestreams.length) return null
@@ -97,12 +140,89 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
     )
   }, [activeLivestream])
 
-  const embedUrl = useMemo(() => {
-    if (!primaryPlatform?.url) return null
-    if (primaryPlatform.platform === StreamingPlatform.YOUTUBE) return getYouTubeEmbedUrl(primaryPlatform.url)
-    if (primaryPlatform.platform === StreamingPlatform.FACEBOOK) return getFacebookEmbedUrl(primaryPlatform.url)
+  const externalPrimary = useMemo(() => {
+    if (!externalConfig?.enabled) return null
+    if (!externalConfig.url) return null
+    return {
+      platform: externalConfig.platform,
+      url: externalConfig.url,
+      title: externalConfig.title,
+      description: externalConfig.description,
+      scheduledAt: externalConfig.scheduledAt,
+    }
+  }, [externalConfig])
+
+  const displayedPlatform = useMemo<DisplayedPlatform | null>(() => {
+    if (primaryPlatform?.url) return { platform: primaryPlatform.platform, url: primaryPlatform.url, source: 'managed' }
+    if (externalPrimary?.url) return { platform: externalPrimary.platform, url: externalPrimary.url, source: 'external' }
     return null
-  }, [primaryPlatform])
+  }, [primaryPlatform, externalPrimary])
+
+  const embedUrl = useMemo(() => {
+    if (!displayedPlatform?.url) return null
+    if (displayedPlatform.platform === StreamingPlatform.YOUTUBE) return getYouTubeEmbedUrl(displayedPlatform.url)
+    if (displayedPlatform.platform === StreamingPlatform.FACEBOOK) return getFacebookEmbedUrl(displayedPlatform.url)
+    return null
+  }, [displayedPlatform])
+
+  const displayedTitle = useMemo(() => {
+    if (activeLivestream) return activeLivestream.title
+    return externalPrimary?.title || 'Livestream'
+  }, [activeLivestream, externalPrimary])
+
+  const displayedDescription = useMemo(() => {
+    if (activeLivestream) return activeLivestream.description
+    return externalPrimary?.description
+  }, [activeLivestream, externalPrimary])
+
+  const displayedStartAtText = useMemo(() => {
+    if (activeLivestream?.startAt) return new Date(activeLivestream.startAt).toLocaleString()
+    if (externalPrimary?.scheduledAt) {
+      const dt = new Date(externalPrimary.scheduledAt)
+      if (!Number.isNaN(dt.getTime())) return dt.toLocaleString()
+    }
+    return null
+  }, [activeLivestream, externalPrimary])
+
+  const openExternalEditor = () => {
+    setCreatorError(null)
+    setExternalEnabled(externalConfig?.enabled ?? true)
+    setExternalPlatform(externalConfig?.platform ?? StreamingPlatform.YOUTUBE)
+    setExternalUrl(externalConfig?.url ?? '')
+    setExternalTitle(externalConfig?.title ?? '')
+    setExternalDescription(externalConfig?.description ?? '')
+    setExternalScheduledAt(externalConfig?.scheduledAt ? externalConfig.scheduledAt.slice(0, 16) : '')
+    setShowExternalEditor(true)
+  }
+
+  const saveExternal = async () => {
+    setExternalSaving(true)
+    setCreatorError(null)
+    try {
+      const res = await fetch('/api/livestream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: externalEnabled,
+          platform: externalPlatform,
+          url: externalUrl,
+          title: externalTitle || undefined,
+          description: externalDescription || undefined,
+          scheduledAt: externalScheduledAt ? new Date(externalScheduledAt).toISOString() : undefined,
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to save external stream')
+      }
+      setExternalConfig(data)
+      setShowExternalEditor(false)
+    } catch (err) {
+      setCreatorError(err instanceof Error ? err.message : 'Failed to save external stream')
+    } finally {
+      setExternalSaving(false)
+    }
+  }
 
   const statusText = useMemo(() => {
     if (!activeLivestream) return 'No livestream scheduled.'
@@ -110,6 +230,12 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
     if (activeLivestream.status === 'SCHEDULED') return 'Upcoming livestream'
     return 'Previous livestream'
   }, [activeLivestream])
+
+  const displayStatusText = useMemo(() => {
+    if (activeLivestream) return statusText
+    if (externalPrimary) return 'External livestream'
+    return 'No livestream scheduled.'
+  }, [activeLivestream, externalPrimary, statusText])
 
   const handleCreatorSuccess = (livestreamId: string) => {
     setShowCreator(false)
@@ -137,12 +263,20 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
           </p>
         </div>
         {isAdmin && (
-          <button
-            onClick={() => setShowCreator(true)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
-          >
-            + Schedule Multi-Platform Stream
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={openExternalEditor}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50 font-medium"
+            >
+              Set External Stream URL
+            </button>
+            <button
+              onClick={() => setShowCreator(true)}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
+            >
+              + Schedule Multi-Platform Stream
+            </button>
+          </div>
         )}
       </div>
 
@@ -152,34 +286,32 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
         </div>
       )}
 
-      {activeLivestream ? (
+      {activeLivestream || externalPrimary ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6 border-b">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="text-sm text-gray-500">{statusText}</div>
-                <div className="text-2xl font-semibold text-gray-900 mt-1">{activeLivestream.title}</div>
-                {activeLivestream.description && (
-                  <p className="text-gray-600 mt-2 max-w-2xl">{activeLivestream.description}</p>
+                <div className="text-sm text-gray-500">{displayStatusText}</div>
+                <div className="text-2xl font-semibold text-gray-900 mt-1">{displayedTitle}</div>
+                {displayedDescription && (
+                  <p className="text-gray-600 mt-2 max-w-2xl">{displayedDescription}</p>
                 )}
                 <div className="text-sm text-gray-500 mt-2">
-                  {activeLivestream.startAt
-                    ? `Starts ${new Date(activeLivestream.startAt).toLocaleString()}`
-                    : 'Start time TBA'}
+                  {displayedStartAtText ? `Starts ${displayedStartAtText}` : 'Start time TBA'}
                 </div>
-                {primaryPlatform?.url && (
+                {displayedPlatform?.url && (
                   <a
-                    href={primaryPlatform.url}
+                    href={displayedPlatform.url}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 text-primary-600 hover:underline mt-3 text-sm font-medium"
                   >
-                    Open on {PLATFORM_META[primaryPlatform.platform].label}
+                    Open on {PLATFORM_META[displayedPlatform.platform].label}
                     <span aria-hidden="true">↗</span>
                   </a>
                 )}
               </div>
-              {activeLivestream.platforms && activeLivestream.platforms.length > 0 && (
+              {activeLivestream?.platforms && activeLivestream.platforms.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {activeLivestream.platforms.map((platform) => (
                     <div
@@ -288,6 +420,119 @@ export default function LivestreamHub({ isAdmin }: { isAdmin: boolean }) {
               </div>
             )}
             <LivestreamCreator onSuccess={handleCreatorSuccess} onError={handleCreatorError} />
+          </div>
+        </div>
+      )}
+
+      {isAdmin && showExternalEditor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowExternalEditor(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">External Livestream Link</h3>
+                <p className="text-sm text-gray-600">
+                  Start your livestream in YouTube/Facebook/OBS/StreamYard, then paste the public URL here.
+                </p>
+              </div>
+              <button
+                className="text-gray-500 hover:text-gray-700 text-xl"
+                onClick={() => setShowExternalEditor(false)}
+                aria-label="Close external livestream editor"
+              >
+                ×
+              </button>
+            </div>
+
+            {creatorError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-2 text-sm">
+                {creatorError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={externalEnabled}
+                  onChange={(e) => setExternalEnabled(e.target.checked)}
+                />
+                Enabled
+              </label>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                <select
+                  value={externalPlatform}
+                  onChange={(e) => setExternalPlatform(e.target.value as StreamingPlatform)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value={StreamingPlatform.YOUTUBE}>YouTube</option>
+                  <option value={StreamingPlatform.FACEBOOK}>Facebook</option>
+                  <option value={StreamingPlatform.INSTAGRAM}>Instagram</option>
+                  <option value={StreamingPlatform.RESTREAM}>Restream</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Livestream URL</label>
+                <input
+                  type="url"
+                  value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Title (optional)</label>
+                <input
+                  type="text"
+                  value={externalTitle}
+                  onChange={(e) => setExternalTitle(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                <textarea
+                  value={externalDescription}
+                  onChange={(e) => setExternalDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Scheduled time (optional)</label>
+                <input
+                  type="datetime-local"
+                  value={externalScheduledAt}
+                  onChange={(e) => setExternalScheduledAt(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowExternalEditor(false)}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveExternal}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  disabled={externalSaving}
+                  type="button"
+                >
+                  {externalSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

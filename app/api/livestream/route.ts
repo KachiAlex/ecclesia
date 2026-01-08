@@ -1,10 +1,13 @@
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 import { guardApi } from '@/lib/api-guard'
-import { LivestreamService, LivestreamPlatform } from '@/lib/services/livestream-service'
+import { LivestreamService } from '@/lib/services/livestream-service'
+import { StreamingPlatform } from '@/lib/types/streaming'
 
-const isValidPlatform = (v: any): v is LivestreamPlatform => v === 'youtube' || v === 'facebook'
+const isValidPlatform = (v: any): v is StreamingPlatform =>
+  Object.values(StreamingPlatform).includes(v as StreamingPlatform)
 
 export async function GET() {
   const guarded = await guardApi({ requireChurch: true })
