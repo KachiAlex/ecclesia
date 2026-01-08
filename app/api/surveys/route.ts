@@ -52,35 +52,40 @@ async function ensureChurchRecord(churchId: string): Promise<string | null> {
     return existing.id
   }
 
+  let remoteChurch: Awaited<ReturnType<typeof ChurchService.findById>> | null = null
+
   try {
-    const remoteChurch = await ChurchService.findById(churchId)
-    if (!remoteChurch) {
-      return null
-    }
+    remoteChurch = await ChurchService.findById(churchId)
+  } catch (error) {
+    console.error('Failed to fetch church from Firestore, falling back to placeholder:', error)
+  }
 
-    const slugSource =
-      remoteChurch.slug ||
-      (remoteChurch.name ? generateSlug(remoteChurch.name) : `church-${churchId.slice(0, 6)}`)
+  const fallbackName = `Church ${churchId.slice(-6)}`
+  const slugBase =
+    remoteChurch?.slug ||
+    (remoteChurch?.name ? generateSlug(remoteChurch.name) : `church-${churchId.slice(0, 10).toLowerCase()}`)
+  const slugWithSuffix = remoteChurch?.slug ? remoteChurch.slug : `${slugBase}-${churchId.slice(-4).toLowerCase()}`
 
+  try {
     const created = await prisma.church.create({
       data: {
         id: churchId,
-        name: remoteChurch.name || 'Untitled Church',
-        slug: slugSource,
-        logo: remoteChurch.logo || null,
-        primaryColor: remoteChurch.primaryColor || null,
-        secondaryColor: remoteChurch.secondaryColor || null,
-        address: remoteChurch.address || null,
-        city: remoteChurch.city || null,
-        state: remoteChurch.state || null,
-        zipCode: remoteChurch.zipCode || null,
-        country: remoteChurch.country || null,
-        phone: remoteChurch.phone || null,
-        email: remoteChurch.email || remoteChurch.organizationEmail || null,
-        website: remoteChurch.website || null,
-        description: remoteChurch.description || remoteChurch.tagline || null,
-        customDomain: remoteChurch.customDomain || null,
-        domainVerified: remoteChurch.domainVerified ?? false
+        name: remoteChurch?.name || fallbackName,
+        slug: slugWithSuffix,
+        logo: remoteChurch?.logo || null,
+        primaryColor: remoteChurch?.primaryColor || null,
+        secondaryColor: remoteChurch?.secondaryColor || null,
+        address: remoteChurch?.address || null,
+        city: remoteChurch?.city || null,
+        state: remoteChurch?.state || null,
+        zipCode: remoteChurch?.zipCode || null,
+        country: remoteChurch?.country || null,
+        phone: remoteChurch?.phone || null,
+        email: remoteChurch?.email || remoteChurch?.organizationEmail || null,
+        website: remoteChurch?.website || null,
+        description: remoteChurch?.description || remoteChurch?.tagline || null,
+        customDomain: remoteChurch?.customDomain || null,
+        domainVerified: remoteChurch?.domainVerified ?? false
       }
     })
 
@@ -107,16 +112,29 @@ async function ensureUserRecord(
   let resolvedUserId = userId ?? fallbackUser?.id ?? null
   let remoteUser = resolvedUserId ? await UserService.findById(resolvedUserId).catch(() => null) : null
 
-  if (!resolvedUserId && fallbackUser?.email) {
+  const fallbackEmail = fallbackUser?.email?.trim().toLowerCase()
+
+  if (!resolvedUserId && fallbackEmail) {
     remoteUser = await UserService.findByEmail(fallbackUser.email).catch(() => null)
     if (remoteUser) {
       resolvedUserId = remoteUser.id
     }
   }
 
-  if (!resolvedUserId && fallbackUser?.email) {
+  if (fallbackEmail) {
+    const existingByEmail = await prisma.user.findUnique({
+      where: { email: fallbackEmail },
+      select: { id: true }
+    })
+
+    if (existingByEmail) {
+      return existingByEmail.id
+    }
+  }
+
+  if (!resolvedUserId && fallbackEmail) {
     // Use deterministic pseudo-id derived from email to allow consistent lookups
-    resolvedUserId = `email:${fallbackUser.email.trim().toLowerCase()}`
+    resolvedUserId = `email:${fallbackEmail}`
   }
 
   if (!resolvedUserId) {
@@ -222,7 +240,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const queryChurchId = searchParams.get('churchId')
 
-    const sessionUser = session.user as { id?: string; churchId?: string | null }
+    const sessionUser = session.user as SessionUserFallback
     const sessionUserId = sessionUser?.id || null
 
     const ensuredUserId = await ensureUserRecord(sessionUserId, sessionUser)
@@ -272,7 +290,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const { churchId, intent = 'draft', ...surveyData } = data
 
-    const sessionUser = session.user as { id?: string; churchId?: string | null }
+    const sessionUser = session.user as SessionUserFallback
     const sessionUserId = sessionUser?.id || ''
 
     const ensuredUserId = await ensureUserRecord(sessionUserId, sessionUser)
