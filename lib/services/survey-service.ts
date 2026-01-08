@@ -39,7 +39,7 @@ export class SurveyService {
             }
           ]
 
-    const survey = await prisma.$transaction(async (tx) => {
+    const createdSurvey = await prisma.$transaction(async (tx) => {
       const createdSurvey = await tx.survey.create({
         data: {
           churchId,
@@ -113,8 +113,8 @@ export class SurveyService {
       return createdSurvey
     })
 
-    const hydratedSurvey = await prisma.survey.findUnique({
-      where: { id: survey.id },
+    const survey = await prisma.survey.findUnique({
+      where: { id: createdSurvey.id },
       include: {
         sections: {
           orderBy: { order: 'asc' }
@@ -133,11 +133,11 @@ export class SurveyService {
       }
     })
 
-    if (!hydratedSurvey) {
-      throw new Error('Failed to create survey')
+    if (!survey) {
+      throw new Error('Failed to hydrate survey after creation')
     }
 
-    return this.transformSurveyFromPrisma(hydratedSurvey)
+    return this.transformSurveyFromPrisma(survey)
   }
 
   /**
@@ -821,38 +821,126 @@ export class SurveyService {
       analytics,
       responses
     }
+  }
+
+  private static transformSurveyFromPrisma(record: any): Survey {
+    const sections: SurveySection[] | undefined = record.sections
+      ? record.sections.map((section: any) => ({
+          id: section.id,
+          surveyId: section.surveyId,
+          title: section.title,
+          description: section.description ?? undefined,
+          order: section.order,
+          createdAt: section.createdAt ?? undefined,
+          updatedAt: section.updatedAt ?? undefined
+        }))
+      : undefined
+
+    const questions: SurveyQuestion[] = (record.questions ?? []).map((question: any) => ({
+      id: question.id,
+      surveyId: question.surveyId,
+      sectionId: question.sectionId ?? undefined,
+      type: question.type,
+      title: question.title,
+      description: question.description ?? undefined,
+      required: question.required,
+      order: question.order,
+      options: this.normalizeQuestionOptions(question.options),
+      allowMultiple: question.allowMultiple ?? undefined,
+      minRating: question.minRating ?? undefined,
+      maxRating: question.maxRating ?? undefined,
+      ratingLabels: question.ratingLabels ?? undefined,
+      responses: question.responses
+        ? question.responses.map((qr: any) => ({
+            id: qr.id,
+            responseId: qr.responseId,
+            questionId: qr.questionId,
+            value: qr.value,
+            textValue: qr.textValue ?? undefined
+          }))
+        : undefined,
+      createdAt: question.createdAt ?? undefined,
+      updatedAt: question.updatedAt ?? undefined
+    }))
+
+    const targetAudience: TargetAudience = {
+      type: record.targetAudienceType,
+      branchIds: record.targetBranchIds ?? [],
+      groupIds: record.targetGroupIds ?? [],
+      userIds: record.targetUserIds ?? []
+    }
+
+    return {
+      id: record.id,
+      churchId: record.churchId,
+      branchId: record.branchId ?? undefined,
+      createdBy: record.createdBy,
+      title: record.title,
+      description: record.description ?? undefined,
+      status: record.status,
+      isAnonymous: record.isAnonymous,
+      allowMultipleResponses: record.allowMultipleResponses,
+      deadline: record.deadline ?? undefined,
+      targetAudience,
+      targetAudienceType: record.targetAudienceType,
+      targetBranchIds: record.targetBranchIds ?? [],
+      targetGroupIds: record.targetGroupIds ?? [],
+      targetUserIds: record.targetUserIds ?? [],
+      sendOnPublish: record.sendOnPublish,
+      sendReminders: record.sendReminders,
+      reminderDays: record.reminderDays ?? [],
+      meetingId: record.meetingId ?? undefined,
+      questions,
+      sections,
+      responses: record.responses
+        ? record.responses.map((response: any) => this.transformResponseFromPrisma(response))
+        : undefined,
+      responseCount:
+        typeof record._count?.responses === 'number'
+          ? record._count.responses
+          : record.responses?.length ?? 0,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      publishedAt: record.publishedAt ?? undefined,
+      closedAt: record.closedAt ?? undefined
+    }
+  }
+
+  private static transformResponseFromPrisma(response: any): SurveyResponse {
     return {
       id: response.id,
       surveyId: response.surveyId,
-      userId: response.userId,
-      ipAddress: response.ipAddress,
-      userAgent: response.userAgent,
+      userId: response.userId ?? undefined,
+      ipAddress: response.ipAddress ?? undefined,
+      userAgent: response.userAgent ?? undefined,
       submittedAt: response.submittedAt,
-      questionResponses: response.questionResponses?.map((qr: any) => ({
-        id: qr.id,
-        responseId: qr.responseId,
-        questionId: qr.questionId,
-        value: qr.value,
-        textValue: qr.textValue,
-        question: qr.question
-          ? {
-              id: qr.question.id,
-              title: qr.question.title,
-              type: qr.question.type,
-              options: this.normalizeQuestionOptions(qr.question.options),
-              minRating: qr.question.minRating,
-              maxRating: qr.question.maxRating,
-              ratingLabels: qr.question.ratingLabels || undefined,
-              allowMultiple: qr.question.allowMultiple
-            }
-          : undefined
-      })) || [],
+      questionResponses: response.questionResponses
+        ? response.questionResponses.map((qr: any) => ({
+            id: qr.id,
+            responseId: qr.responseId,
+            questionId: qr.questionId,
+            value: qr.value,
+            textValue: qr.textValue ?? undefined,
+            question: qr.question
+              ? {
+                  id: qr.question.id,
+                  title: qr.question.title,
+                  type: qr.question.type,
+                  options: this.normalizeQuestionOptions(qr.question.options),
+                  minRating: qr.question.minRating ?? undefined,
+                  maxRating: qr.question.maxRating ?? undefined,
+                  ratingLabels: qr.question.ratingLabels ?? undefined,
+                  allowMultiple: qr.question.allowMultiple ?? undefined
+                }
+              : undefined
+          }))
+        : [],
       user: response.user
         ? {
             id: response.user.id,
-            firstName: response.user.firstName,
-            lastName: response.user.lastName,
-            email: response.user.email
+            firstName: response.user.firstName ?? undefined,
+            lastName: response.user.lastName ?? undefined,
+            email: response.user.email ?? undefined
           }
         : undefined
     }
