@@ -96,6 +96,17 @@ async function ensureChurchRecord(churchId: string): Promise<string | null> {
   }
 }
 
+async function ensureBranchReference(branchId: string | null | undefined): Promise<string | null> {
+  if (!branchId) return null
+
+  const existingBranch = await prisma.branch.findUnique({
+    where: { id: branchId },
+    select: { id: true }
+  })
+
+  return existingBranch?.id ?? null
+}
+
 interface SessionUserFallback {
   id?: string | null
   email?: string | null
@@ -103,6 +114,7 @@ interface SessionUserFallback {
   firstName?: string | null
   lastName?: string | null
   churchId?: string | null
+  branchId?: string | null
 }
 
 async function ensureUserRecord(
@@ -169,8 +181,8 @@ async function ensureUserRecord(
               (fallbackUser.name?.split(' ')?.slice(1).join(' ') || ''),
             role: 'MEMBER',
             churchId: fallbackUser.churchId || null,
+            branchId: fallbackUser.branchId || null,
             phone: null,
-            branchId: null,
             profileImage: null,
             bio: null,
             dateOfBirth: null,
@@ -191,6 +203,10 @@ async function ensureUserRecord(
       ? await ensureChurchRecord(baseUser.churchId)
       : null
 
+    const linkedBranchId = baseUser.branchId
+      ? await ensureBranchReference(baseUser.branchId)
+      : null
+
     const normalizedEmail =
       baseUser.email?.trim().toLowerCase() || `${baseUser.id}@ecclesia.local`
 
@@ -209,7 +225,7 @@ async function ensureUserRecord(
         role: (baseUser.role?.toUpperCase() as any) || 'MEMBER',
         phone: baseUser.phone || null,
         churchId: linkedChurchId,
-        branchId: baseUser.branchId || null,
+        branchId: linkedBranchId,
         profileImage: baseUser.profileImage || null,
         bio: baseUser.bio || null,
         dateOfBirth: baseUser.dateOfBirth
