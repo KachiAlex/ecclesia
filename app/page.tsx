@@ -499,74 +499,88 @@ export default function Home() {
       {/* Enhanced Hero Section */}
       <section className="relative z-10 pt-16 md:pt-18 pb-10 md:pb-16 lg:pt-24 lg:pb-18">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div
-              className={`transition-all duration-1000 ease-out ${
-                mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}
-            >
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full mb-8 animate-fade-in">
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                <span className="text-sm font-medium text-blue-700">AI-Powered Discipleship Platform</span>
-                <span className="hidden sm:inline text-xs text-blue-600">• Trusted by 100+ Churches</span>
-              </div>
+          <div className="max-w-7xl mx-auto">
+            <div className="relative overflow-hidden rounded-[2.5rem]">
+              <img
+                src="/home-bg.svg"
+                alt="Ecclesia brand background"
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="eager"
+              />
+              <div className="absolute inset-0 bg-white/70"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/70 via-white/70 to-indigo-50/70"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-white/50"></div>
+              <div className="absolute inset-0 ring-1 ring-gray-100/60"></div>
 
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold text-gray-900 mb-6 leading-[1.1] tracking-tight">
-                Transform Your
-                <br />
-                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent animate-gradient">
-                  Church Community
-                </span>
-              </h1>
-              
-              <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-600 mb-8 md:mb-12 max-w-4xl leading-relaxed font-light">
-                The most comprehensive church management platform with{' '}
-                <span className="font-semibold text-gray-900">AI-powered discipleship</span>,{' '}
-                <span className="font-semibold text-gray-900">community engagement</span>, and{' '}
-                <span className="font-semibold text-gray-900">spiritual growth tools</span> — all in one place.
-              </p>
-
-              {/* Stats Row */}
-              <div className="flex flex-wrap gap-6 md:gap-8 mb-8 md:mb-10">
-                {[
-                  { value: '100+', label: 'Churches' },
-                  { value: '10K+', label: 'Active Users' },
-                  { value: '12', label: 'Core Features' },
-                  { value: '24/7', label: 'Support' },
-                ].map((stat, index) => (
-                  <div key={index} className="flex items-baseline gap-2">
-                    <div className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      {stat.value}
-                    </div>
-                    <div className="text-sm md:text-base text-gray-500 font-medium">{stat.label}</div>
+              <div
+                className={`relative px-4 sm:px-6 lg:px-10 py-10 md:py-12 transition-all duration-1000 ease-out ${
+                  mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                }`}
+              >
+                <div className="max-w-3xl">
+                  {/* Badge */}
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full mb-8 animate-fade-in">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                    <span className="text-sm font-medium text-blue-700">AI-Powered Discipleship Platform</span>
+                    <span className="hidden sm:inline text-xs text-blue-600">• Trusted by 100+ Churches</span>
                   </div>
-                ))}
-              </div>
 
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-10">
-                <Link
-                  href="/auth/register"
-                  className="group relative px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl font-semibold text-lg hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 w-full sm:w-auto overflow-hidden"
-                >
-                  <span className="relative z-10 flex items-center justify-center gap-2">
-                    Start Free Trial
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </Link>
-                <Link
-                  href="/login"
-                  className="px-8 py-4 bg-white text-gray-700 rounded-2xl font-semibold text-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
-                >
-                  Church Login
-                </Link>
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold text-gray-900 mb-6 leading-[1.1] tracking-tight">
+                    Transform Your
+                    <br />
+                    <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent animate-gradient">
+                      Church Community
+                    </span>
+                  </h1>
+
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-600 mb-8 md:mb-12 max-w-2xl leading-relaxed font-light">
+                    The most comprehensive church management platform with{' '}
+                    <span className="font-semibold text-gray-900">AI-powered discipleship</span>,{' '}
+                    <span className="font-semibold text-gray-900">community engagement</span>, and{' '}
+                    <span className="font-semibold text-gray-900">spiritual growth tools</span> — all in one place.
+                  </p>
+
+                  {/* Stats Row */}
+                  <div className="flex flex-wrap gap-6 md:gap-8 mb-8 md:mb-10">
+                    {[
+                      { value: '100+', label: 'Churches' },
+                      { value: '10K+', label: 'Active Users' },
+                      { value: '12', label: 'Core Features' },
+                      { value: '24/7', label: 'Support' },
+                    ].map((stat, index) => (
+                      <div key={index} className="flex items-baseline gap-2">
+                        <div className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                          {stat.value}
+                        </div>
+                        <div className="text-sm md:text-base text-gray-500 font-medium">{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Link
+                      href="/auth/register"
+                      className="group relative px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl font-semibold text-lg hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 w-full sm:w-auto overflow-hidden"
+                    >
+                      <span className="relative z-10 flex items-center justify-center gap-2">
+                        Start Free Trial
+                        <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="px-8 py-4 bg-white text-gray-700 rounded-2xl font-semibold text-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
+                    >
+                      Church Login
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
-
           </div>
         </div>
       </section>
