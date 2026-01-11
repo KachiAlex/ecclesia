@@ -502,14 +502,14 @@ export default function Home() {
           <div className="max-w-7xl mx-auto">
             <div className="relative overflow-hidden rounded-[2.5rem]">
               <img
-                src="/home-bg.svg"
-                alt="Ecclesia brand background"
+                src="/hero-church.jpg"
+                alt="Church building"
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-white/70"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/70 via-white/70 to-indigo-50/70"></div>
-              <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-white/50"></div>
+              <div className="absolute inset-0 bg-white/75"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/75 via-white/75 to-indigo-50/75"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-white/55"></div>
               <div className="absolute inset-0 ring-1 ring-gray-100/60"></div>
 
               <div

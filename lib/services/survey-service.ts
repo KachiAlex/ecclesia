@@ -200,7 +200,7 @@ export class SurveyService {
 
     const whereClause: any = {
       churchId,
-      status: filters?.status ? { in: filters.status } : 'ACTIVE',
+      status: filters?.status ? { in: filters.status } : { in: ['ACTIVE'] },
       OR: [
         { targetAudienceType: 'ALL' },
         {

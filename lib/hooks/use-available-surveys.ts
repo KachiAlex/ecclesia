@@ -18,7 +18,7 @@ export function useAvailableSurveys(churchId?: string, enabled = true) {
   const shouldFetch = Boolean(churchId && enabled)
 
   const { data, error, isLoading, mutate } = useSWR<Survey[]>(
-    shouldFetch ? `/api/surveys?churchId=${churchId}` : null,
+    shouldFetch ? `/api/surveys/available?churchId=${churchId}` : null,
     fetcher,
     { revalidateOnFocus: false }
   )
