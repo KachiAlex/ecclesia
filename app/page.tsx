@@ -447,7 +447,7 @@ export default function Home() {
   const testimonials: any[] = []
 
   return (
-    <main className="min-h-screen bg-white overflow-hidden">
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50 to-amber-100/40 overflow-hidden">
       {/* Hero background */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <img
@@ -456,14 +456,16 @@ export default function Home() {
           className="w-full h-full object-cover"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-white/55 backdrop-blur-[1px]"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-white/60"></div>
+        <div className="absolute inset-0 bg-amber-50/55 backdrop-blur-[1px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/35 via-yellow-50/10 to-amber-100/60"></div>
       </div>
 
       {/* Enhanced Navigation */}
       <nav
         className={`relative z-50 backdrop-blur-md transition-all duration-300 ${
-          isScrolled ? 'bg-white/95 shadow-lg border-b border-gray-100' : 'bg-white/80 border-b border-gray-100/50'
+          isScrolled
+            ? 'bg-amber-50/95 shadow-lg border-b border-amber-100'
+            : 'bg-amber-50/80 border-b border-amber-100/60'
         } sticky top-0`}
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -586,7 +588,10 @@ export default function Home() {
       </section>
 
       {/* Features Showcase Section */}
-      <section id="features" className="relative z-10 pt-8 pb-14 md:pt-12 md:pb-22 lg:pt-16 lg:pb-26 bg-gradient-to-b from-white via-gray-50/30 to-white">
+      <section
+        id="features"
+        className="relative z-10 pt-8 pb-14 md:pt-12 md:pb-22 lg:pt-16 lg:pb-26 bg-gradient-to-b from-amber-50 via-yellow-50/30 to-amber-100/25"
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16 md:mb-20">
@@ -810,7 +815,10 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="relative z-10 py-20 md:py-24 lg:py-32 bg-gradient-to-b from-gray-50 to-white">
+      <section
+        id="pricing"
+        className="relative z-10 py-20 md:py-24 lg:py-32 bg-gradient-to-b from-amber-50 via-yellow-50/30 to-amber-100/25"
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16 md:mb-20">
@@ -1144,10 +1152,16 @@ export default function Home() {
       </section>
 
       {/* Enhanced Footer */}
-      <footer className="relative z-10 border-t border-gray-100 bg-white/80 backdrop-blur-sm">
+      <footer className="relative z-10 border-t border-amber-100 bg-amber-50/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-8">
             <div>
+              <Link href="/" className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <img src="/ecclesia%20logo.svg" alt="Ecclesia" className="w-8 h-8 object-contain" />
+                </div>
+                <span className="text-lg font-bold text-gray-900">Ecclesia</span>
+              </Link>
               <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
               <ul className="space-y-2">
                 <li><a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">Features</a></li>
@@ -1179,7 +1193,7 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-100 pt-8 text-center">
+          <div className="border-t border-amber-100 pt-8 text-center">
             <p className="text-gray-500 text-sm md:text-base">
               &copy; {new Date().getFullYear()} Ecclesia Church App. All rights reserved.
             </p>
