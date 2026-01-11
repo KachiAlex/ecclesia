@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 
 import { format } from 'date-fns'
 import { BarChart4, Loader2, Plus, ShieldCheck, Users, Zap } from 'lucide-react'
@@ -389,18 +390,18 @@ export default function SurveysHub({
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
+                      <Link
+                        href={`/surveys/${survey.id}/respond`}
                         className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
                       >
                         Respond now
-                      </button>
-                      <button
-                        type="button"
+                      </Link>
+                      <Link
+                        href={`/surveys/${survey.id}`}
                         className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:border-primary-200 hover:text-primary-700"
                       >
                         View details
-                      </button>
+                      </Link>
                     </div>
                   </li>
                 ))}
