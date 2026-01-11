@@ -507,9 +507,9 @@ export default function Home() {
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-white/75"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/75 via-white/75 to-indigo-50/75"></div>
-              <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-white/55"></div>
+              <div className="absolute inset-0 bg-white/35"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/25 via-white/20 to-indigo-50/25"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-white/35"></div>
               <div className="absolute inset-0 ring-1 ring-gray-100/60"></div>
 
               <div
