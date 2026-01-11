@@ -502,7 +502,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto">
             <div className="relative overflow-hidden rounded-[2.5rem]">
               <img
-                src="/hero-church.jpg"
+                src="/hero-church.svg"
                 alt="Church building"
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="eager"
