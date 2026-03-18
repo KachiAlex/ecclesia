@@ -34,6 +34,7 @@ export const COLLECTIONS = {
   donations: 'donations',
   giving: 'donations', // Alias for donations
   givingConfig: 'giving_config',
+  pendingDonations: 'pending_donations',
   
   // Community collections
   posts: 'posts',
@@ -150,6 +151,10 @@ export const COLLECTIONS = {
   invitationLinks: 'invitation_links',
   registrationSubmissions: 'registration_submissions',
   invitationLinkAccess: 'invitation_link_access',
+
+  // Notification collections
+  notifications: 'notifications',
+  notificationPreferences: 'notification_preferences',
 } as const
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS]

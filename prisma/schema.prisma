@@ -9,7 +9,7 @@ generator client {
 // Run with: npm run db:seed
 
 datasource db {
-  provider = "postgresql"
+  provider          = "postgresql"
   url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
@@ -103,98 +103,100 @@ enum PaymentMethod {
 
 // User & Member Management
 model User {
-  id                    String                @id @default(cuid())
-  email                 String                @unique
-  phone                 String?
-  password              String
-  firstName             String
-  lastName              String
-  role                  UserRole              @default(VISITOR)
-  spiritualMaturity    SpiritualMaturityLevel? @default(NEW_BELIEVER)
-  profileImage          String?
-  bio                   String?
-  dateOfBirth           DateTime?
-  address               String?
-  city                  String?
-  state                 String?
-  zipCode               String?
-  country               String?
-  
+  id                String                  @id @default(cuid())
+  email             String                  @unique
+  phone             String?
+  password          String
+  firstName         String
+  lastName          String
+  role              UserRole                @default(VISITOR)
+  spiritualMaturity SpiritualMaturityLevel? @default(NEW_BELIEVER)
+  profileImage      String?
+  bio               String?
+  dateOfBirth       DateTime?
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  country           String?
+
   // Family relationships
-  parentId              String?
-  parent                User?                 @relation("FamilyRelations", fields: [parentId], references: [id])
-  children              User[]                @relation("FamilyRelations")
-  spouseId              String?               @unique
-  spouse                User?                 @relation("SpouseRelation", fields: [spouseId], references: [id])
-  spouseOf              User?                 @relation("SpouseRelation")
-  
+  parentId String?
+  parent   User?   @relation("FamilyRelations", fields: [parentId], references: [id])
+  children User[]  @relation("FamilyRelations")
+  spouseId String? @unique
+  spouse   User?   @relation("SpouseRelation", fields: [spouseId], references: [id])
+  spouseOf User?   @relation("SpouseRelation")
+
   // Church association
-  churchId              String?
-  church                Church?               @relation(fields: [churchId], references: [id])
-  
+  churchId String?
+  church   Church? @relation(fields: [churchId], references: [id])
+
   // Branch association
-  branchId              String?
-  branch                Branch?               @relation(fields: [branchId], references: [id])
-  
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
   // Relationships
-  departments           DepartmentMembership[]
-  groups                GroupMembership[]
-  badges                UserBadge[]
-  
+  departments DepartmentMembership[]
+  groups      GroupMembership[]
+  badges      UserBadge[]
+
   // Branch admin relationships
-  branchAdminOf         Branch?                @relation("BranchAdmin")
+  branchAdminOf          Branch?               @relation("BranchAdmin")
   branchAdminAssignments BranchAdmin[]         @relation("BranchAdminUser")
-  prayerRequests        PrayerRequest[]
-  prayerInteractions    PrayerInteraction[]
-  sermonsWatched        SermonView[]
-  sermonsDownloaded     SermonDownload[]
-  giving                Giving[]
-  eventsAttended        EventAttendance[]
-  eventsRegistered      EventRegistration[]
-  checkIns              CheckIn[]
-  messagesSent          Message[]             @relation("MessageSender")
-  messagesReceived      Message[]             @relation("MessageReceiver")
-  groupMessages         GroupMessage[]
-  posts                 Post[]
-  postLikes             PostLike[]
-  comments              Comment[]
-  testimonies           Testimony[]
-  readingPlans          ReadingPlanProgress[]
-  aiCoaching            AICoachingSession[]
-  followUps             FollowUp[]
-  mentorAssignments     MentorAssignment[]    @relation("Mentor")
-  menteeAssignments     MentorAssignment[]    @relation("Mentee")
-  volunteerShifts       VolunteerShift[]
-  tasks                 Task[]
-  childrenCheckIns      ChildrenCheckIn[]
-  
+  prayerRequests         PrayerRequest[]
+  prayerInteractions     PrayerInteraction[]
+  sermonsWatched         SermonView[]
+  sermonsDownloaded      SermonDownload[]
+  giving                 Giving[]
+  eventsAttended         EventAttendance[]
+  eventsRegistered       EventRegistration[]
+  checkIns               CheckIn[]
+  messagesSent           Message[]             @relation("MessageSender")
+  messagesReceived       Message[]             @relation("MessageReceiver")
+  groupMessages          GroupMessage[]
+  posts                  Post[]
+  postLikes              PostLike[]
+  comments               Comment[]
+  testimonies            Testimony[]
+  readingPlans           ReadingPlanProgress[]
+  aiCoaching             AICoachingSession[]
+  followUps              FollowUp[]
+  mentorAssignments      MentorAssignment[]    @relation("Mentor")
+  menteeAssignments      MentorAssignment[]    @relation("Mentee")
+  volunteerShifts        VolunteerShift[]
+  tasks                  Task[]
+  childrenCheckIns       ChildrenCheckIn[]
+
   // Payroll
-  salary                UserSalary?
-  payrollRecords        PayrollRecord[]
-  
+  salary         UserSalary?
+  payrollRecords PayrollRecord[]
+
   // Member Invitation System
-  createdInvitationForms InvitationForm[]     @relation("InvitationFormCreator")
-  createdInvitationLinks InvitationLink[]     @relation("InvitationLinkCreator")
-  reviewedSubmissions   RegistrationSubmission[] @relation("SubmissionReviewer")
-  createdFromSubmission RegistrationSubmission[] @relation("CreatedFromSubmission")
-  
+  createdInvitationForms InvitationForm[]         @relation("InvitationFormCreator")
+  createdInvitationLinks InvitationLink[]         @relation("InvitationLinkCreator")
+  reviewedSubmissions    RegistrationSubmission[] @relation("SubmissionReviewer")
+  createdFromSubmission  RegistrationSubmission[] @relation("CreatedFromSubmission")
+
   // Survey System
-  createdSurveys        Survey[]              @relation("SurveyCreator")
-  surveyResponses       SurveyResponse[]      @relation("SurveyRespondent")
-  createdSurveyTemplates SurveyTemplate[]     @relation("SurveyTemplateCreator")
-  
+  createdSurveys         Survey[]         @relation("SurveyCreator")
+  surveyResponses        SurveyResponse[] @relation("SurveyRespondent")
+  createdSurveyTemplates SurveyTemplate[] @relation("SurveyTemplateCreator")
+
   // Multi-Platform Streaming
-  createdLivestreams    Livestream[]          @relation("LivestreamCreator")
-  createdMeetings       Meeting[]             @relation("MeetingCreator")
-  
+  createdLivestreams Livestream[] @relation("LivestreamCreator")
+  createdMeetings    Meeting[]    @relation("MeetingCreator")
+
   // Gamification
-  xp                    Int                   @default(0)
-  level                 Int                   @default(1)
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  lastLoginAt           DateTime?
-  
+  xp    Int @default(0)
+  level Int @default(1)
+
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  lastLoginAt                DateTime?
+  ReadingPlanNewsletter      ReadingPlanNewsletter[]
+  ReadingPlanNewsletterEvent ReadingPlanNewsletterEvent[]
+
   @@index([email])
   @@index([churchId])
   @@index([branchId])
@@ -203,70 +205,73 @@ model User {
 
 // Multi-Church Support
 model Church {
-  id                    String                @id @default(cuid())
-  name                  String
-  slug                  String                @unique
-  logo                  String?
-  primaryColor          String?
-  secondaryColor        String?
-  address               String?
-  city                  String?
-  state                 String?
-  zipCode               String?
-  country               String?
-  phone                 String?
-  email                 String?
-  website               String?
-  description           String?
-  
+  id             String  @id @default(cuid())
+  name           String
+  slug           String  @unique
+  logo           String?
+  primaryColor   String?
+  secondaryColor String?
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?
+  country        String?
+  phone          String?
+  email          String?
+  website        String?
+  description    String?
+
   // Custom domain support
-  customDomain          String?
-  domainVerified        Boolean               @default(false)
-  
+  customDomain   String?
+  domainVerified Boolean @default(false)
+
   // Subscription & Licensing
-  subscription          Subscription?
-  
+  subscription Subscription?
+
   // Owner/Admin user
-  ownerId               String?
-  
+  ownerId String?
+
   // Branches
-  branches               Branch[]
-  
-  users                 User[]
-  departments           Department[]
-  groups                Group[]
-  sermons               Sermon[]
-  events                Event[]
-  projects              Project[]
-  prayerRequests        PrayerRequest[]
-  posts                 Post[]
-  usageTracking         UsageTracking[]
-  
+  branches Branch[]
+
+  users          User[]
+  departments    Department[]
+  groups         Group[]
+  sermons        Sermon[]
+  events         Event[]
+  projects       Project[]
+  prayerRequests PrayerRequest[]
+  posts          Post[]
+  usageTracking  UsageTracking[]
+
   // Payroll
-  payrollPositions      PayrollPosition[]
-  wageScales            WageScale[]
-  userSalaries          UserSalary[]
-  payrollPeriods        PayrollPeriod[]
-  payrollRecords        PayrollRecord[]
-  
+  payrollPositions PayrollPosition[]
+  wageScales       WageScale[]
+  userSalaries     UserSalary[]
+  payrollPeriods   PayrollPeriod[]
+  payrollRecords   PayrollRecord[]
+
   // Member Invitation System
-  invitationForms       InvitationForm[]
-  invitationLinks       InvitationLink[]
+  invitationForms         InvitationForm[]
+  invitationLinks         InvitationLink[]
   registrationSubmissions RegistrationSubmission[]
-  
+
   // Survey System
-  surveys               Survey[]
-  surveyTemplates       SurveyTemplate[]
-  
+  surveys         Survey[]
+  surveyTemplates SurveyTemplate[]
+
   // Multi-Platform Streaming
-  platformConnections   PlatformConnection[]  @relation("PlatformConnections")
-  livestreams           Livestream[]          @relation("Livestreams")
+  platformConnections      PlatformConnection[]      @relation("PlatformConnections")
+  livestreams              Livestream[]              @relation("Livestreams")
   externalLivestreamConfig ExternalLivestreamConfig?
-  meetings              Meeting[]             @relation("Meetings")
+  meetings                 Meeting[]                 @relation("Meetings")
   
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  // Analytics Cache
+  analyticsCaches          AnalyticsCache[]          @relation("AnalyticsCaches")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([slug])
   @@index([customDomain])
 }
@@ -280,47 +285,47 @@ enum BranchLevel {
 }
 
 model Branch {
-  id                    String                @id @default(cuid())
-  name                  String
-  slug                  String                // Unique within church
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  level                 BranchLevel           @default(BRANCH)
-  parentBranchId        String?
-  parent                Branch?               @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
-  children              Branch[]              @relation("BranchHierarchy")
-  
+  id             String      @id @default(cuid())
+  name           String
+  slug           String // Unique within church
+  churchId       String
+  church         Church      @relation(fields: [churchId], references: [id])
+  level          BranchLevel @default(BRANCH)
+  parentBranchId String?
+  parent         Branch?     @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
+  children       Branch[]    @relation("BranchHierarchy")
+
   // Branch details
-  address               String?
-  city                  String?
-  state                 String?
-  zipCode               String?
-  country               String?
-  phone                 String?
-  email                 String?
-  description           String?
-  
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  country     String?
+  phone       String?
+  email       String?
+  description String?
+
   // Branch admin (primary admin for this branch)
-  adminId               String?               @unique
-  admin                 User?                 @relation("BranchAdmin", fields: [adminId], references: [id])
-  
+  adminId String? @unique
+  admin   User?   @relation("BranchAdmin", fields: [adminId], references: [id])
+
   // Branch admins (multiple admins can manage a branch)
-  branchAdmins          BranchAdmin[]
-  
+  branchAdmins BranchAdmin[]
+
   // Branch members
-  users                 User[]
-  
+  users User[]
+
   // Branch-specific data
-  departments           Department[]
-  groups                Group[]
-  events                Event[]
-  surveys               Survey[]
-  
-  isActive              Boolean               @default(true)
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  departments Department[]
+  groups      Group[]
+  events      Event[]
+  surveys     Survey[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([churchId, slug])
   @@index([churchId])
   @@index([adminId])
@@ -331,22 +336,22 @@ model Branch {
 
 // Branch Admin Assignment
 model BranchAdmin {
-  id                    String                @id @default(cuid())
-  branchId              String
-  branch                Branch                @relation(fields: [branchId], references: [id])
-  userId                String
-  user                  User                  @relation("BranchAdminUser", fields: [userId], references: [id])
-  
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+  userId   String
+  user     User   @relation("BranchAdminUser", fields: [userId], references: [id])
+
   // Permissions (can be extended)
-  canManageMembers      Boolean               @default(true)
-  canManageEvents       Boolean               @default(true)
-  canManageGroups       Boolean               @default(true)
-  canManageGiving       Boolean               @default(false)
-  canManageSermons      Boolean               @default(false)
-  
-  assignedAt            DateTime              @default(now())
-  assignedBy            String?               // User ID who assigned this admin
-  
+  canManageMembers Boolean @default(true)
+  canManageEvents  Boolean @default(true)
+  canManageGroups  Boolean @default(true)
+  canManageGiving  Boolean @default(false)
+  canManageSermons Boolean @default(false)
+
+  assignedAt DateTime @default(now())
+  assignedBy String? // User ID who assigned this admin
+
   @@unique([branchId, userId])
   @@index([branchId])
   @@index([userId])
@@ -354,67 +359,67 @@ model BranchAdmin {
 
 // Subscription Plans
 model SubscriptionPlan {
-  id                    String                @id @default(cuid())
-  name                  String
-  type                  SubscriptionPlanType
-  description           String?
-  
+  id          String               @id @default(cuid())
+  name        String
+  type        SubscriptionPlanType
+  description String?
+
   // Pricing
-  price                 Float                 // Monthly price
-  currency              String                @default("USD")
-  
+  price    Float // Monthly price
+  currency String @default("USD")
+
   // Limits
-  maxUsers              Int?                  // null = unlimited
-  maxStorageGB           Int?                 // Storage limit in GB
-  maxSermons            Int?                 // Max sermons
-  maxEvents             Int?                 // Max events per month
-  maxDepartments        Int?                 // Max departments
-  maxGroups             Int?                 // Max groups
-  
+  maxUsers       Int? // null = unlimited
+  maxStorageGB   Int? // Storage limit in GB
+  maxSermons     Int? // Max sermons
+  maxEvents      Int? // Max events per month
+  maxDepartments Int? // Max departments
+  maxGroups      Int? // Max groups
+
   // Features
-  features              String[]              // ["AI Coaching", "Custom Domain", "Analytics", etc.]
-  
+  features String[] // ["AI Coaching", "Custom Domain", "Analytics", etc.]
+
   // Billing
-  billingCycle          String                @default("monthly") // "monthly", "yearly"
-  trialDays             Int                   @default(0)
-  
-  subscriptions         Subscription[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  billingCycle String @default("monthly") // "monthly", "yearly"
+  trialDays    Int    @default(0)
+
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([type])
 }
 
 // Church Subscriptions
 model Subscription {
-  id                    String                @id @default(cuid())
-  churchId              String                @unique
-  church                Church                @relation(fields: [churchId], references: [id])
-  
-  planId                String
-  plan                  SubscriptionPlan      @relation(fields: [planId], references: [id])
-  
-  status                SubscriptionStatus    @default(TRIAL)
-  
+  id       String @id @default(cuid())
+  churchId String @unique
+  church   Church @relation(fields: [churchId], references: [id])
+
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  status SubscriptionStatus @default(TRIAL)
+
   // Billing
-  currentPeriodStart    DateTime
-  currentPeriodEnd      DateTime
-  cancelAtPeriodEnd     Boolean               @default(false)
-  cancelledAt           DateTime?
-  
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean   @default(false)
+  cancelledAt        DateTime?
+
   // Payment
-  paymentMethodId       String?               // Stripe/Paystack payment method ID
-  lastPaymentDate        DateTime?
-  nextBillingDate        DateTime?
-  
+  paymentMethodId String? // Stripe/Paystack payment method ID
+  lastPaymentDate DateTime?
+  nextBillingDate DateTime?
+
   // Trial
-  trialStart            DateTime?
-  trialEnd              DateTime?
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  trialStart DateTime?
+  trialEnd   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([status])
   @@index([currentPeriodEnd])
@@ -422,25 +427,25 @@ model Subscription {
 
 // Usage Tracking
 model UsageTracking {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  
+  id       String @id @default(cuid())
+  churchId String
+  church   Church @relation(fields: [churchId], references: [id])
+
   // Usage metrics
-  userCount             Int                   @default(0)
-  storageUsedGB          Float                 @default(0)
-  sermonsCount           Int                   @default(0)
-  eventsCount            Int                   @default(0)
-  apiCalls              Int                   @default(0)
-  aiCoachingSessions     Int                   @default(0)
-  
+  userCount          Int   @default(0)
+  storageUsedGB      Float @default(0)
+  sermonsCount       Int   @default(0)
+  eventsCount        Int   @default(0)
+  apiCalls           Int   @default(0)
+  aiCoachingSessions Int   @default(0)
+
   // Period
-  periodStart           DateTime              @default(now())
-  periodEnd             DateTime
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  periodStart DateTime @default(now())
+  periodEnd   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([churchId, periodStart])
   @@index([churchId])
   @@index([periodEnd])
@@ -448,76 +453,76 @@ model UsageTracking {
 
 // Departments & Groups
 model Department {
-  id                    String                @id @default(cuid())
-  name                  String
-  description           String?
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  branchId              String?
-  branch                Branch?               @relation(fields: [branchId], references: [id])
-  members               DepartmentMembership[]
-  groups                Group[]
-  payrollPositions      PayrollPosition[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id               String                 @id @default(cuid())
+  name             String
+  description      String?
+  churchId         String
+  church           Church                 @relation(fields: [churchId], references: [id])
+  branchId         String?
+  branch           Branch?                @relation(fields: [branchId], references: [id])
+  members          DepartmentMembership[]
+  groups           Group[]
+  payrollPositions PayrollPosition[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
   @@index([churchId])
   @@index([branchId])
 }
 
 model DepartmentMembership {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  departmentId          String
-  department            Department            @relation(fields: [departmentId], references: [id])
-  role                  String?               // e.g., "Member", "Leader", "Coordinator"
-  joinedAt              DateTime              @default(now())
-  
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  role         String? // e.g., "Member", "Leader", "Coordinator"
+  joinedAt     DateTime   @default(now())
+
   @@unique([userId, departmentId])
   @@index([userId])
   @@index([departmentId])
 }
 
 model Group {
-  id                    String                @id @default(cuid())
-  name                  String
-  description           String?
-  type                  String                // "Cell Group", "Bible Study", "Youth", etc.
-  departmentId          String?
-  department            Department?           @relation(fields: [departmentId], references: [id])
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  branchId              String?
-  branch                Branch?               @relation(fields: [branchId], references: [id])
-  leaderId              String?
-  location              String?
-  latitude              Float?
-  longitude             Float?
-  meetingDay            String?
-  meetingTime            String?
-  
-  members               GroupMembership[]
-  messages              GroupMessage[]
-  events                Event[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  type         String // "Cell Group", "Bible Study", "Youth", etc.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  churchId     String
+  church       Church      @relation(fields: [churchId], references: [id])
+  branchId     String?
+  branch       Branch?     @relation(fields: [branchId], references: [id])
+  leaderId     String?
+  location     String?
+  latitude     Float?
+  longitude    Float?
+  meetingDay   String?
+  meetingTime  String?
+
+  members  GroupMembership[]
+  messages GroupMessage[]
+  events   Event[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([branchId])
   @@index([departmentId])
 }
 
 model GroupMembership {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  groupId               String
-  group                 Group                 @relation(fields: [groupId], references: [id])
-  role                  String?               @default("Member")
-  joinedAt              DateTime              @default(now())
-  
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  groupId  String
+  group    Group    @relation(fields: [groupId], references: [id])
+  role     String?  @default("Member")
+  joinedAt DateTime @default(now())
+
   @@unique([userId, groupId])
   @@index([userId])
   @@index([groupId])
@@ -525,66 +530,134 @@ model GroupMembership {
 
 // AI Discipleship Engine
 model ReadingPlan {
-  id                    String                @id @default(cuid())
-  title                 String
-  description           String?
-  duration              Int                   // days
-  difficulty            String?
-  topics                String[]              // e.g., ["Faith", "Prayer", "Healing"]
-  createdAt             DateTime              @default(now())
-  
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  duration    Int // days
+  difficulty  String?
+  topics      String[] // e.g., ["Faith", "Prayer", "Healing"]
+  createdAt   DateTime @default(now())
+
   progress              ReadingPlanProgress[]
+  ReadingPlanNewsletter ReadingPlanNewsletter[]
 }
 
 model ReadingPlanProgress {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  readingPlanId         String
-  readingPlan           ReadingPlan           @relation(fields: [readingPlanId], references: [id])
-  currentDay            Int                   @default(1)
-  completed             Boolean               @default(false)
-  startedAt             DateTime              @default(now())
-  completedAt           DateTime?
-  
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  readingPlanId String
+  readingPlan   ReadingPlan @relation(fields: [readingPlanId], references: [id])
+  currentDay    Int         @default(1)
+  completed     Boolean     @default(false)
+  startedAt     DateTime    @default(now())
+  completedAt   DateTime?
+
   @@unique([userId, readingPlanId])
   @@index([userId])
 }
 
+enum ReadingPlanNewsletterStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum ReadingPlanNewsletterEventType {
+  DELIVERY
+  OPEN
+  CLICK
+  BOUNCE
+  COMPLAINT
+}
+
+enum ReadingPlanNewsletterAudienceType {
+  ALL
+  BRANCH
+  GROUP
+  CUSTOM
+}
+
+model ReadingPlanNewsletter {
+  id              String                            @id @default(cuid())
+  churchId        String
+  readingPlanId   String?
+  readingPlan     ReadingPlan?                      @relation(fields: [readingPlanId], references: [id])
+  title           String
+  subject         String
+  preheader       String?
+  heroImage       String?
+  content         Json                              @default("{}")
+  status          ReadingPlanNewsletterStatus       @default(DRAFT)
+  audienceType    ReadingPlanNewsletterAudienceType @default(ALL)
+  targetBranchIds String[]                          @default([])
+  targetGroupIds  String[]                          @default([])
+  targetUserIds   String[]                          @default([])
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  createdBy       String
+  creator         User                              @relation(fields: [createdBy], references: [id])
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
+  events          ReadingPlanNewsletterEvent[]
+
+  @@index([churchId])
+  @@index([readingPlanId])
+  @@index([status, scheduledAt])
+}
+
+model ReadingPlanNewsletterEvent {
+  id           String                         @id @default(cuid())
+  newsletterId String
+  newsletter   ReadingPlanNewsletter          @relation(fields: [newsletterId], references: [id])
+  userId       String?
+  user         User?                          @relation(fields: [userId], references: [id])
+  type         ReadingPlanNewsletterEventType
+  metadata     Json?
+  createdAt    DateTime                       @default(now())
+
+  @@index([newsletterId])
+  @@index([userId])
+  @@index([type])
+}
+
 model AICoachingSession {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  question              String
-  answer                String
-  topic                 String?
-  createdAt             DateTime              @default(now())
-  
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  question  String
+  answer    String
+  topic     String?
+  createdAt DateTime @default(now())
+
   @@index([userId])
 }
 
 model FollowUp {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  type                  String                // "New Convert", "First Timer", etc.
-  message               String
-  scripture             String?
-  sentAt                DateTime              @default(now())
-  readAt                DateTime?
-  
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String // "New Convert", "First Timer", etc.
+  message   String
+  scripture String?
+  sentAt    DateTime  @default(now())
+  readAt    DateTime?
+
   @@index([userId])
 }
 
 model MentorAssignment {
-  id                    String                @id @default(cuid())
-  mentorId              String
-  mentor                User                  @relation("Mentor", fields: [mentorId], references: [id])
-  menteeId              String
-  mentee                User                  @relation("Mentee", fields: [menteeId], references: [id])
-  assignedAt            DateTime              @default(now())
-  status                String                @default("Active")
-  
+  id         String   @id @default(cuid())
+  mentorId   String
+  mentor     User     @relation("Mentor", fields: [mentorId], references: [id])
+  menteeId   String
+  mentee     User     @relation("Mentee", fields: [menteeId], references: [id])
+  assignedAt DateTime @default(now())
+  status     String   @default("Active")
+
   @@unique([mentorId, menteeId])
   @@index([mentorId])
   @@index([menteeId])
@@ -592,191 +665,191 @@ model MentorAssignment {
 
 // Social Network
 model Post {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  churchId              String?
-  church                Church?               @relation(fields: [churchId], references: [id])
-  content               String
-  type                  String                @default("Update") // "Update", "Testimony", "Announcement", "Prayer Request"
-  images                String[]
-  likes                 PostLike[]
-  comments              Comment[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  churchId  String?
+  church    Church?    @relation(fields: [churchId], references: [id])
+  content   String
+  type      String     @default("Update") // "Update", "Testimony", "Announcement", "Prayer Request"
+  images    String[]
+  likes     PostLike[]
+  comments  Comment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
   @@index([userId])
   @@index([churchId])
   @@index([createdAt])
 }
 
 model PostLike {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  postId                String
-  post                  Post                  @relation(fields: [postId], references: [id])
-  createdAt             DateTime              @default(now())
-  
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  createdAt DateTime @default(now())
+
   @@unique([userId, postId])
   @@index([postId])
 }
 
 model Comment {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  postId                String
-  post                  Post                  @relation(fields: [postId], references: [id])
-  content               String
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([postId])
   @@index([userId])
 }
 
 model Testimony {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  title                 String
-  content               String
-  approved              Boolean               @default(false)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([approved])
 }
 
 // Prayer Wall
 model PrayerRequest {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  churchId              String?
-  church                Church?               @relation(fields: [churchId], references: [id])
-  title                 String
-  content               String
-  status                PrayerStatus          @default(ACTIVE)
-  isAnonymous           Boolean               @default(false)
-  interactions          PrayerInteraction[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id           String              @id @default(cuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id])
+  churchId     String?
+  church       Church?             @relation(fields: [churchId], references: [id])
+  title        String
+  content      String
+  status       PrayerStatus        @default(ACTIVE)
+  isAnonymous  Boolean             @default(false)
+  interactions PrayerInteraction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
   @@index([userId])
   @@index([churchId])
   @@index([status])
 }
 
 model PrayerInteraction {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  prayerRequestId       String
-  prayerRequest         PrayerRequest         @relation(fields: [prayerRequestId], references: [id])
-  type                  String                @default("Prayed") // "Prayed", "Comment"
-  comment               String?
-  createdAt             DateTime              @default(now())
-  
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  prayerRequestId String
+  prayerRequest   PrayerRequest @relation(fields: [prayerRequestId], references: [id])
+  type            String        @default("Prayed") // "Prayed", "Comment"
+  comment         String?
+  createdAt       DateTime      @default(now())
+
   @@unique([userId, prayerRequestId])
   @@index([prayerRequestId])
 }
 
 // Media & Sermons
 model Sermon {
-  id                    String                @id @default(cuid())
-  title                 String
-  description           String?
-  speaker               String
-  videoUrl              String?
-  audioUrl              String?
-  thumbnailUrl          String?
-  duration              Int?                  // seconds
-  category              String?
-  tags                  String[]
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  speaker      String
+  videoUrl     String?
+  audioUrl     String?
+  thumbnailUrl String?
+  duration     Int? // seconds
+  category     String?
+  tags         String[]
+  churchId     String
+  church       Church   @relation(fields: [churchId], references: [id])
+
   // AI-generated content
-  aiSummary             String?
-  topics                String[]
-  
-  views                 SermonView[]
-  downloads             SermonDownload[]
-  
-  createdAt             DateTime              @default(now())
-  publishedAt           DateTime?
-  
+  aiSummary String?
+  topics    String[]
+
+  views     SermonView[]
+  downloads SermonDownload[]
+
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
   @@index([churchId])
   @@index([category])
   @@index([createdAt])
 }
 
 model SermonView {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  sermonId              String
-  sermon                Sermon               @relation(fields: [sermonId], references: [id])
-  watchedDuration       Int                   @default(0) // seconds
-  completed             Boolean               @default(false)
-  createdAt             DateTime              @default(now())
-  
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  sermonId        String
+  sermon          Sermon   @relation(fields: [sermonId], references: [id])
+  watchedDuration Int      @default(0) // seconds
+  completed       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
   @@unique([userId, sermonId])
   @@index([sermonId])
 }
 
 model SermonDownload {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  sermonId              String
-  sermon                Sermon               @relation(fields: [sermonId], references: [id])
-  downloadedAt          DateTime              @default(now())
-  
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  sermonId     String
+  sermon       Sermon   @relation(fields: [sermonId], references: [id])
+  downloadedAt DateTime @default(now())
+
   @@unique([userId, sermonId])
   @@index([sermonId])
 }
 
 // Giving & Financial
 model Project {
-  id                    String                @id @default(cuid())
-  name                  String
-  description           String?
-  goalAmount            Float
-  currentAmount         Float                @default(0)
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  imageUrl              String?
-  status                String                @default("Active") // "Active", "Completed", "Paused"
-  startDate             DateTime?
-  endDate               DateTime?
-  
-  giving                Giving[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  goalAmount    Float
+  currentAmount Float     @default(0)
+  churchId      String
+  church        Church    @relation(fields: [churchId], references: [id])
+  imageUrl      String?
+  status        String    @default("Active") // "Active", "Completed", "Paused"
+  startDate     DateTime?
+  endDate       DateTime?
+
+  giving Giving[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([status])
 }
 
 model Giving {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  amount                Float
-  type                  GivingType
-  projectId             String?
-  project               Project?              @relation(fields: [projectId], references: [id])
-  paymentMethod         String?               // "Card", "Bank Transfer", "Cash", etc.
-  transactionId         String?
-  receiptUrl            String?
-  notes                 String?
-  createdAt             DateTime              @default(now())
-  
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  amount        Float
+  type          GivingType
+  projectId     String?
+  project       Project?   @relation(fields: [projectId], references: [id])
+  paymentMethod String? // "Card", "Bank Transfer", "Cash", etc.
+  transactionId String?
+  receiptUrl    String?
+  notes         String?
+  createdAt     DateTime   @default(now())
+
   @@index([userId])
   @@index([projectId])
   @@index([createdAt])
@@ -784,268 +857,268 @@ model Giving {
 
 // Events
 model Event {
-  id                    String                @id @default(cuid())
-  title                 String
-  description           String?
-  type                  EventType
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  branchId              String?
-  branch                Branch?               @relation(fields: [branchId], references: [id])
-  groupId               String?
-  group                 Group?                @relation(fields: [groupId], references: [id])
-  location              String?
-  startDate             DateTime
-  endDate               DateTime?
-  maxAttendees          Int?
-  isTicketed            Boolean               @default(false)
-  ticketPrice           Float?
-  imageUrl              String?
-  
-  registrations         EventRegistration[]
-  attendances           EventAttendance[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  type         EventType
+  churchId     String
+  church       Church    @relation(fields: [churchId], references: [id])
+  branchId     String?
+  branch       Branch?   @relation(fields: [branchId], references: [id])
+  groupId      String?
+  group        Group?    @relation(fields: [groupId], references: [id])
+  location     String?
+  startDate    DateTime
+  endDate      DateTime?
+  maxAttendees Int?
+  isTicketed   Boolean   @default(false)
+  ticketPrice  Float?
+  imageUrl     String?
+
+  registrations EventRegistration[]
+  attendances   EventAttendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([branchId])
   @@index([startDate])
 }
 
 model EventRegistration {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  eventId               String
-  event                 Event                 @relation(fields: [eventId], references: [id])
-  ticketNumber          String?
-  qrCode                String?
-  status                String                @default("Registered") // "Registered", "Cancelled", "Attended"
-  registeredAt          DateTime              @default(now())
-  
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id])
+  ticketNumber String?
+  qrCode       String?
+  status       String   @default("Registered") // "Registered", "Cancelled", "Attended"
+  registeredAt DateTime @default(now())
+
   @@unique([userId, eventId])
   @@index([eventId])
   @@index([userId])
 }
 
 model EventAttendance {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  eventId               String
-  event                 Event                 @relation(fields: [eventId], references: [id])
-  checkedInAt           DateTime              @default(now())
-  
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  checkedInAt DateTime @default(now())
+
   @@unique([userId, eventId])
   @@index([eventId])
 }
 
 // Check-ins
 model CheckIn {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  eventId               String?
-  qrCode                String
-  location              String?
-  checkedInAt           DateTime              @default(now())
-  
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  eventId     String?
+  qrCode      String
+  location    String?
+  checkedInAt DateTime @default(now())
+
   @@index([userId])
   @@index([eventId])
   @@index([checkedInAt])
 }
 
 model ChildrenCheckIn {
-  id                    String                @id @default(cuid())
-  childId               String
-  parentId              String
-  parent                User                  @relation(fields: [parentId], references: [id])
-  qrCode                String
-  checkedInAt           DateTime              @default(now())
-  checkedOutAt          DateTime?
-  
+  id           String    @id @default(cuid())
+  childId      String
+  parentId     String
+  parent       User      @relation(fields: [parentId], references: [id])
+  qrCode       String
+  checkedInAt  DateTime  @default(now())
+  checkedOutAt DateTime?
+
   @@index([parentId])
   @@index([checkedInAt])
 }
 
 // Messaging
 model Message {
-  id                    String                @id @default(cuid())
-  senderId              String
-  sender                User                  @relation("MessageSender", fields: [senderId], references: [id])
-  receiverId            String
-  receiver              User                  @relation("MessageReceiver", fields: [receiverId], references: [id])
-  content               String
-  read                  Boolean               @default(false)
-  createdAt             DateTime              @default(now())
-  
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
   @@index([senderId])
   @@index([receiverId])
   @@index([createdAt])
 }
 
 model GroupMessage {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  groupId               String
-  group                 Group                 @relation(fields: [groupId], references: [id])
-  content               String
-  createdAt             DateTime              @default(now())
-  
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
   @@index([groupId])
   @@index([createdAt])
 }
 
 // Gamification
 model Badge {
-  id                    String                @id @default(cuid())
-  name                  String
-  description           String?
-  type                  BadgeType
-  icon                  String?
-  xpReward              Int                   @default(0)
-  createdAt             DateTime              @default(now())
-  
-  users                 UserBadge[]
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        BadgeType
+  icon        String?
+  xpReward    Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  users UserBadge[]
 }
 
 model UserBadge {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  badgeId               String
-  badge                 Badge                 @relation(fields: [badgeId], references: [id])
-  earnedAt              DateTime              @default(now())
-  
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  badgeId  String
+  badge    Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt DateTime @default(now())
+
   @@unique([userId, badgeId])
   @@index([userId])
 }
 
 // Workforce Management
 model VolunteerShift {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  departmentId          String?
-  role                  String
-  startTime             DateTime
-  endTime               DateTime?
-  status                String                @default("Scheduled") // "Scheduled", "Completed", "Cancelled"
-  reminderSent          Boolean               @default(false)
-  createdAt             DateTime              @default(now())
-  
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  departmentId String?
+  role         String
+  startTime    DateTime
+  endTime      DateTime?
+  status       String    @default("Scheduled") // "Scheduled", "Completed", "Cancelled"
+  reminderSent Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
   @@index([userId])
   @@index([startTime])
 }
 
 model Task {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  title                 String
-  description           String?
-  departmentId          String?
-  dueDate               DateTime?
-  status                String                @default("Pending") // "Pending", "In Progress", "Completed"
-  priority              String?               @default("Medium")
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  title        String
+  description  String?
+  departmentId String?
+  dueDate      DateTime?
+  status       String    @default("Pending") // "Pending", "In Progress", "Completed"
+  priority     String?   @default("Medium")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
   @@index([userId])
   @@index([status])
 }
 
 // Payroll Management
 model PayrollPosition {
-  id                    String                @id @default(cuid())
-  name                  String
-  description           String?
-  departmentId          String?
-  department            Department?            @relation(fields: [departmentId], references: [id])
-  churchId              String
-  church                Church                 @relation(fields: [churchId], references: [id])
-  
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  churchId     String
+  church       Church      @relation(fields: [churchId], references: [id])
+
   // Wage configuration
-  wageScales            WageScale[]
-  userSalaries          UserSalary[]
-  payrollRecords        PayrollRecord[]
-  
-  isActive              Boolean               @default(true)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  wageScales     WageScale[]
+  userSalaries   UserSalary[]
+  payrollRecords PayrollRecord[]
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([departmentId])
 }
 
 model WageScale {
-  id                    String                @id @default(cuid())
-  positionId            String
-  position              PayrollPosition       @relation(fields: [positionId], references: [id])
-  churchId              String
-  church                Church                 @relation(fields: [churchId], references: [id])
-  
+  id         String          @id @default(cuid())
+  positionId String
+  position   PayrollPosition @relation(fields: [positionId], references: [id])
+  churchId   String
+  church     Church          @relation(fields: [churchId], references: [id])
+
   // Wage details
-  type                  PayrollType
-  amount                Float                 // Salary amount or hourly rate
-  currency              String                @default("USD")
-  
+  type     PayrollType
+  amount   Float // Salary amount or hourly rate
+  currency String      @default("USD")
+
   // For hourly workers
-  hoursPerWeek          Float?                // Expected hours per week
-  
+  hoursPerWeek Float? // Expected hours per week
+
   // For commission-based
-  commissionRate        Float?                // Percentage or fixed amount
-  
+  commissionRate Float? // Percentage or fixed amount
+
   // Benefits and deductions
-  benefits              Float?                @default(0) // Additional benefits amount
-  deductions            Float?                @default(0) // Standard deductions
-  
+  benefits   Float? @default(0) // Additional benefits amount
+  deductions Float? @default(0) // Standard deductions
+
   // Effective dates
-  effectiveFrom         DateTime
-  effectiveTo           DateTime?
-  
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
   // Notes
-  notes                 String?
-  
+  notes String?
+
   // Relations
-  userSalaries          UserSalary[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  userSalaries UserSalary[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([positionId])
   @@index([churchId])
   @@index([effectiveFrom])
 }
 
 model UserSalary {
-  id                    String                @id @default(cuid())
-  userId                String                @unique
-  user                  User                  @relation(fields: [userId], references: [id])
-  positionId            String
-  position              PayrollPosition       @relation(fields: [positionId], references: [id])
-  wageScaleId           String
-  wageScale              WageScale            @relation(fields: [wageScaleId], references: [id])
-  churchId              String
-  church                Church                 @relation(fields: [churchId], references: [id])
-  
+  id          String          @id @default(cuid())
+  userId      String          @unique
+  user        User            @relation(fields: [userId], references: [id])
+  positionId  String
+  position    PayrollPosition @relation(fields: [positionId], references: [id])
+  wageScaleId String
+  wageScale   WageScale       @relation(fields: [wageScaleId], references: [id])
+  churchId    String
+  church      Church          @relation(fields: [churchId], references: [id])
+
   // Current salary details
-  type                  PayrollType
-  amount                Float
-  currency              String                @default("USD")
-  
+  type     PayrollType
+  amount   Float
+  currency String      @default("USD")
+
   // Start date
-  startDate             DateTime              @default(now())
-  endDate               DateTime?
-  
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
   // Status
-  isActive              Boolean               @default(true)
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([positionId])
   @@index([churchId])
@@ -1053,29 +1126,29 @@ model UserSalary {
 }
 
 model PayrollPeriod {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                 @relation(fields: [churchId], references: [id])
-  
+  id       String @id @default(cuid())
+  churchId String
+  church   Church @relation(fields: [churchId], references: [id])
+
   // Period details
-  periodName            String                // e.g., "January 2024"
-  startDate             DateTime
-  endDate               DateTime
-  payDate               DateTime              // When payments should be made
-  
+  periodName String // e.g., "January 2024"
+  startDate  DateTime
+  endDate    DateTime
+  payDate    DateTime // When payments should be made
+
   // Status
-  status                PayrollStatus         @default(PENDING)
-  
+  status PayrollStatus @default(PENDING)
+
   // Totals
-  totalAmount           Float                 @default(0)
-  totalEmployees        Int                   @default(0)
-  
+  totalAmount    Float @default(0)
+  totalEmployees Int   @default(0)
+
   // Records
-  records               PayrollRecord[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  records PayrollRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([churchId, startDate, endDate])
   @@index([churchId])
   @@index([payDate])
@@ -1083,44 +1156,44 @@ model PayrollPeriod {
 }
 
 model PayrollRecord {
-  id                    String                @id @default(cuid())
-  userId                String
-  user                  User                  @relation(fields: [userId], references: [id])
-  periodId              String
-  period                PayrollPeriod         @relation(fields: [periodId], references: [id])
-  churchId              String
-  church                Church                 @relation(fields: [churchId], references: [id])
-  
+  id       String        @id @default(cuid())
+  userId   String
+  user     User          @relation(fields: [userId], references: [id])
+  periodId String
+  period   PayrollPeriod @relation(fields: [periodId], references: [id])
+  churchId String
+  church   Church        @relation(fields: [churchId], references: [id])
+
   // Salary details
-  positionId            String
-  position              PayrollPosition       @relation(fields: [positionId], references: [id])
-  baseAmount            Float
-  type                  PayrollType
-  
+  positionId String
+  position   PayrollPosition @relation(fields: [positionId], references: [id])
+  baseAmount Float
+  type       PayrollType
+
   // Calculations
-  hoursWorked           Float?                // For hourly workers
-  commissionEarned      Float?                // For commission-based
-  
+  hoursWorked      Float? // For hourly workers
+  commissionEarned Float? // For commission-based
+
   // Adjustments
-  bonuses               Float                 @default(0)
-  allowances            Float                 @default(0)
-  deductions            Float                 @default(0)
-  taxes                 Float                 @default(0)
-  
+  bonuses    Float @default(0)
+  allowances Float @default(0)
+  deductions Float @default(0)
+  taxes      Float @default(0)
+
   // Final amount
-  grossAmount           Float
-  netAmount              Float
-  
+  grossAmount Float
+  netAmount   Float
+
   // Payment
-  status                PayrollStatus         @default(PENDING)
-  paymentMethod         PaymentMethod?
-  paymentDate           DateTime?
-  transactionReference  String?
-  notes                 String?
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  status               PayrollStatus  @default(PENDING)
+  paymentMethod        PaymentMethod?
+  paymentDate          DateTime?
+  transactionReference String?
+  notes                String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([periodId])
   @@index([churchId])
@@ -1130,48 +1203,48 @@ model PayrollRecord {
 
 // Member Invitation System
 model InvitationForm {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  name                  String
-  description           String?
-  fields                Json                  // Array of FormField objects
-  branding              Json?                 // Church branding configuration
-  settings              Json                  // FormSettings object
-  createdBy             String
-  creator               User                  @relation("InvitationFormCreator", fields: [createdBy], references: [id])
-  
+  id          String  @id @default(cuid())
+  churchId    String
+  church      Church  @relation(fields: [churchId], references: [id])
+  name        String
+  description String?
+  fields      Json // Array of FormField objects
+  branding    Json? // Church branding configuration
+  settings    Json // FormSettings object
+  createdBy   String
+  creator     User    @relation("InvitationFormCreator", fields: [createdBy], references: [id])
+
   // Relations
-  links                 InvitationLink[]
-  submissions           RegistrationSubmission[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  links       InvitationLink[]
+  submissions RegistrationSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([createdBy])
 }
 
 model InvitationLink {
-  id                    String                @id @default(cuid())
-  formId                String
-  form                  InvitationForm        @relation(fields: [formId], references: [id], onDelete: Cascade)
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  token                 String                @unique // Cryptographically secure token
-  maxUses               Int?                  // null = unlimited uses
-  currentUses           Int                   @default(0)
-  expiresAt             DateTime?             // null = never expires
-  isActive              Boolean               @default(true)
-  createdBy             String
-  creator               User                  @relation("InvitationLinkCreator", fields: [createdBy], references: [id])
-  
+  id          String         @id @default(cuid())
+  formId      String
+  form        InvitationForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  churchId    String
+  church      Church         @relation(fields: [churchId], references: [id])
+  token       String         @unique // Cryptographically secure token
+  maxUses     Int? // null = unlimited uses
+  currentUses Int            @default(0)
+  expiresAt   DateTime? // null = never expires
+  isActive    Boolean        @default(true)
+  createdBy   String
+  creator     User           @relation("InvitationLinkCreator", fields: [createdBy], references: [id])
+
   // Relations
-  submissions           RegistrationSubmission[]
-  accessLogs            InvitationLinkAccess[]
-  
-  createdAt             DateTime              @default(now())
-  
+  submissions RegistrationSubmission[]
+  accessLogs  InvitationLinkAccess[]
+
+  createdAt DateTime @default(now())
+
   @@index([token])
   @@index([churchId])
   @@index([formId])
@@ -1181,30 +1254,30 @@ model InvitationLink {
 }
 
 model RegistrationSubmission {
-  id                    String                @id @default(cuid())
-  linkId                String
-  link                  InvitationLink        @relation(fields: [linkId], references: [id])
-  formId                String
-  form                  InvitationForm        @relation(fields: [formId], references: [id])
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  formData              Json                  // Submitted form data
-  status                String                @default("pending") // "pending", "approved", "rejected"
-  ipAddress             String?
-  userAgent             String?
-  
+  id        String         @id @default(cuid())
+  linkId    String
+  link      InvitationLink @relation(fields: [linkId], references: [id])
+  formId    String
+  form      InvitationForm @relation(fields: [formId], references: [id])
+  churchId  String
+  church    Church         @relation(fields: [churchId], references: [id])
+  formData  Json // Submitted form data
+  status    String         @default("pending") // "pending", "approved", "rejected"
+  ipAddress String?
+  userAgent String?
+
   // Review information
-  reviewedAt            DateTime?
-  reviewedBy            String?
-  reviewer              User?                 @relation("SubmissionReviewer", fields: [reviewedBy], references: [id])
-  rejectionReason       String?
-  
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewer        User?     @relation("SubmissionReviewer", fields: [reviewedBy], references: [id])
+  rejectionReason String?
+
   // Created user (if approved)
-  createdUserId         String?
-  createdUser           User?                 @relation("CreatedFromSubmission", fields: [createdUserId], references: [id])
-  
-  submittedAt           DateTime              @default(now())
-  
+  createdUserId String?
+  createdUser   User?   @relation("CreatedFromSubmission", fields: [createdUserId], references: [id])
+
+  submittedAt DateTime @default(now())
+
   @@index([linkId])
   @@index([formId])
   @@index([churchId])
@@ -1215,13 +1288,13 @@ model RegistrationSubmission {
 
 // Security and analytics tracking
 model InvitationLinkAccess {
-  id                    String                @id @default(cuid())
-  linkId                String
-  link                  InvitationLink        @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  ipAddress             String?
-  userAgent             String?
-  accessedAt            DateTime              @default(now())
-  
+  id         String         @id @default(cuid())
+  linkId     String
+  link       InvitationLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  ipAddress  String?
+  userAgent  String?
+  accessedAt DateTime       @default(now())
+
   @@index([linkId])
   @@index([accessedAt])
   @@index([ipAddress])
@@ -1250,48 +1323,48 @@ enum SurveyTargetAudienceType {
 }
 
 model Survey {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                @relation(fields: [churchId], references: [id])
-  branchId              String?
-  branch                Branch?               @relation(fields: [branchId], references: [id])
-  createdBy             String
-  creator               User                  @relation("SurveyCreator", fields: [createdBy], references: [id])
-  
+  id        String  @id @default(cuid())
+  churchId  String
+  church    Church  @relation(fields: [churchId], references: [id])
+  branchId  String?
+  branch    Branch? @relation(fields: [branchId], references: [id])
+  createdBy String
+  creator   User    @relation("SurveyCreator", fields: [createdBy], references: [id])
+
   // Survey details
-  title                 String
-  description           String?
-  status                SurveyStatus          @default(DRAFT)
-  
+  title       String
+  description String?
+  status      SurveyStatus @default(DRAFT)
+
   // Settings
-  isAnonymous           Boolean               @default(false)
-  allowMultipleResponses Boolean              @default(false)
-  deadline              DateTime?
-  
+  isAnonymous            Boolean   @default(false)
+  allowMultipleResponses Boolean   @default(false)
+  deadline               DateTime?
+
   // Target audience
-  targetAudienceType    SurveyTargetAudienceType @default(ALL)
-  targetBranchIds       String[]              // For BRANCH type
-  targetGroupIds        String[]              // For GROUP type
-  targetUserIds         String[]              // For CUSTOM type
-  
+  targetAudienceType SurveyTargetAudienceType @default(ALL)
+  targetBranchIds    String[] // For BRANCH type
+  targetGroupIds     String[] // For GROUP type
+  targetUserIds      String[] // For CUSTOM type
+
   // Notifications
-  sendOnPublish         Boolean               @default(true)
-  sendReminders         Boolean               @default(true)
-  reminderDays          Int[]                 @default([3, 1]) // Days before deadline
-  
+  sendOnPublish Boolean @default(true)
+  sendReminders Boolean @default(true)
+  reminderDays  Int[]   @default([3, 1]) // Days before deadline
+
   // Meeting integration
-  meetingId             String?               // For meeting-linked surveys
-  
+  meetingId String? // For meeting-linked surveys
+
   // Relations
-  sections              SurveySection[]
-  questions             SurveyQuestion[]
-  responses             SurveyResponse[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  publishedAt           DateTime?
-  closedAt              DateTime?
-  
+  sections  SurveySection[]
+  questions SurveyQuestion[]
+  responses SurveyResponse[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+  closedAt    DateTime?
+
   @@index([churchId])
   @@index([branchId])
   @@index([createdBy])
@@ -1301,30 +1374,30 @@ model Survey {
 }
 
 model SurveyQuestion {
-  id                    String                @id @default(cuid())
-  surveyId              String
-  survey                Survey                @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  sectionId             String?
-  section               SurveySection?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  
+  id        String         @id @default(cuid())
+  surveyId  String
+  survey    Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  sectionId String?
+  section   SurveySection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
   // Question details
-  type                  SurveyQuestionType
-  title                 String
-  description           String?
-  required              Boolean               @default(false)
-  order                 Int
-  
+  type        SurveyQuestionType
+  title       String
+  description String?
+  required    Boolean            @default(false)
+  order       Int
+
   // Question-specific settings
-  options               Json?                 // For multiple choice questions
-  minRating             Int?                  // For rating questions
-  maxRating             Int?                  // For rating questions
-  ratingLabels          Json?                 // For rating questions
-  
+  options      Json? // For multiple choice questions
+  minRating    Int? // For rating questions
+  maxRating    Int? // For rating questions
+  ratingLabels Json? // For rating questions
+
   // Relations
-  responses             SurveyQuestionResponse[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  responses SurveyQuestionResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([surveyId])
   @@index([sectionId])
@@ -1332,75 +1405,75 @@ model SurveyQuestion {
 }
 
 model SurveySection {
-  id          String         @id @default(cuid())
+  id          String           @id @default(cuid())
   surveyId    String
-  survey      Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  survey      Survey           @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   title       String
   description String?
   order       Int
   questions   SurveyQuestion[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([surveyId])
   @@index([order])
 }
 
 model SurveyResponse {
-  id                    String                @id @default(cuid())
-  surveyId              String
-  survey                Survey                @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  userId                String?               // null for anonymous surveys
-  user                  User?                 @relation("SurveyRespondent", fields: [userId], references: [id])
-  
+  id       String  @id @default(cuid())
+  surveyId String
+  survey   Survey  @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  userId   String? // null for anonymous surveys
+  user     User?   @relation("SurveyRespondent", fields: [userId], references: [id])
+
   // Response metadata
-  ipAddress             String?
-  userAgent             String?
-  submittedAt           DateTime              @default(now())
-  
+  ipAddress   String?
+  userAgent   String?
+  submittedAt DateTime @default(now())
+
   // Relations
-  questionResponses     SurveyQuestionResponse[]
-  
+  questionResponses SurveyQuestionResponse[]
+
   @@index([surveyId])
   @@index([userId])
   @@index([submittedAt])
 }
 
 model SurveyQuestionResponse {
-  id                    String                @id @default(cuid())
-  responseId            String
-  response              SurveyResponse        @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  questionId            String
-  question              SurveyQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  
+  id         String         @id @default(cuid())
+  responseId String
+  response   SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
   // Response value (stored as JSON to handle different types)
-  value                 Json
-  textValue             String?               // For "other" options or additional text
-  
+  value     Json
+  textValue String? // For "other" options or additional text
+
   @@unique([responseId, questionId])
   @@index([responseId])
   @@index([questionId])
 }
 
 model SurveyTemplate {
-  id                    String                @id @default(cuid())
-  churchId              String?               // null for system templates
-  church                Church?               @relation(fields: [churchId], references: [id])
-  createdBy             String?               // null for system templates
-  creator               User?                 @relation("SurveyTemplateCreator", fields: [createdBy], references: [id])
-  
+  id        String  @id @default(cuid())
+  churchId  String? // null for system templates
+  church    Church? @relation(fields: [churchId], references: [id])
+  createdBy String? // null for system templates
+  creator   User?   @relation("SurveyTemplateCreator", fields: [createdBy], references: [id])
+
   // Template details
-  name                  String
-  description           String?
-  category              String                // "Sermon Feedback", "Event Evaluation", etc.
-  isSystemTemplate      Boolean               @default(false)
-  
+  name             String
+  description      String?
+  category         String // "Sermon Feedback", "Event Evaluation", etc.
+  isSystemTemplate Boolean @default(false)
+
   // Template structure
-  templateData          Json                  // Survey structure and questions
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  templateData Json // Survey structure and questions
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([createdBy])
   @@index([category])
@@ -1427,27 +1500,27 @@ enum PlatformConnectionStatus {
 }
 
 model PlatformConnection {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                @relation("PlatformConnections", fields: [churchId], references: [id])
-  platform              StreamingPlatform
-  status                PlatformConnectionStatus @default(DISCONNECTED)
-  
+  id       String                   @id @default(cuid())
+  churchId String
+  church   Church                   @relation("PlatformConnections", fields: [churchId], references: [id])
+  platform StreamingPlatform
+  status   PlatformConnectionStatus @default(DISCONNECTED)
+
   // Encrypted credentials
-  credentials           Json                  // Encrypted: { accessToken?, refreshToken?, apiKey?, apiSecret?, webhookSecret? }
-  
+  credentials Json // Encrypted: { accessToken?, refreshToken?, apiKey?, apiSecret?, webhookSecret? }
+
   // Connection metadata
-  expiresAt             DateTime?
-  lastError             String?
-  lastErrorAt           DateTime?
-  
+  expiresAt   DateTime?
+  lastError   String?
+  lastErrorAt DateTime?
+
   // OAuth state
-  oauthState            String?               // Temporary state for OAuth flow
-  oauthStateExpiresAt   DateTime?
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  oauthState          String? // Temporary state for OAuth flow
+  oauthStateExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([churchId, platform])
   @@index([churchId])
   @@index([platform])
@@ -1469,32 +1542,32 @@ enum LivestreamPlatformStatus {
 }
 
 model Livestream {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                @relation("Livestreams", fields: [churchId], references: [id])
-  
+  id       String @id @default(cuid())
+  churchId String
+  church   Church @relation("Livestreams", fields: [churchId], references: [id])
+
   // Livestream details
-  title                 String
-  description           String?
-  thumbnail             String?
-  
+  title       String
+  description String?
+  thumbnail   String?
+
   // Status
-  status                LivestreamStatus      @default(SCHEDULED)
-  
+  status LivestreamStatus @default(SCHEDULED)
+
   // Timing
-  startAt               DateTime
-  endAt                 DateTime?
-  
+  startAt DateTime
+  endAt   DateTime?
+
   // Creator
-  createdBy             String
-  creator               User                  @relation("LivestreamCreator", fields: [createdBy], references: [id])
-  
+  createdBy String
+  creator   User   @relation("LivestreamCreator", fields: [createdBy], references: [id])
+
   // Platforms
-  platforms             LivestreamPlatform[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  platforms LivestreamPlatform[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([createdBy])
   @@index([status])
@@ -1502,25 +1575,25 @@ model Livestream {
 }
 
 model LivestreamPlatform {
-  id                    String                @id @default(cuid())
-  livestreamId          String
-  livestream            Livestream            @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
-  
+  id           String     @id @default(cuid())
+  livestreamId String
+  livestream   Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
+
   // Platform details
-  platform              StreamingPlatform
-  platformId            String?               // Platform-specific ID (e.g., YouTube broadcast ID)
-  url                   String?               // Platform-specific URL
-  
+  platform   StreamingPlatform
+  platformId String? // Platform-specific ID (e.g., YouTube broadcast ID)
+  url        String? // Platform-specific URL
+
   // Status
-  status                LivestreamPlatformStatus @default(PENDING)
-  error                 String?
-  
+  status LivestreamPlatformStatus @default(PENDING)
+  error  String?
+
   // Platform-specific settings
-  settings              Json?                 // { title?, description?, thumbnail?, ... }
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  settings Json? // { title?, description?, thumbnail?, ... }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([livestreamId, platform])
   @@index([livestreamId])
   @@index([platform])
@@ -1528,9 +1601,9 @@ model LivestreamPlatform {
 }
 
 model ExternalLivestreamConfig {
-  id          String            @id @default(cuid())
-  churchId    String            @unique
-  church      Church             @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  churchId String @unique
+  church   Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
 
   enabled     Boolean           @default(false)
   platform    StreamingPlatform
@@ -1539,8 +1612,8 @@ model ExternalLivestreamConfig {
   description String?
   scheduledAt DateTime?
 
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([churchId])
   @@index([platform])
@@ -1562,34 +1635,34 @@ enum MeetingPlatformStatus {
 }
 
 model Meeting {
-  id                    String                @id @default(cuid())
-  churchId              String
-  church                Church                @relation("Meetings", fields: [churchId], references: [id])
-  
+  id       String @id @default(cuid())
+  churchId String
+  church   Church @relation("Meetings", fields: [churchId], references: [id])
+
   // Meeting details
-  title                 String
-  description           String?
-  
+  title       String
+  description String?
+
   // Status
-  status                MeetingStatus         @default(SCHEDULED)
-  
+  status MeetingStatus @default(SCHEDULED)
+
   // Timing
-  startAt               DateTime
-  endAt                 DateTime
-  
+  startAt DateTime
+  endAt   DateTime
+
   // Primary platform
-  primaryPlatform       StreamingPlatform?
-  
+  primaryPlatform StreamingPlatform?
+
   // Creator
-  createdBy             String
-  creator               User                  @relation("MeetingCreator", fields: [createdBy], references: [id])
-  
+  createdBy String
+  creator   User   @relation("MeetingCreator", fields: [createdBy], references: [id])
+
   // Platforms
-  platforms             MeetingPlatform[]
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  platforms MeetingPlatform[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([churchId])
   @@index([createdBy])
   @@index([status])
@@ -1597,31 +1670,56 @@ model Meeting {
 }
 
 model MeetingPlatform {
-  id                    String                @id @default(cuid())
-  meetingId             String
-  meeting               Meeting               @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(cuid())
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
   // Platform details
-  platform              StreamingPlatform
-  platformMeetingId     String?               // Platform-specific meeting ID
-  url                   String?               // Platform-specific meeting URL
-  
+  platform          StreamingPlatform
+  platformMeetingId String? // Platform-specific meeting ID
+  url               String? // Platform-specific meeting URL
+
   // Status
-  status                MeetingPlatformStatus @default(PENDING)
-  error                 String?
-  
+  status MeetingPlatformStatus @default(PENDING)
+  error  String?
+
   // Platform-specific settings
-  settings              Json?                 // { title?, description?, ... }
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  
+  settings Json? // { title?, description?, ... }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([meetingId, platform])
   @@index([meetingId])
   @@index([platform])
   @@index([status])
 }
 
+// Analytics Cache
+model AnalyticsCache {
+  id              String   @id @default(cuid())
+  churchId        String   @unique
+  church          Church   @relation("AnalyticsCaches", fields: [churchId], references: [id], onDelete: Cascade)
+  
+  // Cached snapshot data
+  snapshotData    Json     // AnalyticsSnapshot as JSON
+  
+  // Recommendations
+  recommendationsData Json @default("{\"attendance\":[],\"schedules\":[],\"engagement\":[],\"content\":[]}")
+  
+  // Cache metadata
+  lastUpdated     DateTime @default(now())
+  nextRefresh     DateTime @default(now())
+  
+  // Data quality metrics
+  qualityData     Json     @default("{\"dataCompleteness\":0,\"eventsCount\":0,\"membersCount\":0,\"avgEventAttendance\":0}")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([churchId])
+  @@index([nextRefresh])
+}
+
 // Update Church model to include new relations
 // (These are added to the existing Church model above)
-

@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const notesRaw = form.get('notes')
     const projectIdRaw = form.get('projectId')
     const bankIdRaw = form.get('bankId')
+    const receipt = form.get('receipt')
 
     const amount = typeof amountRaw === 'string' ? Number(amountRaw) : NaN
     const type = typeof typeRaw === 'string' ? typeRaw.trim() : ''
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
 
     if (!type) {
       return NextResponse.json({ error: 'Type is required' }, { status: 400 })
+    }
+
+    if (!receipt || typeof receipt === 'string' || (receipt as File).size <= 0) {
+      return NextResponse.json({ error: 'Transfer receipt is required' }, { status: 400 })
     }
 
     // Verify project if provided
@@ -90,23 +95,18 @@ export async function POST(request: Request) {
     } as any)
 
     let transferReceiptUrl: string | undefined
-    const receipt = form.get('receipt')
 
-    if (receipt && typeof receipt !== 'string') {
-      const file = receipt as File
-      if (file && file.size > 0) {
-        const upload = await StorageService.uploadFile({
-          file,
-          fileName: `bank-transfer-receipt-${giving.id}-${file.name || 'receipt'}`,
-          folder: 'bank-transfer-receipts',
-          userId,
-          churchId: church.id,
-          contentType: file.type || undefined,
-        })
-        transferReceiptUrl = upload.url
-        await GivingService.update(giving.id, { transferReceiptUrl } as any)
-      }
-    }
+    const file = receipt as File
+    const upload = await StorageService.uploadFile({
+      file,
+      fileName: `bank-transfer-receipt-${giving.id}-${file.name || 'receipt'}`,
+      folder: 'bank-transfer-receipts',
+      userId,
+      churchId: church.id,
+      contentType: file.type || undefined,
+    })
+    transferReceiptUrl = upload.url
+    await GivingService.update(giving.id, { transferReceiptUrl } as any)
 
     return NextResponse.json(
       {

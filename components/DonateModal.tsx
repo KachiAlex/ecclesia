@@ -113,7 +113,7 @@ export default function DonateModal({
         return
       }
 
-      const paymentResponse = await fetch('/api/payments/initialize', {
+      const paymentResponse = await fetch('/api/giving/donate/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,8 +132,8 @@ export default function DonateModal({
 
       const paymentData = await paymentResponse.json().catch(() => null)
 
-      if (paymentData?.authorizationUrl) {
-        window.location.href = paymentData.authorizationUrl
+      if (paymentData?.paymentLink) {
+        window.location.href = paymentData.paymentLink
       } else {
         throw new Error('Payment initialization failed')
       }

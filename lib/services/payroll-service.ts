@@ -278,6 +278,30 @@ export class PayrollPeriodService {
       updatedAt: toDate(createdData.updatedAt),
     } as PayrollPeriod
   }
+
+  static async update(periodId: string, data: Partial<PayrollPeriod>): Promise<PayrollPeriod> {
+    const updateData: any = {
+      ...data,
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    delete updateData.id
+    delete updateData.createdAt
+    delete updateData.updatedAt
+
+    await db.collection(COLLECTIONS.payrollPeriods).doc(periodId).update(updateData)
+
+    const updated = await db.collection(COLLECTIONS.payrollPeriods).doc(periodId).get()
+    const updatedData = updated.data()!
+    return {
+      id: updated.id,
+      ...updatedData,
+      startDate: toDate(updatedData.startDate),
+      endDate: toDate(updatedData.endDate),
+      createdAt: toDate(updatedData.createdAt),
+      updatedAt: toDate(updatedData.updatedAt),
+    } as PayrollPeriod
+  }
 }
 
 export class PayrollRecordService {

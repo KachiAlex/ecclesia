@@ -139,49 +139,65 @@ export async function generatePayrollRecords(
   const allUsers = await UserService.findByChurch(churchId)
 
   const records = []
+  const errors = []
 
   for (const user of allUsers) {
-    // Get active salary for user
-    const salaries = await SalaryService.findByUser(user.id)
-    const activeSalary = salaries.find(s => !s.endDate && 
-      new Date(s.startDate) <= period.endDate &&
-      (!s.endDate || new Date(s.endDate) >= period.startDate)
-    )
+    try {
+      // Get active salary for user
+      const salaries = await SalaryService.findByUser(user.id)
+      const activeSalary = salaries.find(s => !s.endDate && 
+        new Date(s.startDate) <= period.endDate &&
+        (!s.endDate || new Date(s.endDate) >= period.startDate)
+      )
 
-    if (!activeSalary) {
-      continue
+      if (!activeSalary) {
+        continue
+      }
+
+      // Check if record already exists
+      const existingRecords = await PayrollRecordService.findByPeriod(periodId)
+      const existing = existingRecords.find(r => r.userId === user.id)
+
+      if (existing) {
+        continue // Skip if already exists
+      }
+
+      // Calculate payroll
+      const calculation = await calculatePayroll(
+        user.id,
+        period.startDate,
+        period.endDate
+      )
+
+      // Create payroll record
+      const record = await PayrollRecordService.create({
+        periodId,
+        userId: user.id,
+        salaryId: activeSalary.id,
+        grossAmount: calculation.grossAmount,
+        deductions: calculation.deductions,
+        netAmount: calculation.netAmount,
+        status: 'PENDING',
+      })
+
+      records.push(record)
+    } catch (error: any) {
+      // Log error but continue with next user
+      errors.push({
+        userId: user.id,
+        userName: `${user.firstName} ${user.lastName}`,
+        error: error.message,
+      })
+      console.error(`Error generating payroll for user ${user.id}:`, error)
     }
-
-    // Check if record already exists
-    const existingRecords = await PayrollRecordService.findByPeriod(periodId)
-    const existing = existingRecords.find(r => r.userId === user.id)
-
-    if (existing) {
-      continue // Skip if already exists
-    }
-
-    // Calculate payroll
-    const calculation = await calculatePayroll(
-      user.id,
-      period.startDate,
-      period.endDate
-    )
-
-    // Create payroll record
-    const record = await PayrollRecordService.create({
-      periodId,
-      userId: user.id,
-      salaryId: activeSalary.id,
-      grossAmount: calculation.grossAmount,
-      deductions: calculation.deductions,
-      netAmount: calculation.netAmount,
-      status: 'PENDING',
-    })
-
-    records.push(record)
   }
 
-  return records
+  return {
+    records,
+    errors,
+    total: records.length,
+    failed: errors.length,
+  }
 }
 
 /**

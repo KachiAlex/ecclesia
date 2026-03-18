@@ -3,6 +3,13 @@
 import { useState, useEffect } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import { RecommendationDashboard } from '@/components/recommendations'
+import {
+  ScheduledNotificationsManager,
+  UpcomingSchedulesWidget,
+  DigestPerformanceWidget,
+  ScheduleOverviewCalendar,
+} from '@/components/scheduled-notifications'
 
 interface Analytics {
   overview: {
@@ -51,7 +58,7 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'disengaged' | 'first-timers'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'disengaged' | 'first-timers' | 'recommendations' | 'scheduled-digests'>('overview')
 
   useEffect(() => {
     loadData()
@@ -124,6 +131,26 @@ export default function AdminDashboard() {
             }`}
           >
             First-Timers ({firstTimers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('recommendations')}
+            className={`pb-4 px-2 border-b-2 ${
+              activeTab === 'recommendations'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500'
+            }`}
+          >
+            AI Recommendations
+          </button>
+          <button
+            onClick={() => setActiveTab('scheduled-digests')}
+            className={`pb-4 px-2 border-b-2 ${
+              activeTab === 'scheduled-digests'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500'
+            }`}
+          >
+            Scheduled Digests
           </button>
         </nav>
       </div>
@@ -350,7 +377,33 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Recommendations Tab */}
+      {activeTab === 'recommendations' && (
+        <div className="space-y-6">
+          <RecommendationDashboard />
+        </div>
+      )}
+      {/* Scheduled Digests Tab */}
+      {activeTab === 'scheduled-digests' && (
+        <div className="space-y-6">
+          {/* Management Panel */}
+          <div>
+            <ScheduledNotificationsManager />
+          </div>
+
+          {/* Widgets Row */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <UpcomingSchedulesWidget />
+            <DigestPerformanceWidget />
+          </div>
+
+          {/* Calendar */}
+          <div>
+            <ScheduleOverviewCalendar />
+          </div>
+        </div>
+      )}    </div>
   )
 }
 

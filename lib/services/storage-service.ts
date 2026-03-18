@@ -4,6 +4,7 @@
  */
 
 import { put, del, head } from '@vercel/blob'
+import sharp from 'sharp'
 
 interface UploadOptions {
   file: File | Buffer
@@ -14,8 +15,21 @@ interface UploadOptions {
   contentType?: string
 }
 
+interface OptimizedImage {
+  buffer: Buffer
+  size: 'thumbnail' | 'medium' | 'original'
+  width: number
+  height: number
+  format: string
+}
+
 export class StorageService {
   private static readonly PUBLIC_HOST = 'https://blob.vercel-storage.com'
+  private static readonly IMAGE_SIZES = {
+    thumbnail: { width: 128, height: 128, label: 'thumb' },
+    medium: { width: 256, height: 256, label: 'med' },
+    original: { width: 512, height: 512, label: 'orig' },
+  }
 
   private static getToken(): string {
     const token = process.env.BLOB_READ_WRITE_TOKEN
@@ -62,25 +76,149 @@ export class StorageService {
       maxHeight?: number
       quality?: number
     } = {}
-  ): Promise<{ url: string; path: string }> {
+  ): Promise<{ url: string; path: string; urls?: { thumbnail?: string; medium?: string; original?: string } }> {
     try {
-      // For now, upload as-is
-      // TODO: Add image optimization using sharp or similar library
-      // This would resize/compress images before upload
+      const buffer = await file.arrayBuffer()
+      const uint8Array = new Uint8Array(buffer)
 
-      const fileName = file.name || `image-${Date.now()}.${file.type.split('/')[1] || 'jpg'}`
+      // Optimize and resize image
+      const optimized = await this.optimizeImage(uint8Array, {
+        quality: options.quality || 80,
+        maxWidth: options.maxWidth || 512,
+        maxHeight: options.maxHeight || 512,
+      })
 
-      return this.uploadFile({
-        file,
-        fileName,
+      const baseFileName = file.name || `image-${Date.now()}`
+      const nameWithoutExt = baseFileName.substring(0, baseFileName.lastIndexOf('.') || baseFileName.length)
+      const ext = 'webp' // Always convert to webp for better compression
+
+      const results: any = {
+        urls: {},
+      }
+
+      // Upload original (full size) optimized version
+      const originalResult = await this.uploadFile({
+        file: optimized.original.buffer,
+        fileName: `${nameWithoutExt}-orig.${ext}`,
         folder: options.folder || 'avatars',
         userId: options.userId,
         churchId: options.churchId,
-        contentType: file.type,
+        contentType: 'image/webp',
       })
+
+      results.url = originalResult.url
+      results.path = originalResult.path
+      results.urls.original = originalResult.url
+
+      // Upload medium version (for previews/thumbnails in lists)
+      const mediumResult = await this.uploadFile({
+        file: optimized.medium.buffer,
+        fileName: `${nameWithoutExt}-med.${ext}`,
+        folder: options.folder || 'avatars',
+        userId: options.userId,
+        churchId: options.churchId,
+        contentType: 'image/webp',
+      })
+
+      results.urls.medium = mediumResult.url
+
+      // Upload thumbnail version (for small displays)
+      const thumbResult = await this.uploadFile({
+        file: optimized.thumbnail.buffer,
+        fileName: `${nameWithoutExt}-thumb.${ext}`,
+        folder: options.folder || 'avatars',
+        userId: options.userId,
+        churchId: options.churchId,
+        contentType: 'image/webp',
+      })
+
+      results.urls.thumbnail = thumbResult.url
+
+      return results
     } catch (error: any) {
       console.error('Error uploading image:', error)
       throw new Error(`Image upload failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Optimize image using sharp - resize and compress for web
+   */
+  private static async optimizeImage(
+    imageBuffer: Uint8Array,
+    options: { quality?: number; maxWidth?: number; maxHeight?: number } = {}
+  ): Promise<{ original: OptimizedImage; medium: OptimizedImage; thumbnail: OptimizedImage }> {
+    try {
+      const quality = options.quality || 80
+      const maxWidth = options.maxWidth || 512
+
+      // Start with the original buffer
+      const sharpImage = sharp(Buffer.from(imageBuffer))
+      const metadata = await sharpImage.metadata()
+
+      // Calculate dimensions maintaining aspect ratio
+      let width = metadata.width || maxWidth
+      let height = metadata.height || width
+
+      if (width > maxWidth) {
+        const ratio = height / width
+        width = maxWidth
+        height = Math.round(maxWidth * ratio)
+      }
+
+      // Create original size (512x512 max or smaller)
+      const original = await sharp(Buffer.from(imageBuffer))
+        .resize(Math.min(width, 512), Math.min(height, 512), {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality, effort: 6 })
+        .toBuffer()
+
+      // Create medium size (256x256)
+      const medium = await sharp(Buffer.from(imageBuffer))
+        .resize(256, 256, {
+          fit: 'cover',
+          position: 'center',
+        })
+        .webp({ quality: Math.max(quality - 10, 60), effort: 6 })
+        .toBuffer()
+
+      // Create thumbnail size (128x128)
+      const thumbnail = await sharp(Buffer.from(imageBuffer))
+        .resize(128, 128, {
+          fit: 'cover',
+          position: 'center',
+        })
+        .webp({ quality: Math.max(quality - 20, 50), effort: 6 })
+        .toBuffer()
+
+      return {
+        original: {
+          buffer: original,
+          size: 'original',
+          width: Math.min(width, 512),
+          height: Math.min(height, 512),
+          format: 'webp',
+        },
+        medium: {
+          buffer: medium,
+          size: 'medium',
+          width: 256,
+          height: 256,
+          format: 'webp',
+        },
+        thumbnail: {
+          buffer: thumbnail,
+          size: 'thumbnail',
+          width: 128,
+          height: 128,
+          format: 'webp',
+        },
+      }
+    } catch (error: any) {
+      console.error('Error optimizing image:', error)
+      throw new Error(`Image optimization failed: ${error.message}`)
     }
   }
 

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { PasswordResetService } from '@/lib/services/password-reset-service'
 import { UserService } from '@/lib/services/user-service'
+import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
   try {
@@ -34,8 +35,11 @@ export async function POST(request: Request) {
       )
     }
 
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(password, 10)
+
     // Update user password
-    await UserService.update(resetToken.userId, { password })
+    await UserService.update(resetToken.userId, { password: hashedPassword })
 
     // Mark token as used
     await PasswordResetService.markAsUsed(resetToken.id)

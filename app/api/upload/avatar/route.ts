@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         url: result.url,
         path: result.path,
+        urls: result.urls || { original: result.url },
         message: 'Avatar uploaded successfully',
       })
     } catch (error: any) {

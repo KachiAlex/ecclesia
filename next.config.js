@@ -4,7 +4,6 @@ const { join } = require('path')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -12,21 +11,18 @@ const nextConfig = {
       },
     ],
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  serverExternalPackages: ['@prisma/client'],
+  outputFileTracingIncludes: {
+    '/api/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
+    '/(app|src)/api/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
+    '/app/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
   },
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
-    },
-    serverComponentsExternalPackages: ['@prisma/client'],
-    outputFileTracingIncludes: {
-      '/api/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
-      '/(app|src)/api/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
-      '/app/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
     },
   },
   webpack: (config, { isServer }) => {

@@ -112,6 +112,24 @@ export class GivingService {
     return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
 
+  static async findByTransactionId(transactionId: string): Promise<Giving | null> {
+    const snapshot = await db.collection(COLLECTIONS.giving)
+      .where('transactionId', '==', transactionId)
+      .limit(1)
+      .get()
+
+    if (snapshot.empty) return null
+
+    const doc = snapshot.docs[0]
+    const data = doc.data()
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as Giving
+  }
+
   static async getTotalByUser(userId: string): Promise<number> {
     const snapshot = await db.collection(COLLECTIONS.giving)
       .where('userId', '==', userId)

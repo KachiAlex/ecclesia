@@ -13,6 +13,7 @@ export type ApiGuardContext = {
 
 export type ApiGuardOptions = {
   requireChurch?: boolean
+  requireAuth?: boolean
   allowedRoles?: UserRole[]
 }
 
