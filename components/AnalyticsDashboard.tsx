@@ -9,6 +9,7 @@ import { AnalyticsDashboardCharts } from '@/components/charts'
 import { ExportButton } from '@/components/export'
 import { ContentRecommendations, OptimalScheduleRecommendation } from '@/components/recommendations'
 import { UpcomingSchedulesWidget, ScheduledNotificationStatusWidget } from '@/components/scheduled-notifications'
+import MLPredictionsDashboard from '@/components/MLPredictionsDashboard'
 
 type Period = 'week' | 'month' | 'year'
 type MetricType = 'meeting' | 'livestream' | 'attendance' | 'engagement'
@@ -247,6 +248,13 @@ export default function AnalyticsDashboard({ churchId }: { churchId: string }) {
           <UpcomingSchedulesWidget />
           <ScheduledNotificationStatusWidget />
         </div>
+      </div>
+
+      {/* ML Predictions Section */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="text-lg font-bold mb-4">🤖 ML Predictions & Forecasts</h2>
+        <p className="text-sm text-gray-600 mb-6">Machine learning insights for attendance, giving, member engagement, and sermon optimization</p>
+        <MLPredictionsDashboard churchId={churchId} />
       </div>
     </div>
   )

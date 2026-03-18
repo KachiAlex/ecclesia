@@ -14,12 +14,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  serverExternalPackages: ['@prisma/client'],
-  outputFileTracingIncludes: {
-    '/api/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
-    '/(app|src)/api/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
-    '/app/(.*)': ['./node_modules/.prisma/client/**', './node_modules/@prisma/client/**'],
-  },
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
