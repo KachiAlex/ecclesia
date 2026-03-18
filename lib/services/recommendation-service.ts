@@ -1,4 +1,3 @@
-import { db, FieldValue } from '@/lib/firestore'
 import { DataAggregationService } from '@/lib/services/data-aggregation-service-postgres'
 import { AnalyticsCacheService } from '@/lib/services/analytics-cache-service-postgres'
 
@@ -221,7 +220,6 @@ export class RecommendationService {
         consistency
       ),
     }
-  }
   }
 
   /**
@@ -646,6 +644,11 @@ export class RecommendationService {
         attendance,
         trend,
         this.calculateAverage(allEvents.map((e) => e.attendees)) > 0
+      ),
+    }
+  }
+}
+
           ? (this.calculateAverage(allEvents.map((e) => e.attendees)) / attendance) * 100
           : 100
       ),
