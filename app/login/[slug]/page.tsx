@@ -27,7 +27,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
   return (
     <div className="min-h-screen bg-white">
       <div className="fixed inset-0 -z-10">
-        <img src="/home-bg.svg" alt="pi-CMS background" className="h-full w-full object-cover" />
+        <img src="/home-bg.svg" alt="Pisairtel background" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-[#faf9f5] via-[#faf9f5]/90 to-primary-50" />
       </div>
 
@@ -40,7 +40,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
                 <img src="/favicon.svg" alt="Pisairtel CMS" className="h-8 w-8" />
               </div>
             </div>
-            <span className="text-2xl font-bold tracking-tight text-gray-900">pi-CMS</span>
+            <span className="text-2xl font-bold tracking-tight text-gray-900">Pisairtel</span>
           </Link>
           <div className="flex items-center gap-4 text-sm font-semibold text-gray-600">
             <Link href="/login" className="hover:text-gray-900">
@@ -112,7 +112,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
                 {error ? 'Please try again later' : 'Enter a valid church slug to continue.'}
               </p>
               <p className="mt-2 text-sm text-gray-600">
-                Need help? Email support@pi-cms.app and we will resend your tenant details.
+                Need help? Email support@pisairtel.app and we will resend your tenant details.
               </p>
               <Link
                 href="/login"
