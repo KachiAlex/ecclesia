@@ -51,7 +51,7 @@ export default function LoginSlugCapturePage() {
                 <img src="/favicon.svg" alt="Pisairtel CMS" className="h-8 w-8" />
               </div>
             </div>
-            <span className="text-2xl font-bold tracking-tight text-gray-900">pi-CMS</span>
+            <span className="text-2xl font-bold tracking-tight text-gray-900">Pisairtel</span>
           </Link>
           <Link href="/auth/login" className="text-sm font-semibold text-gray-600 hover:text-gray-900">
             Superadmin Login
@@ -68,7 +68,7 @@ export default function LoginSlugCapturePage() {
             Tell us your church slug to enter the right tenant
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            Every church on pi-CMS gets a unique slug, like <span className="font-mono text-gray-900">/{exampleSlug}</span>. Your staff and campus leaders will log in using this slug so we can route them to your tenant securely.
+            Every church on Pisairtel gets a unique slug, like <span className="font-mono text-gray-900">/{exampleSlug}</span>. Your staff and campus leaders will log in using this slug so we can route them to your tenant securely.
           </p>
 
           <div className="mt-6 rounded-2xl border border-gray-100 bg-white/80 p-5 shadow-sm">
@@ -86,7 +86,7 @@ export default function LoginSlugCapturePage() {
             <label htmlFor="slug" className="text-sm font-semibold text-gray-700">
               Enter your church slug
             </label>
-            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 focus-within:border-blue-500 focus-within:bg-white">
+            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 focus-within:border-primary-500 focus-within:bg-white">
               <span className="font-mono text-gray-500">pisairtel.app/login/</span>
               <input
                 id="slug"
