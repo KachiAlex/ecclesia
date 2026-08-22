@@ -53,9 +53,9 @@ export default async function DashboardLayout({
 
   console.log('Dashboard layout: Rendering dashboard', { userId, role: user?.role, churchId: user?.churchId })
 
-  const brandName = activeChurch?.name ?? 'pi-CMS'
-  const brandTagline = activeChurch?.tagline ?? 'Church Management'
-  const brandLogo = activeChurch?.logo ?? '/pi-cms-logo.svg'
+  const brandName = activeChurch?.name ?? 'Pisairtel CMS'
+  const brandTagline = activeChurch?.tagline ?? 'Modern Church Management & Discipleship Platform'
+  const brandLogo = activeChurch?.logo ?? '/favicon.svg'
   const brandInitial = brandName?.[0]?.toUpperCase() ?? 'P'
   const profileName =
     [user?.firstName, user?.lastName].filter(Boolean).join(' ') || session.user?.name || 'Admin user'
@@ -95,14 +95,14 @@ export default async function DashboardLayout({
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden lg:block min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+      <div className="hidden lg:block min-h-screen bg-gradient-to-br bg-[#faf9f5]">
         {/* Sidebar */}
         <div className="fixed inset-y-0 left-0 z-50 w-72 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 flex flex-col shadow-xl">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 px-6 py-6 border-b border-gray-200/50">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl blur opacity-50"></div>
-              <div className="relative w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl blur opacity-50"></div>
+              <div className="relative w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
                 {activeChurch?.logo ? (
                   <img src={brandLogo} alt={`${brandName} logo`} className="w-10 h-10 object-contain" />
                 ) : (
@@ -111,7 +111,7 @@ export default async function DashboardLayout({
               </div>
             </div>
             <div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
                 {brandName}
               </span>
               <p className="text-xs text-gray-500 font-medium truncate">{brandTagline}</p>

@@ -11,11 +11,12 @@ export type TenantBrand = {
 }
 
 export const DEFAULT_TENANT_BRAND: TenantBrand = {
-  name: 'pi-CMS',
-  tagline: 'Church Management',
-  logo: '/pi-cms-logo.svg',
-  primaryColor: '#0ea5e9',
-  secondaryColor: '#6366f1',
+  name: 'Pisairtel CMS',
+  tagline: 'Modern Church Management & Discipleship Platform',
+  logo: '/favicon.svg',
+  primaryColor: '#e31e24',
+  secondaryColor: '#15161a',
+  accentColor: '#faf9f5',
   id: null,
   customDomain: null,
 }

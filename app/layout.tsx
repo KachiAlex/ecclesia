@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
-import '@fontsource-variable/inter/index.css'
-import { Inter } from 'next/font/google'
+import { Fraunces } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
-const inter = Inter({ subsets: ['latin'], display: 'swap' })
+const fraunces = Fraunces({ subsets: ['latin'], display: 'swap' })
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +31,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={inter.className}>
+      <body className={fraunces.className}>
         <Providers>{children}</Providers>
       </body>
     </html>

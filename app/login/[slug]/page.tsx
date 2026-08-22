@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeft } from 'lucide-react'
 export const dynamic = 'force-dynamic'
 
 function formatLoginUrl(slug: string) {
-  return `pi-cms.app/login/${slug}`
+  return `pisairtel.app/login/${slug}`
 }
 
 export default async function TenantSlugLoginPage({ params }: { params: { slug: string } }) {
@@ -28,16 +28,16 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
     <div className="min-h-screen bg-white">
       <div className="fixed inset-0 -z-10">
         <img src="/home-bg.svg" alt="pi-CMS background" className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-white/90 to-blue-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#faf9f5] via-[#faf9f5]/90 to-primary-50" />
       </div>
 
       <nav className="relative z-10 border-b border-gray-100 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 blur-sm opacity-40" />
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20">
-                <img src="/pi-cms-logo.svg" alt="pi-CMS" className="h-8 w-8" />
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 blur-sm opacity-40" />
+              <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/20">
+                <img src="/favicon.svg" alt="Pisairtel CMS" className="h-8 w-8" />
               </div>
             </div>
             <span className="text-2xl font-bold tracking-tight text-gray-900">pi-CMS</span>
@@ -55,7 +55,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
 
       <main className="relative z-10 mx-auto flex max-w-6xl flex-col gap-10 px-4 py-12 md:flex-row md:items-start">
         <div className="w-full md:w-1/2">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">Tenant access</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary-600">Tenant access</p>
           <h1 className="mt-4 text-4xl font-bold text-gray-900 md:text-5xl">
             {error ? 'Error loading church' : church ? `Welcome back to ${church.name}` : 'We could not find that church'}
           </h1>
@@ -73,10 +73,10 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
               <span>{error}</span>
             </div>
           ) : church ? (
-            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
+            <div className="mt-6 rounded-2xl border border-primary-100 bg-primary-50/70 p-4 text-sm text-primary-900">
               <p className="font-semibold">Shareable login link</p>
-              <p className="mt-1 font-mono text-base text-blue-900">{formatLoginUrl(slug)}</p>
-              <p className="mt-1 text-blue-800">Save this link for staff and regional leaders.</p>
+              <p className="mt-1 font-mono text-base text-primary-900">{formatLoginUrl(slug)}</p>
+              <p className="mt-1 text-primary-800">Save this link for staff and regional leaders.</p>
             </div>
           ) : (
             <div className="mt-6 flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50/70 p-4 text-sm text-red-900">
@@ -116,7 +116,7 @@ export default async function TenantSlugLoginPage({ params }: { params: { slug: 
               </p>
               <Link
                 href="/login"
-                className="mt-6 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-white"
+                className="mt-6 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 text-white"
               >
                 {error ? 'Try again' : 'Try another slug'}
               </Link>

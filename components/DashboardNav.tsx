@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: '📊', gradient: 'from-blue-500 to-indigo-600' },
+  { name: 'Dashboard', href: '/dashboard', icon: '📊', gradient: 'from-primary-500 to-primary-600' },
   { name: 'Meetings', href: '/meetings', icon: '🔴', gradient: 'from-red-500 to-rose-600' },
   { name: 'Surveys', href: '/surveys', icon: '📝', gradient: 'from-emerald-500 to-teal-600' },
   { name: 'Sermons', href: '/sermons', icon: '📺', gradient: 'from-purple-500 to-violet-600' },
-  { name: 'Prayer', href: '/prayer', icon: '🙏', gradient: 'from-blue-500 to-cyan-600' },
+  { name: 'Prayer', href: '/prayer', icon: '🙏', gradient: 'from-primary-500 to-cyan-600' },
   { name: 'Giving', href: '/giving', icon: '💰', gradient: 'from-green-500 to-emerald-600' },
   { name: 'Accounting', href: '/accounting', icon: '🧾', gradient: 'from-slate-600 to-gray-700' },
   { name: 'Attendance', href: '/attendance', icon: '🧍', gradient: 'from-teal-600 to-cyan-700' },
@@ -21,7 +21,7 @@ const navigation = [
   { name: 'Digital School', href: '/digital-school', icon: '🎓', gradient: 'from-violet-500 to-fuchsia-600' },
   { name: 'Leaderboard', href: '/leaderboard', icon: '🏆', gradient: 'from-yellow-500 to-orange-600' },
   { name: 'Users', href: '/users', icon: '👤', gradient: 'from-gray-600 to-gray-700' },
-  { name: 'Branches', href: '/branches', icon: '🏢', gradient: 'from-blue-600 to-indigo-700' },
+  { name: 'Branches', href: '/branches', icon: '🏢', gradient: 'from-primary-600 to-primary-800' },
   { name: 'Payroll', href: '/payroll', icon: '💵', gradient: 'from-green-600 to-emerald-700' },
 ]
 
@@ -70,7 +70,7 @@ export default function DashboardNav({ userRole, isStaff = false }: DashboardNav
             href={item.href}
             className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
               active
-                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 font-semibold shadow-sm'
+                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-primary-700 font-semibold shadow-sm'
                 : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium'
             }`}
           >
@@ -90,7 +90,7 @@ export default function DashboardNav({ userRole, isStaff = false }: DashboardNav
             
             {/* Active Indicator */}
             {active && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600"></div>
             )}
           </Link>
         )

@@ -305,7 +305,7 @@ function DeleteConfirmModal({ branch, onCancel, onConfirm, loading }: DeleteConf
               disabled={loading}
               className="w-full sm:w-auto rounded-xl bg-red-600 px-5 py-2.5 font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
             >
-              {loading ? 'Deleting…' : 'Delete branch'}
+              {loading ? 'Deletingâ€¦' : 'Delete branch'}
             </button>
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function BranchesPage() {
     if (!churchId) return
     try {
       setExporting(true)
-      setStatusMessage({ type: 'info', text: 'Preparing branch report…' })
+      setStatusMessage({ type: 'info', text: 'Preparing branch reportâ€¦' })
       const params = new URLSearchParams()
       if (activeFilters.start) params.set('start', activeFilters.start)
       if (activeFilters.end) params.set('end', activeFilters.end)
@@ -702,9 +702,9 @@ export default function BranchesPage() {
                   onClick={() => toggleNodeCollapsed(node.id)}
                   aria-label={isCollapsed ? `Expand ${node.name}` : `Collapse ${node.name}`}
                   aria-expanded={!isCollapsed}
-                  className="rounded-full border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-full border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
-                  <span aria-hidden="true">{isCollapsed ? '+' : '−'}</span>
+                  <span aria-hidden="true">{isCollapsed ? '+' : 'âˆ’'}</span>
                 </button>
                 {childLevel && (
                   <button
@@ -717,7 +717,7 @@ export default function BranchesPage() {
                         parentName: node.name,
                       })
                     }
-                    className="px-4 py-2 rounded-xl border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors"
+                    className="px-4 py-2 rounded-xl border border-primary-200 text-primary-700 text-sm font-semibold hover:bg-primary-50 transition-colors"
                   >
                     + Add {childLevelCode ?? 'next level'}
                     {childLevelLabel ? ` (${childLevelLabel.toLowerCase()})` : ''}
@@ -725,7 +725,7 @@ export default function BranchesPage() {
                 )}
                 <button
                   onClick={() => handleManageAdmins({ id: node.id, name: node.name })}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
                 >
                   Manage admins
                 </button>
@@ -749,7 +749,7 @@ export default function BranchesPage() {
                     <span className="text-base font-medium text-slate-500">people</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-2">
-                    {formatNumber(node.metrics.attendance.subtree.sessions)} sessions •{' '}
+                    {formatNumber(node.metrics.attendance.subtree.sessions)} sessions â€¢{' '}
                     {formatNumber(node.metrics.attendance.subtree.firstTimers)} first timers
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
@@ -770,10 +770,10 @@ export default function BranchesPage() {
                 <div className="rounded-xl bg-amber-50 p-4">
                   <p className="text-xs font-semibold uppercase text-amber-700">Finances</p>
                   <p className="text-2xl font-bold text-amber-900 mt-1">
-                    ₦{formatNumber(Math.round(node.metrics.finances.subtree.net))}
+                    â‚¦{formatNumber(Math.round(node.metrics.finances.subtree.net))}
                   </p>
                   <p className="text-xs text-amber-600 mt-2">
-                    Income ₦{formatNumber(Math.round(node.metrics.finances.subtree.income))} • Expenses ₦
+                    Income â‚¦{formatNumber(Math.round(node.metrics.finances.subtree.income))} â€¢ Expenses â‚¦
                     {formatNumber(Math.round(node.metrics.finances.subtree.expenses))}
                   </p>
                 </div>
@@ -803,7 +803,7 @@ export default function BranchesPage() {
                         key={`${node.id}-${admin.userId}`}
                         role="listitem"
                         className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700"
-                        title={`${admin.name}${admin.email ? ` • ${admin.email}` : ''}`}
+                        title={`${admin.name}${admin.email ? ` â€¢ ${admin.email}` : ''}`}
                       >
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold uppercase text-white">
                           {getInitials(admin.name || admin.email || admin.role)}
@@ -811,7 +811,7 @@ export default function BranchesPage() {
                         <span className="flex flex-col leading-tight">
                           <span className="font-semibold">{admin.name || 'Branch admin'}</span>
                           <span className="text-xs text-slate-500">
-                            {admin.capabilities.length > 0 ? admin.capabilities.join(' · ') : admin.role}
+                            {admin.capabilities.length > 0 ? admin.capabilities.join(' Â· ') : admin.role}
                           </span>
                         </span>
                       </span>
@@ -852,15 +852,15 @@ export default function BranchesPage() {
           <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-600">
             <p>
               Need to rename levels or restructure the tree? Update your hierarchy once in{' '}
-              <Link href="/settings/hierarchy" className="font-semibold text-blue-600 hover:text-blue-700">
-                Settings → Hierarchy levels
+              <Link href="/settings/hierarchy" className="font-semibold text-primary-600 hover:text-primary-700">
+                Settings â†’ Hierarchy levels
               </Link>{' '}
               and every branch view will stay in sync.
             </p>
             <p className="mt-2">
               Role/designation titles live in{' '}
-              <Link href="/settings/roles" className="font-semibold text-blue-600 hover:text-blue-700">
-                Settings → Roles &amp; designations
+              <Link href="/settings/roles" className="font-semibold text-primary-600 hover:text-primary-700">
+                Settings â†’ Roles &amp; designations
               </Link>{' '}
               so operators can keep this workspace focused on day-to-day branch management.
             </p>
@@ -879,12 +879,12 @@ export default function BranchesPage() {
               exporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-gray-50'
             }`}
           >
-            {exporting ? 'Exporting…' : 'Export report'}
+            {exporting ? 'Exportingâ€¦' : 'Export report'}
           </button>
           {rootLevel && canCreateRootLevel && churchId && (
             <button
               onClick={() => handleOpenCreateModal()}
-              className="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+              className="px-5 py-2 rounded-xl bg-primary-600 text-white font-semibold hover:bg-blue-700 transition-colors shadow-sm"
             >
               + New {rootLevelDisplayName.toLowerCase()}
             </button>
@@ -919,7 +919,7 @@ export default function BranchesPage() {
               onChange={(e) =>
                 setFilterInputs((prev) => ({ ...prev, includeInactive: e.target.checked }))
               }
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
             />
             Include inactive branches
           </label>
@@ -966,7 +966,7 @@ export default function BranchesPage() {
               ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
               : statusMessage.type === 'error'
               ? 'bg-red-50 border border-red-200 text-red-800'
-              : 'bg-blue-50 border border-blue-200 text-blue-800'
+              : 'bg-primary-50 border border-primary-200 text-primary-800'
           }`}
         >
           <span className="font-semibold">
@@ -995,7 +995,7 @@ export default function BranchesPage() {
               {formatNumber(summary.attendance.headcount)}
             </p>
             <p className="text-sm text-slate-500">
-              {formatNumber(summary.attendance.sessions)} sessions •{' '}
+              {formatNumber(summary.attendance.sessions)} sessions â€¢{' '}
               {formatNumber(summary.attendance.firstTimers)} first timers
             </p>
           </div>
@@ -1009,10 +1009,10 @@ export default function BranchesPage() {
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
             <p className="text-xs font-semibold text-slate-500 uppercase">Financial net</p>
             <p className="text-3xl font-bold text-slate-900 mt-2">
-              ₦{formatNumber(Math.round(summary.finances.net))}
+              â‚¦{formatNumber(Math.round(summary.finances.net))}
             </p>
             <p className="text-sm text-slate-500">
-              Income ₦{formatNumber(Math.round(summary.finances.income))} • Expenses ₦
+              Income â‚¦{formatNumber(Math.round(summary.finances.income))} â€¢ Expenses â‚¦
               {formatNumber(Math.round(summary.finances.expenses))}
             </p>
           </div>
@@ -1021,7 +1021,7 @@ export default function BranchesPage() {
 
       {meta && (
         <p className="text-xs text-slate-500">
-          Snapshot generated {new Date(meta.generatedAt).toLocaleString()} •{' '}
+          Snapshot generated {new Date(meta.generatedAt).toLocaleString()} â€¢{' '}
           {meta.totalBranches} branches in scope
         </p>
       )}
@@ -1030,7 +1030,7 @@ export default function BranchesPage() {
         <div className="space-y-6">{Array.from({ length: 3 }).map((_, i) => <SkeletonNode key={`skeleton-${i}`} />)}</div>
       ) : shouldShowEmptyState ? (
         <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center">
-          <div className="text-5xl mb-4">🌱</div>
+          <div className="text-5xl mb-4">ðŸŒ±</div>
           <h3 className="text-xl font-semibold mb-2 text-gray-900">No branches to show</h3>
           <p className="text-gray-600 max-w-lg mx-auto">
             Create your first {rootLevelDisplayName.toLowerCase()} or request access to a parent branch to
@@ -1039,7 +1039,7 @@ export default function BranchesPage() {
           {rootLevel && canCreateRootLevel && (
             <button
               onClick={() => handleOpenCreateModal()}
-              className="mt-6 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
+              className="mt-6 px-6 py-3 rounded-xl bg-primary-600 text-white font-semibold hover:bg-blue-700"
             >
               Create {rootLevelDisplayName.toLowerCase()}
             </button>
@@ -1083,4 +1083,3 @@ export default function BranchesPage() {
     </div>
   )
 }
-

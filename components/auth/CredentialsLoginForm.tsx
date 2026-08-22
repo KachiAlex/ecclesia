@@ -66,7 +66,7 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
   const fallbackSlugExample = useMemo(() => slugifyPreview(contextName || 'your-church'), [contextName])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-[#faf9f5] px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -75,10 +75,10 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
       <div className="relative z-10 max-w-md w-full">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
               <img src={brand.logo} alt={contextName} className="w-10 h-10 object-contain" />
             </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
               {contextName}
             </span>
           </Link>
@@ -92,7 +92,7 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
             <div className="mt-4 inline-flex flex-col items-center gap-1 rounded-2xl border border-gray-100 bg-white px-4 py-2 text-sm shadow-sm">
               <span className="text-xs uppercase tracking-[0.3em] text-gray-400">Login slug</span>
               <span className="font-mono text-base text-gray-900">/{slug}</span>
-              <span className="text-xs text-gray-500">Share this URL: pi-cms.app/login/{slug}</span>
+              <span className="text-xs text-gray-500">Share this URL: pisairtel.app/login/{slug}</span>
             </div>
           )}
         </div>
@@ -121,7 +121,7 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
               placeholder="you@example.com"
             />
           </div>
@@ -138,7 +138,7 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
                 onChange={(event) => setPassword(event.target.value)}
                 required
                 minLength={8}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10 text-gray-900"
                 placeholder="••••••••"
               />
               <button
@@ -171,11 +171,11 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
           </div>
 
           {slug && (
-            <div className="rounded-2xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-900">
+            <div className="rounded-2xl bg-primary-50 border border-primary-100 px-4 py-3 text-sm text-primary-900">
               <p className="font-semibold">What is a church slug?</p>
-              <p className="mt-1 text-blue-800">
-                It is the short identifier for your church (e.g. <span className="font-mono text-blue-900">/{fallbackSlugExample}</span>)
-                that we generated during registration. Share <span className="font-mono">pi-cms.app/login/{slug}</span> with your leaders so they log in on the right tenant.
+              <p className="mt-1 text-primary-800">
+                It is the short identifier for your church (e.g. <span className="font-mono text-primary-900">/{fallbackSlugExample}</span>)
+                that we generated during registration. Share <span className="font-mono">pisairtel.app/login/{slug}</span> with your leaders so they log in on the right tenant.
               </p>
             </div>
           )}
@@ -183,7 +183,7 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
@@ -191,7 +191,7 @@ export default function CredentialsLoginForm({ slug, churchName }: CredentialsLo
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Need to create a tenant?{' '}
-          <Link href="/auth/register" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+          <Link href="/auth/register" className="font-semibold text-primary-600 hover:text-primary-700 transition-colors">
             Start free trial
           </Link>
         </p>

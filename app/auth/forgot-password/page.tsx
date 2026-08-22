@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-[#faf9f5] px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password</h1>
@@ -57,11 +57,11 @@ export default function ForgotPasswordPage() {
               <p className="text-green-800 text-sm">{message}</p>
             </div>
             {resetUrl && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-blue-800 text-xs mb-2 font-semibold">Development Mode - Reset Link:</p>
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                <p className="text-primary-800 text-xs mb-2 font-semibold">Development Mode - Reset Link:</p>
                 <a
                   href={resetUrl}
-                  className="text-blue-600 hover:underline text-xs break-all"
+                  className="text-primary-600 hover:underline text-xs break-all"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
             )}
             <Link
               href="/auth/login"
-              className="block w-full text-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all"
+              className="block w-full text-center px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all"
             >
               Back to Login
             </Link>
@@ -94,7 +94,7 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="your@email.com"
               />
             </div>
@@ -102,7 +102,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>

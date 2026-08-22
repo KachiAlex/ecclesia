@@ -206,7 +206,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-[#faf9f5] px-4 py-12">
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
@@ -217,10 +217,10 @@ export default function RegisterPage() {
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
               <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
             </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
               {brand.name}
             </span>
           </Link>
@@ -252,7 +252,7 @@ export default function RegisterPage() {
                     value={formData.firstName}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                     placeholder="John"
                   />
                 </div>
@@ -267,7 +267,7 @@ export default function RegisterPage() {
                     value={formData.lastName}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                     placeholder="Doe"
                   />
                 </div>
@@ -283,7 +283,7 @@ export default function RegisterPage() {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                   placeholder="you@example.com"
                 />
               </div>
@@ -300,7 +300,7 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     required
                     minLength={8}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10 text-gray-900"
                     placeholder="••••••••"
                   />
                   <button
@@ -334,7 +334,7 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     required
                     minLength={8}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10 text-gray-900"
                     placeholder="••••••••"
                   />
                   <button
@@ -366,7 +366,7 @@ export default function RegisterPage() {
                   min={0}
                   value={formData.estimatedMembers}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                   placeholder="e.g. 250"
                 />
                 <p className="mt-1 text-xs text-gray-500">Used to recommend the best plan for your church.</p>
@@ -386,7 +386,7 @@ export default function RegisterPage() {
                           setHasManualPlanSelection(true)
                         }}
                         className={`w-full text-left rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${
-                          isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+                          isSelected ? 'border-blue-500 bg-primary-50' : 'border-gray-200 bg-white'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -402,7 +402,7 @@ export default function RegisterPage() {
                               ${plan.priceAnnualRange.min}–{plan.priceAnnualRange.max}/yr
                             </p>
                             {isRecommended && !hasManualPlanSelection && (
-                              <span className="mt-1 inline-block rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+                              <span className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-xs font-semibold text-white">
                                 Recommended
                               </span>
                             )}
@@ -438,7 +438,7 @@ export default function RegisterPage() {
                   value={formData.churchName}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                   placeholder="Grace Community Church"
                 />
                 <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
@@ -453,7 +453,7 @@ export default function RegisterPage() {
                             : slugStatus === 'taken'
                               ? 'text-red-600'
                               : slugStatus === 'checking'
-                                ? 'text-blue-600'
+                                ? 'text-primary-600'
                                 : 'text-gray-500'
                         }
                       >
@@ -470,7 +470,7 @@ export default function RegisterPage() {
                             setSlugEdited(false)
                             setSlugInput(slugPreview)
                           }}
-                          className="text-blue-600 hover:text-blue-700 font-semibold"
+                          className="text-primary-600 hover:text-primary-700 font-semibold"
                         >
                           Reset suggestion
                         </button>
@@ -478,13 +478,13 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    Staff will log in at <span className="font-mono text-gray-700">pi-cms.app/login/{slugInput}</span>. You can adjust it later from the superadmin tenant settings.
+                    Staff will log in at <span className="font-mono text-gray-700">pisairtel.app/login/{slugInput}</span>. You can adjust it later from the superadmin tenant settings.
                   </p>
                   <label htmlFor="slug" className="mt-4 block text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
                     customize slug
                   </label>
                   <div className="mt-2 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2">
-                    <span className="font-mono text-xs text-gray-500">pi-cms.app/login/</span>
+                    <span className="font-mono text-xs text-gray-500">pisairtel.app/login/</span>
                     <input
                       id="slug"
                       type="text"
@@ -511,7 +511,7 @@ export default function RegisterPage() {
                     type="text"
                     value={formData.city}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                     placeholder="New York"
                   />
                 </div>
@@ -525,7 +525,7 @@ export default function RegisterPage() {
                     type="text"
                     value={formData.country}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                     placeholder="United States"
                   />
                 </div>
@@ -536,7 +536,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading || slugStatus === 'checking' || slugStatus === 'taken'}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating Account...' : slugStatus === 'taken' ? 'Slug Unavailable' : 'Create Account & Start Free Trial'}
           </button>
@@ -546,7 +546,7 @@ export default function RegisterPage() {
           Already have an account?{' '}
           <Link
             href="/auth/login"
-            className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+            className="font-semibold text-primary-600 hover:text-primary-700 transition-colors"
           >
             Sign in
           </Link>

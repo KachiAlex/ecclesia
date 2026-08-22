@@ -107,7 +107,7 @@ export default function OnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center mx-auto mb-4">
             <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
           </div>
           <p className="text-gray-600">Loading...</p>
@@ -121,16 +121,16 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br bg-[#faf9f5]">
       <div className="container mx-auto px-4 py-12 max-w-2xl">
         <div className={`transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           {/* Header */}
           <div className="text-center mb-8">
             <a href="/" className="inline-flex items-center space-x-2 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
                 <img src={brand.logo} alt={brand.name} className="w-10 h-10 object-contain" />
               </div>
-              <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
                 {brand.name}
               </span>
             </a>
@@ -141,10 +141,10 @@ export default function OnboardingPage() {
           {/* Progress indicator */}
           <div className="mb-8">
             <div className="flex items-center justify-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
                 1
               </div>
-              <div className="h-1 w-16 bg-blue-600"></div>
+              <div className="h-1 w-16 bg-primary-600"></div>
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-semibold">
                 2
               </div>
@@ -171,7 +171,7 @@ export default function OnboardingPage() {
                   value={formData.description}
                   onChange={handleChange}
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                   placeholder="Tell us about your church..."
                 />
               </div>
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={formData.address}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                   placeholder="123 Main Street"
                 />
               </div>
@@ -202,7 +202,7 @@ export default function OnboardingPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                     placeholder="+1 (555) 123-4567"
                   />
                 </div>
@@ -216,7 +216,7 @@ export default function OnboardingPage() {
                     type="url"
                     value={formData.website}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
                     placeholder="https://example.com"
                   />
                 </div>
@@ -235,7 +235,7 @@ export default function OnboardingPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Saving...' : 'Continue'}
                 </button>
@@ -244,12 +244,12 @@ export default function OnboardingPage() {
           </div>
 
           {/* Info box */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <div className="mt-6 p-4 bg-primary-50 border border-primary-200 rounded-xl">
             <div className="flex items-start">
-              <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-primary-800">
                 You can always update this information later in your church settings.
               </p>
             </div>
@@ -259,4 +259,3 @@ export default function OnboardingPage() {
     </div>
   )
 }
-

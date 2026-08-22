@@ -46,7 +46,7 @@ export default function MobileDashboardLayout({
   const pathname = usePathname()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br bg-[#faf9f5]">
       {/* Mobile Header */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
         <div className="flex items-center justify-between px-4 py-3">
@@ -63,7 +63,7 @@ export default function MobileDashboardLayout({
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="relative">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center shadow-md">
                 {activeChurch?.logo ? (
                   <img src={brandLogo} alt={`${brandName} logo`} className="w-6 h-6 object-contain" />
                 ) : (
@@ -72,7 +72,7 @@ export default function MobileDashboardLayout({
               </div>
             </div>
             <div className="hidden sm:block">
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
                 {brandName}
               </span>
             </div>
@@ -144,7 +144,7 @@ export default function MobileDashboardLayout({
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50">
               <Link href="/" className="flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
                 <div className="relative">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
                     {activeChurch?.logo ? (
                       <img src={brandLogo} alt={`${brandName} logo`} className="w-8 h-8 object-contain" />
                     ) : (
@@ -153,7 +153,7 @@ export default function MobileDashboardLayout({
                   </div>
                 </div>
                 <div>
-                  <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
                     {brandName}
                   </span>
                   <p className="text-xs text-gray-500 font-medium truncate">{brandTagline}</p>

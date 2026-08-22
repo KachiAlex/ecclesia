@@ -266,7 +266,7 @@ export default function LicenseManager({
       case 'ACTIVE':
         return 'bg-green-100 text-green-800'
       case 'TRIAL':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 text-primary-800'
       case 'EXPIRED':
         return 'bg-red-100 text-red-800'
       case 'SUSPENDED':
@@ -357,7 +357,7 @@ export default function LicenseManager({
               </p>
             )}
             {currentPlanOverride?.promoCode && (
-              <p className="text-xs text-blue-600 mt-1">Promo: {currentPlanOverride.promoCode}</p>
+              <p className="text-xs text-primary-600 mt-1">Promo: {currentPlanOverride.promoCode}</p>
             )}
           </div>
         </div>
@@ -371,7 +371,7 @@ export default function LicenseManager({
             <button
               onClick={() => setShowExtendModal(true)}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               Extend Trial
             </button>
@@ -422,7 +422,7 @@ export default function LicenseManager({
               }
             }}
             disabled={loading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-primary-700 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
           >
             Set Active
           </button>
@@ -445,14 +445,14 @@ export default function LicenseManager({
                   onChange={(e) => setDaysToExtend(parseInt(e.target.value) || 30)}
                   min="1"
                   max="365"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               <div className="flex space-x-3">
                 <button
                   onClick={handleExtendTrial}
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Extending...' : 'Extend Trial'}
                 </button>
@@ -480,7 +480,7 @@ export default function LicenseManager({
                 className="text-gray-500 hover:text-gray-800"
                 aria-label="Close override modal"
               >
-                ✕
+                âœ•
               </button>
             </div>
             <p className="text-sm text-gray-600">
@@ -495,7 +495,7 @@ export default function LicenseManager({
                   step="0.01"
                   value={overrideForm.customPrice}
                   onChange={(e) => handleOverrideInput('customPrice', e.target.value)}
-                  className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                  className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                   placeholder="Leave blank to use plan default"
                 />
               </label>
@@ -507,7 +507,7 @@ export default function LicenseManager({
                   step="0.01"
                   value={overrideForm.customSetupFee}
                   onChange={(e) => handleOverrideInput('customSetupFee', e.target.value)}
-                  className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                  className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                   placeholder="Optional"
                 />
               </label>
@@ -517,7 +517,7 @@ export default function LicenseManager({
                   type="text"
                   value={overrideForm.promoCode}
                   onChange={(e) => handleOverrideInput('promoCode', e.target.value.toUpperCase())}
-                  className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 uppercase"
+                  className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2 uppercase"
                   placeholder="E.g. SPRING25"
                 />
               </label>
@@ -527,7 +527,7 @@ export default function LicenseManager({
                   type="date"
                   value={overrideForm.expiresAt}
                   onChange={(e) => handleOverrideInput('expiresAt', e.target.value)}
-                  className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                  className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                 />
               </label>
               <label className="text-sm font-medium text-gray-700 flex flex-col">
@@ -535,7 +535,7 @@ export default function LicenseManager({
                 <textarea
                   value={overrideForm.notes}
                   onChange={(e) => handleOverrideInput('notes', e.target.value)}
-                  className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                  className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                   rows={3}
                   placeholder="Optional internal note"
                 />
@@ -590,7 +590,7 @@ export default function LicenseManager({
                     disabled={isProcessing}
                     className={`w-full text-left p-4 border-2 rounded-lg transition-all ${
                       isCurrent
-                        ? 'border-blue-500 bg-blue-50'
+                        ? 'border-blue-500 bg-primary-50'
                         : 'border-gray-200 hover:border-gray-300'
                     } ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}
                   >
@@ -608,11 +608,11 @@ export default function LicenseManager({
                           ${plan.price}/{plan.billingCycle === 'monthly' ? 'mo' : 'yr'}
                         </p>
                         {isCurrent && (
-                          <span className="text-xs text-blue-600 font-medium">Current</span>
+                          <span className="text-xs text-primary-600 font-medium">Current</span>
                         )}
                         {isProcessing && (
                           <span className="block text-xs text-purple-600 font-medium">
-                            Launching checkout…
+                            Launching checkoutâ€¦
                           </span>
                         )}
                       </div>
@@ -633,4 +633,3 @@ export default function LicenseManager({
     </div>
   )
 }
-

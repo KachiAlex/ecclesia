@@ -35,9 +35,9 @@ interface TenantDetailModalProps {
 }
 
 const formatDate = (value?: string) => {
-  if (!value) return "—"
+  if (!value) return "â€”"
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "—"
+  if (Number.isNaN(date.getTime())) return "â€”"
   return date.toLocaleDateString()
 }
 
@@ -295,14 +295,14 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
               onClick={onClose}
               className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
             >
-              ✕
+              âœ•
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex h-64 items-center justify-center">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-blue-600" />
               </div>
             ) : error ? (
               <div className="px-6 py-8 text-center text-red-600">{error}</div>
@@ -332,7 +332,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                         <button
                           type="button"
                           onClick={() => setEditMode(true)}
-                          className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                          className="text-sm font-semibold text-primary-600 hover:text-primary-700"
                         >
                           Edit
                         </button>
@@ -342,7 +342,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                             type="button"
                             onClick={handleUpdateDetails}
                             disabled={actionLoading}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                           >
                             {actionLoading ? "Saving..." : "Save"}
                           </button>
@@ -374,10 +374,10 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                               type={type}
                               value={(formValues as any)[field] ?? ""}
                               onChange={(e) => onChangeField(field as keyof typeof formValues, e.target.value)}
-                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                             />
                           ) : (
-                            <p className="mt-1 text-sm text-gray-900">{(church as any)[field] || '—'}</p>
+                            <p className="mt-1 text-sm text-gray-900">{(church as any)[field] || 'â€”'}</p>
                           )}
                         </div>
                       ))}
@@ -396,19 +396,19 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                   </div>
 
                   {planMeta && (
-                    <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-inner">
+                    <div className="rounded-2xl border border-primary-100 bg-primary-50/60 p-5 shadow-inner">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Current Tier</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-primary-600">Current Tier</p>
                           <h3 className="text-xl font-bold text-gray-900">{planMeta.name}</h3>
                           <p className="text-sm text-gray-600">{planMeta.description}</p>
                         </div>
                         <div className="text-right text-sm text-gray-600">
                           <p>
-                            ${planMeta.priceMonthlyRange.min}–{planMeta.priceMonthlyRange.max}/mo
+                            ${planMeta.priceMonthlyRange.min}â€“{planMeta.priceMonthlyRange.max}/mo
                           </p>
                           <p>
-                            ${planMeta.priceAnnualRange.min}–{planMeta.priceAnnualRange.max}/yr
+                            ${planMeta.priceAnnualRange.min}â€“{planMeta.priceAnnualRange.max}/yr
                           </p>
                         </div>
                       </div>
@@ -416,7 +416,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                       <div className="mt-4 grid gap-4 text-sm text-gray-700 md:grid-cols-2">
                         <div>
                           <p className="text-xs font-semibold uppercase text-gray-500">Ideal For</p>
-                          <p>{planMeta.idealUseCases?.join(', ') || '—'}</p>
+                          <p>{planMeta.idealUseCases?.join(', ') || 'â€”'}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold uppercase text-gray-500">User Limit</p>
@@ -448,8 +448,8 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                             Recommended upgrade: {recommendedPlanMeta.name}
                           </p>
                           <p className="mt-1 text-xs text-amber-800">
-                            Based on current size (~{data?.userCount ?? '—'} members) we recommend moving to the{' '}
-                            {recommendedPlanMeta.name} plan for optimal coverage. Use “Change Plan” in License Manager below to
+                            Based on current size (~{data?.userCount ?? 'â€”'} members) we recommend moving to the{' '}
+                            {recommendedPlanMeta.name} plan for optimal coverage. Use â€œChange Planâ€ in License Manager below to
                             upgrade instantly.
                           </p>
                         </div>
@@ -462,7 +462,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {(() => {
                         const statusColors: Record<string, string> = {
-                          TRIAL: 'bg-blue-600 hover:bg-blue-700',
+                          TRIAL: 'bg-primary-600 hover:bg-blue-700',
                           ACTIVE: 'bg-red-600 hover:bg-red-700',
                           SUSPENDED: 'bg-green-600 hover:bg-green-700',
                         }
@@ -508,7 +508,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                         <dd>
                           {plan?.price
                             ? `$${plan.price}/${plan.billingCycle === "monthly" ? "mo" : "yr"}`
-                            : "—"}
+                            : "â€”"}
                         </dd>
                       </div>
                       <div>
@@ -535,7 +535,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Tenant Admins</h3>
-                    <p className="text-sm text-gray-500">Edit admin roles or reset passwords. They can personalize it later in Settings → Account.</p>
+                    <p className="text-sm text-gray-500">Edit admin roles or reset passwords. They can personalize it later in Settings â†’ Account.</p>
                   </div>
                 </div>
                 {data?.tenantAdmins && data.tenantAdmins.length > 0 ? (
@@ -557,7 +557,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                 <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 shadow-sm">
                                   {admin.role}
                                 </span>
-                                {admin.phone && <span>📞 {admin.phone}</span>}
+                                {admin.phone && <span>ðŸ“ž {admin.phone}</span>}
                                 {admin.lastLoginAt && <span>Last login: {formatDate(admin.lastLoginAt)}</span>}
                               </div>
                             </div>
@@ -572,7 +572,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                               <button
                                 type="button"
                                 onClick={() => openPasswordPanel(admin.id)}
-                                className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50"
+                                className="rounded-lg border border-primary-200 px-3 py-1.5 text-sm font-semibold text-primary-600 hover:bg-primary-50"
                               >
                                 Reset Password
                               </button>
@@ -588,7 +588,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                     type="text"
                                     value={adminFormValues.firstName}
                                     onChange={(e) => setAdminFormValues((prev) => ({ ...prev, firstName: e.target.value }))}
-                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                                   />
                                 </div>
                                 <div>
@@ -597,7 +597,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                     type="text"
                                     value={adminFormValues.lastName}
                                     onChange={(e) => setAdminFormValues((prev) => ({ ...prev, lastName: e.target.value }))}
-                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                                   />
                                 </div>
                               </div>
@@ -608,7 +608,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                     type="email"
                                     value={adminFormValues.email}
                                     onChange={(e) => setAdminFormValues((prev) => ({ ...prev, email: e.target.value }))}
-                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                                   />
                                 </div>
                                 <div>
@@ -617,7 +617,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                     type="text"
                                     value={adminFormValues.phone}
                                     onChange={(e) => setAdminFormValues((prev) => ({ ...prev, phone: e.target.value }))}
-                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                                   />
                                 </div>
                               </div>
@@ -626,7 +626,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                 <select
                                   value={adminFormValues.role}
                                   onChange={(e) => setAdminFormValues((prev) => ({ ...prev, role: e.target.value }))}
-                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                                 >
                                   <option value="ADMIN">Admin</option>
                                   <option value="PASTOR">Pastor</option>
@@ -637,7 +637,7 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                                   type="button"
                                   onClick={handleSaveAdmin}
                                   disabled={adminActionLoading}
-                                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                                 >
                                   {adminActionLoading ? "Saving..." : "Save Admin"}
                                 </button>
@@ -653,25 +653,25 @@ export default function TenantDetailModal({ open, loading, error, data, onClose,
                           )}
 
                           {isPasswordOpen && (
-                            <div className="mt-4 space-y-3 rounded-lg border border-blue-100 bg-white p-4">
-                              <label className="text-xs font-semibold uppercase text-blue-600">New Password</label>
+                            <div className="mt-4 space-y-3 rounded-lg border border-primary-100 bg-white p-4">
+                              <label className="text-xs font-semibold uppercase text-primary-600">New Password</label>
                               <input
                                 type="password"
                                 value={passwordDraft}
                                 minLength={8}
                                 onChange={(e) => setPasswordDraft(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                                 placeholder="At least 8 characters"
                               />
                               <p className="text-xs text-gray-500">
-                                Share this with the admin securely. They can change it themselves from Settings → Account after login.
+                                Share this with the admin securely. They can change it themselves from Settings â†’ Account after login.
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   onClick={() => handleResetPassword(admin.id)}
                                   disabled={adminActionLoading || passwordDraft.length < 8}
-                                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                                 >
                                   {adminActionLoading ? "Updating..." : "Reset Password"}
                                 </button>

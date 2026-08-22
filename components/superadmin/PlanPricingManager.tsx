@@ -244,7 +244,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
   }
 
   const formatDateBadge = (value?: string) => {
-    if (!value) return '—'
+    if (!value) return 'â€”'
     const date = new Date(value)
     return date.toLocaleDateString()
   }
@@ -284,7 +284,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                     <h3 className="font-semibold text-gray-900">{plan.name}</h3>
                     {plan.targetMembers && (
                       <span className="text-xs text-gray-500">
-                        {plan.targetMembers.min.toLocaleString()}–
+                        {plan.targetMembers.min.toLocaleString()}â€“
                         {plan.targetMembers.max ? plan.targetMembers.max.toLocaleString() : '+'} members
                       </span>
                     )}
@@ -308,7 +308,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 {plan.description && <p className="text-sm text-gray-600 mt-1">{plan.description}</p>}
                 {isLifetimePlan && (
                   <p className="text-xs text-emerald-700 font-medium mt-1">
-                    Lifetime license • charge a single upfront payment
+                    Lifetime license â€¢ charge a single upfront payment
                   </p>
                 )}
               </div>
@@ -322,7 +322,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                     step="0.01"
                     value={draft?.price ?? 0}
                     onChange={(e) => handleDraftChange(plan.id, "price", e.target.value)}
-                    className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                    className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                   />
                 </label>
                 <label className="text-sm font-medium text-gray-700 flex flex-col">
@@ -330,7 +330,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                   <select
                     value={draft?.currency ?? "USD"}
                     onChange={(e) => handleDraftChange(plan.id, "currency", e.target.value)}
-                    className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                    className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                   >
                     {currencyOptions.map((code) => (
                       <option key={code} value={code}>
@@ -352,7 +352,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                     <select
                       value={draft?.billingCycle ?? "monthly"}
                       onChange={(e) => handleDraftChange(plan.id, "billingCycle", e.target.value)}
-                      className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                      className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                     >
                       <option value="monthly">Monthly</option>
                       <option value="annual">Annual</option>
@@ -365,7 +365,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 type="button"
                 onClick={() => handleSave(plan.id)}
                 disabled={isSaving}
-                className="mt-auto rounded-lg bg-blue-600 text-white text-sm font-semibold px-4 py-2.5 hover:bg-blue-700 transition disabled:opacity-50"
+                className="mt-auto rounded-lg bg-primary-600 text-white text-sm font-semibold px-4 py-2.5 hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {isSaving ? "Saving..." : "Save Pricing"}
               </button>
@@ -376,7 +376,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                   <ul className="space-y-1 text-sm text-gray-600">
                     {plan.features.slice(0, 5).map((feature, idx) => (
                       <li key={idx} className="flex items-center gap-2">
-                        <span className="text-green-500">•</span>
+                        <span className="text-green-500">â€¢</span>
                         {feature}
                       </li>
                     ))}
@@ -414,7 +414,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
               type="text"
               value={promoForm.code}
               onChange={(e) => handlePromoInput('code', e.target.value.toUpperCase())}
-              className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 uppercase"
+              className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2 uppercase"
               placeholder="E.g. EASTER25"
               required
             />
@@ -425,7 +425,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
               <select
                 value={promoForm.type}
                 onChange={(e) => handlePromoInput('type', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
               >
                 <option value="percentage">Percentage</option>
                 <option value="flat">Flat Amount</option>
@@ -439,7 +439,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 step="0.01"
                 value={promoForm.value}
                 onChange={(e) => handlePromoInput('value', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
               />
             </label>
           </div>
@@ -449,7 +449,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
             <select
               value={promoForm.appliesTo}
               onChange={(e) => handlePromoInput('appliesTo', e.target.value)}
-              className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+              className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
             >
               <option value="plan">Specific Plans</option>
               <option value="church">Specific Churches</option>
@@ -470,7 +470,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                     Array.from(e.target.selectedOptions).map((option) => option.value),
                   )
                 }
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 h-32"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2 h-32"
               >
                 {plans.map((plan) => (
                   <option key={plan.id} value={plan.id}>
@@ -488,7 +488,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
               <textarea
                 value={promoForm.churchIds}
                 onChange={(e) => handlePromoInput('churchIds', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                 rows={2}
                 placeholder="churchId-1, churchId-2"
               />
@@ -502,7 +502,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 type="date"
                 value={promoForm.validFrom}
                 onChange={(e) => handlePromoInput('validFrom', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
               />
             </label>
             <label className="text-sm font-medium text-gray-700 flex flex-col">
@@ -511,7 +511,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 type="date"
                 value={promoForm.validTo}
                 onChange={(e) => handlePromoInput('validTo', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
               />
             </label>
           </div>
@@ -524,7 +524,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 min="1"
                 value={promoForm.maxRedemptions}
                 onChange={(e) => handlePromoInput('maxRedemptions', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
               />
             </label>
             <label className="text-sm font-medium text-gray-700 flex flex-col">
@@ -533,7 +533,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                 type="text"
                 value={promoForm.notes}
                 onChange={(e) => handlePromoInput('notes', e.target.value)}
-                className="mt-1 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2"
+                className="mt-1 rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2"
                 placeholder="Internal notes"
               />
             </label>
@@ -607,7 +607,7 @@ export default function PlanPricingManager({ initialPlans, initialPromos }: Plan
                       <button
                         type="button"
                         onClick={() => handleTogglePromoStatus(promo)}
-                        className="text-sm font-semibold text-blue-600 hover:text-blue-700 mr-3"
+                        className="text-sm font-semibold text-primary-600 hover:text-primary-700 mr-3"
                       >
                         {promo.status === 'inactive' ? 'Activate' : 'Pause'}
                       </button>

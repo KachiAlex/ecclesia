@@ -22,7 +22,7 @@ export default function LoginSlugCapturePage() {
 
   const normalizedSlug = useMemo(() => slugify(slugInput), [slugInput])
   const exampleSlug = normalizedSlug || 'grace-community'
-  const loginUrlPreview = `pi-cms.app/login/${exampleSlug}`
+  const loginUrlPreview = `pisairtel.app/login/${exampleSlug}`
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -39,16 +39,16 @@ export default function LoginSlugCapturePage() {
     <div className="min-h-screen bg-white">
       <div className="fixed inset-0 -z-10">
         <img src="/home-bg.svg" alt="pi-CMS background" className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-white/90 to-blue-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#faf9f5] via-[#faf9f5]/90 to-primary-50" />
       </div>
 
       <nav className="relative z-10 border-b border-gray-100 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 blur-sm opacity-40" />
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20">
-                <img src="/pi-cms-logo.svg" alt="pi-CMS" className="h-8 w-8" />
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 blur-sm opacity-40" />
+              <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/20">
+                <img src="/favicon.svg" alt="Pisairtel CMS" className="h-8 w-8" />
               </div>
             </div>
             <span className="text-2xl font-bold tracking-tight text-gray-900">pi-CMS</span>
@@ -61,7 +61,7 @@ export default function LoginSlugCapturePage() {
 
       <main className="relative z-10 mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 md:flex-row md:items-center">
         <div className="w-full md:w-1/2">
-          <div className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-blue-700">
+          <div className="inline-flex items-center rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary-700">
             <ScanSearch className="mr-2 h-4 w-4" />Church slug login
           </div>
           <h1 className="mt-6 text-4xl font-bold text-gray-900 md:text-5xl">
@@ -87,7 +87,7 @@ export default function LoginSlugCapturePage() {
               Enter your church slug
             </label>
             <div className="mt-3 flex items-center gap-3 rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 focus-within:border-blue-500 focus-within:bg-white">
-              <span className="font-mono text-gray-500">pi-cms.app/login/</span>
+              <span className="font-mono text-gray-500">pisairtel.app/login/</span>
               <input
                 id="slug"
                 name="slug"
@@ -106,22 +106,22 @@ export default function LoginSlugCapturePage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:from-primary-700 hover:to-primary-800 disabled:opacity-50"
             >
               Continue
               <ArrowRight className="h-5 w-5" />
             </button>
 
-            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
+            <div className="mt-6 rounded-2xl border border-primary-100 bg-primary-50/70 p-4 text-sm text-primary-900">
               <p className="font-semibold">What is a slug?</p>
               <p className="mt-1">
-                It is the short, URL-friendly identifier for your church. We create it from your church name during registration so staff can log in securely at <span className="font-mono">pi-cms.app/login/&lt;slug&gt;</span>.
+                It is the short, URL-friendly identifier for your church. We create it from your church name during registration so staff can log in securely at <span className="font-mono">pisairtel.app/login/&lt;slug&gt;</span>.
               </p>
             </div>
 
             <p className="mt-6 text-center text-sm text-gray-600">
               Need to register your church?{' '}
-              <Link href="/auth/register" className="font-semibold text-blue-600 hover:text-blue-700">
+              <Link href="/auth/register" className="font-semibold text-primary-600 hover:text-primary-700">
                 Start a free trial
               </Link>
             </p>

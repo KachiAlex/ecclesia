@@ -266,40 +266,40 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
       </div>
 
       {!isManager && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6 text-center">
-          <h2 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">Member Reports Access</h2>
-          <p className="text-blue-700 mb-4 text-sm sm:text-base">
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 sm:p-6 text-center">
+          <h2 className="text-base sm:text-lg font-semibold text-primary-900 mb-2">Member Reports Access</h2>
+          <p className="text-primary-700 mb-4 text-sm sm:text-base">
             Your church administrators can configure which reports are available to members. 
             Currently, the following reports may be accessible:
           </p>
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-left">
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">📊 Attendance Summary</h3>
+            <div className="bg-white rounded-lg p-4 border border-primary-100">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">ðŸ“Š Attendance Summary</h3>
               <p className="text-xs sm:text-sm text-gray-600">General attendance trends and participation statistics</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">👥 Membership Growth</h3>
+            <div className="bg-white rounded-lg p-4 border border-primary-100">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">ðŸ‘¥ Membership Growth</h3>
               <p className="text-xs sm:text-sm text-gray-600">Church growth metrics and member milestones</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">📚 Resource Usage</h3>
+            <div className="bg-white rounded-lg p-4 border border-primary-100">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">ðŸ“š Resource Usage</h3>
               <p className="text-xs sm:text-sm text-gray-600">Digital school and reading plan engagement</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">🎯 Ministry Impact</h3>
+            <div className="bg-white rounded-lg p-4 border border-primary-100">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">ðŸŽ¯ Ministry Impact</h3>
               <p className="text-xs sm:text-sm text-gray-600">Community outreach and ministry effectiveness</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">💝 Giving Overview</h3>
+            <div className="bg-white rounded-lg p-4 border border-primary-100">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">ðŸ’ Giving Overview</h3>
               <p className="text-xs sm:text-sm text-gray-600">General giving trends (amounts may be hidden)</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">📅 Event Participation</h3>
+            <div className="bg-white rounded-lg p-4 border border-primary-100">
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">ðŸ“… Event Participation</h3>
               <p className="text-xs sm:text-sm text-gray-600">Event attendance and engagement metrics</p>
             </div>
           </div>
           <div className="mt-6 p-4 bg-blue-100 rounded-lg">
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-primary-800">
               <strong>Note:</strong> Report availability is configured by your church administrators. 
               Contact your church leadership if you need access to specific reports for ministry purposes.
             </p>
@@ -354,7 +354,7 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
               disabled={refreshing}
               className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold shadow-sm hover:bg-primary-700 disabled:opacity-60 disabled:hover:bg-primary-600"
             >
-              {refreshing ? 'Refreshing…' : 'Apply filters'}
+              {refreshing ? 'Refreshingâ€¦' : 'Apply filters'}
             </button>
           </div>
         </div>
@@ -398,7 +398,7 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {attendance.peakSession.headcount > 0
                   ? numberFormatter.format(attendance.peakSession.headcount)
-                  : '—'}
+                  : 'â€”'}
               </p>
               <p className="text-sm text-gray-600">{attendance.peakSession.title || 'No data'}</p>
             </div>
@@ -414,7 +414,7 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
                   <div>
                     <p className="font-medium text-gray-900">{item.title}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(item.date).toLocaleDateString()} • {item.type} • {item.mode}
+                      {new Date(item.date).toLocaleDateString()} â€¢ {item.type} â€¢ {item.mode}
                     </p>
                   </div>
                   <div className="text-right font-semibold text-gray-900">
@@ -460,7 +460,7 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
               <p className="text-xs font-semibold text-green-600 uppercase">Total income</p>
               <p className="text-2xl font-bold text-green-700 mt-1">{currencyFormatter.format(finances.totalIncome)}</p>
               <p className="text-xs text-green-700">
-                {currencyFormatter.format(finances.givingTotal)} giving · {currencyFormatter.format(finances.manualIncomeTotal)} manual
+                {currencyFormatter.format(finances.givingTotal)} giving Â· {currencyFormatter.format(finances.manualIncomeTotal)} manual
               </p>
             </div>
             <div className="bg-red-50 rounded-xl p-4 border border-red-100">
@@ -544,7 +544,7 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
                 <div key={member.id} className="text-sm">
                   <p className="font-semibold text-gray-900">{member.name}</p>
                   <p className="text-xs text-gray-500">
-                    {member.role} • Joined {formatDate(member.joinedAt)}
+                    {member.role} â€¢ Joined {formatDate(member.joinedAt)}
                   </p>
                 </div>
               ))}
@@ -584,7 +584,7 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
                   <div>
                     <p className="font-medium text-gray-900">{branch.name}</p>
                     <p className="text-xs text-gray-500">
-                      {[branch.city, branch.state, branch.country].filter(Boolean).join(', ') || '—'}
+                      {[branch.city, branch.state, branch.country].filter(Boolean).join(', ') || 'â€”'}
                     </p>
                   </div>
                   <div className="font-semibold text-gray-900">{numberFormatter.format(branch.members)}</div>
@@ -604,10 +604,10 @@ export default function ReportsHub({ isManager = true }: { isManager?: boolean }
             <p className="text-3xl font-bold text-gray-900 mt-1">{numberFormatter.format(resources.totalResources)}</p>
             <p className="text-xs text-amber-700">Across all categories</p>
           </div>
-          <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 p-4">
-            <p className="text-xs uppercase font-semibold text-blue-600">Reading Plans</p>
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-primary-100 p-4">
+            <p className="text-xs uppercase font-semibold text-primary-600">Reading Plans</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">{numberFormatter.format(resources.totalPlans)}</p>
-            <p className="text-xs text-blue-700">{resources.activePlans} currently active</p>
+            <p className="text-xs text-primary-700">{resources.activePlans} currently active</p>
           </div>
           <div className="bg-gradient-to-br from-emerald-50 to-white rounded-2xl border border-emerald-100 p-4">
             <p className="text-xs uppercase font-semibold text-emerald-600">Formats</p>

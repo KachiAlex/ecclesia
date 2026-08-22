@@ -62,12 +62,12 @@
   
   /* Link styling */
   .text-link {
-    @apply text-blue-600 hover:text-blue-700;
+    @apply text-primary-600 hover:text-primary-700;
   }
   
   /* Button utilities */
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md;
+    @apply px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all shadow-sm hover:shadow-md;
   }
   
   /* Card utilities */

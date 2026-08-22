@@ -213,7 +213,7 @@ export default function CreateBranchModal({
                 onClick={() => setMode('existing')}
                 className={`flex-1 rounded-lg py-2 transition-colors ${
                   mode === 'existing'
-                    ? 'bg-white text-blue-700 border border-blue-200 shadow-sm'
+                    ? 'bg-white text-primary-700 border border-primary-200 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -224,7 +224,7 @@ export default function CreateBranchModal({
                 onClick={() => setMode('new')}
                 className={`flex-1 rounded-lg py-2 transition-colors ${
                   mode === 'new'
-                    ? 'bg-white text-blue-700 border border-blue-200 shadow-sm'
+                    ? 'bg-white text-primary-700 border border-primary-200 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -275,14 +275,14 @@ export default function CreateBranchModal({
                 >
                   <div className="relative">
                     <Combobox.Input
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
                       placeholder="Search by branch name or label"
                       displayValue={(value?: string | null) => {
                         if (!value) return ''
                         const selected = existingBranches.find((branch) => branch.id === value)
                         if (!selected) return ''
                         const label = selected.levelLabel?.trim() || selected.levelCode || ''
-                        return label ? `${selected.name} · ${label}` : selected.name
+                        return label ? `${selected.name} Â· ${label}` : selected.name
                       }}
                       onChange={(event) => setExistingSearch(event.target.value)}
                     />
@@ -304,7 +304,7 @@ export default function CreateBranchModal({
                     <Combobox.Options className="absolute z-10 mt-2 max-h-60 w-full overflow-auto rounded-xl bg-white py-2 shadow-lg ring-1 ring-black/5 focus:outline-none">
                       {filteredExistingBranches.length === 0 && existingSearch.trim().length > 0 ? (
                         <div className="px-4 py-2 text-sm text-slate-500">
-                          No branches match “{existingSearch.trim()}”.
+                          No branches match â€œ{existingSearch.trim()}â€.
                         </div>
                       ) : filteredExistingBranches.length === 0 ? (
                         <div className="px-4 py-2 text-sm text-slate-500">No branches available.</div>
@@ -318,7 +318,7 @@ export default function CreateBranchModal({
                               className={({ active, selected }) =>
                                 `px-4 py-2 cursor-pointer text-sm ${
                                   active
-                                    ? 'bg-blue-50 text-blue-900'
+                                    ? 'bg-primary-50 text-primary-900'
                                     : selected
                                     ? 'bg-slate-100 text-slate-900'
                                     : 'text-slate-700'
@@ -350,7 +350,7 @@ export default function CreateBranchModal({
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder={`e.g., ${context.levelLabel || levelCode}`}
                   style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
@@ -372,7 +372,7 @@ export default function CreateBranchModal({
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="e.g., Downtown Campus, North Branch"
                   style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
@@ -389,7 +389,7 @@ export default function CreateBranchModal({
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder={`e.g., ${context.levelLabel || levelCode}`}
                   style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
@@ -407,7 +407,7 @@ export default function CreateBranchModal({
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="123 Main Street"
                   style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
@@ -424,7 +424,7 @@ export default function CreateBranchModal({
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="City"
                     style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
@@ -438,7 +438,7 @@ export default function CreateBranchModal({
                     type="text"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="State"
                     style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
@@ -452,7 +452,7 @@ export default function CreateBranchModal({
                     type="text"
                     value={formData.zipCode}
                     onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="12345"
                     style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
@@ -469,7 +469,7 @@ export default function CreateBranchModal({
                   type="text"
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="United States"
                   style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
@@ -486,7 +486,7 @@ export default function CreateBranchModal({
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="+1 (555) 000-0000"
                     style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
@@ -500,7 +500,7 @@ export default function CreateBranchModal({
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                     placeholder="branch@church.com"
                     style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                   />
@@ -517,7 +517,7 @@ export default function CreateBranchModal({
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-gray-900"
                   placeholder="Tell us about this branch..."
                   style={{ color: '#111827', WebkitTextFillColor: '#111827' }}
                 />
@@ -538,7 +538,7 @@ export default function CreateBranchModal({
             <button
               type="submit"
               disabled={loading || (mode === 'existing' && (!selectedExistingId || filteredExistingBranches.length === 0))}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
                 ? mode === 'existing'
@@ -554,4 +554,3 @@ export default function CreateBranchModal({
     </div>
   )
 }
-
