@@ -345,6 +345,9 @@ model Branch {
   @@index([isActive])
   @@index([parentBranchId])
   @@index([level])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Branch Admin Assignment
@@ -368,6 +371,9 @@ model BranchAdmin {
   @@unique([branchId, userId])
   @@index([branchId])
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Subscription Plans
@@ -402,6 +408,9 @@ model SubscriptionPlan {
   updatedAt DateTime @updatedAt
 
   @@index([type])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Church Subscriptions
@@ -436,6 +445,9 @@ model Subscription {
   @@index([churchId])
   @@index([status])
   @@index([currentPeriodEnd])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Usage Tracking
@@ -462,6 +474,9 @@ model UsageTracking {
   @@unique([churchId, periodStart])
   @@index([churchId])
   @@index([periodEnd])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Departments & Groups
@@ -481,6 +496,9 @@ model Department {
 
   @@index([churchId])
   @@index([branchId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model DepartmentMembership {
@@ -495,6 +513,9 @@ model DepartmentMembership {
   @@unique([userId, departmentId])
   @@index([userId])
   @@index([departmentId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model Group {
@@ -525,6 +546,9 @@ model Group {
   @@index([churchId])
   @@index([branchId])
   @@index([departmentId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model GroupMembership {
@@ -539,6 +563,9 @@ model GroupMembership {
   @@unique([userId, groupId])
   @@index([userId])
   @@index([groupId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // AI Discipleship Engine
@@ -553,6 +580,9 @@ model ReadingPlan {
 
   progress              ReadingPlanProgress[]
   ReadingPlanNewsletter ReadingPlanNewsletter[]
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model ReadingPlanProgress {
@@ -568,6 +598,9 @@ model ReadingPlanProgress {
 
   @@unique([userId, readingPlanId])
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 enum ReadingPlanNewsletterStatus {
@@ -620,6 +653,9 @@ model ReadingPlanNewsletter {
   @@index([churchId])
   @@index([readingPlanId])
   @@index([status, scheduledAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model ReadingPlanNewsletterEvent {
@@ -635,6 +671,9 @@ model ReadingPlanNewsletterEvent {
   @@index([newsletterId])
   @@index([userId])
   @@index([type])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model AICoachingSession {
@@ -647,6 +686,9 @@ model AICoachingSession {
   createdAt DateTime @default(now())
 
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model FollowUp {
@@ -660,6 +702,9 @@ model FollowUp {
   readAt    DateTime?
 
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model MentorAssignment {
@@ -674,6 +719,9 @@ model MentorAssignment {
   @@unique([mentorId, menteeId])
   @@index([mentorId])
   @@index([menteeId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Social Network
@@ -694,6 +742,9 @@ model Post {
   @@index([userId])
   @@index([churchId])
   @@index([createdAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model PostLike {
@@ -706,6 +757,9 @@ model PostLike {
 
   @@unique([userId, postId])
   @@index([postId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model Comment {
@@ -720,6 +774,9 @@ model Comment {
 
   @@index([postId])
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model Testimony {
@@ -734,6 +791,9 @@ model Testimony {
 
   @@index([userId])
   @@index([approved])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Prayer Wall
@@ -754,6 +814,9 @@ model PrayerRequest {
   @@index([userId])
   @@index([churchId])
   @@index([status])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model PrayerInteraction {
@@ -768,6 +831,9 @@ model PrayerInteraction {
 
   @@unique([userId, prayerRequestId])
   @@index([prayerRequestId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Media & Sermons
@@ -798,6 +864,9 @@ model Sermon {
   @@index([churchId])
   @@index([category])
   @@index([createdAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SermonView {
@@ -812,6 +881,9 @@ model SermonView {
 
   @@unique([userId, sermonId])
   @@index([sermonId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SermonDownload {
@@ -824,6 +896,9 @@ model SermonDownload {
 
   @@unique([userId, sermonId])
   @@index([sermonId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Giving & Financial
@@ -847,6 +922,9 @@ model Project {
 
   @@index([churchId])
   @@index([status])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model Giving {
@@ -866,6 +944,9 @@ model Giving {
   @@index([userId])
   @@index([projectId])
   @@index([createdAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Events
@@ -897,6 +978,9 @@ model Event {
   @@index([churchId])
   @@index([branchId])
   @@index([startDate])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model EventRegistration {
@@ -913,6 +997,9 @@ model EventRegistration {
   @@unique([userId, eventId])
   @@index([eventId])
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model EventAttendance {
@@ -925,6 +1012,9 @@ model EventAttendance {
 
   @@unique([userId, eventId])
   @@index([eventId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Check-ins
@@ -940,6 +1030,9 @@ model CheckIn {
   @@index([userId])
   @@index([eventId])
   @@index([checkedInAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model ChildrenCheckIn {
@@ -953,6 +1046,9 @@ model ChildrenCheckIn {
 
   @@index([parentId])
   @@index([checkedInAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Messaging
@@ -969,6 +1065,9 @@ model Message {
   @@index([senderId])
   @@index([receiverId])
   @@index([createdAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model GroupMessage {
@@ -982,6 +1081,9 @@ model GroupMessage {
 
   @@index([groupId])
   @@index([createdAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Gamification
@@ -995,6 +1097,9 @@ model Badge {
   createdAt   DateTime  @default(now())
 
   users UserBadge[]
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model UserBadge {
@@ -1007,6 +1112,9 @@ model UserBadge {
 
   @@unique([userId, badgeId])
   @@index([userId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Workforce Management
@@ -1024,6 +1132,9 @@ model VolunteerShift {
 
   @@index([userId])
   @@index([startTime])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model Task {
@@ -1041,6 +1152,9 @@ model Task {
 
   @@index([userId])
   @@index([status])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Payroll Management
@@ -1064,6 +1178,9 @@ model PayrollPosition {
 
   @@index([churchId])
   @@index([departmentId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model WageScale {
@@ -1104,6 +1221,9 @@ model WageScale {
   @@index([positionId])
   @@index([churchId])
   @@index([effectiveFrom])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model UserSalary {
@@ -1136,6 +1256,9 @@ model UserSalary {
   @@index([positionId])
   @@index([churchId])
   @@index([isActive])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model PayrollPeriod {
@@ -1166,6 +1289,9 @@ model PayrollPeriod {
   @@index([churchId])
   @@index([payDate])
   @@index([status])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model PayrollRecord {
@@ -1212,6 +1338,9 @@ model PayrollRecord {
   @@index([churchId])
   @@index([status])
   @@index([paymentDate])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Member Invitation System
@@ -1236,6 +1365,9 @@ model InvitationForm {
 
   @@index([churchId])
   @@index([createdBy])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model InvitationLink {
@@ -1264,6 +1396,9 @@ model InvitationLink {
   @@index([createdBy])
   @@index([expiresAt])
   @@index([isActive])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model RegistrationSubmission {
@@ -1297,6 +1432,9 @@ model RegistrationSubmission {
   @@index([status])
   @@index([submittedAt])
   @@index([reviewedBy])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Security and analytics tracking
@@ -1311,6 +1449,9 @@ model InvitationLinkAccess {
   @@index([linkId])
   @@index([accessedAt])
   @@index([ipAddress])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Survey System
@@ -1384,6 +1525,9 @@ model Survey {
   @@index([status])
   @@index([publishedAt])
   @@index([deadline])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SurveyQuestion {
@@ -1415,6 +1559,9 @@ model SurveyQuestion {
   @@index([surveyId])
   @@index([sectionId])
   @@index([order])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SurveySection {
@@ -1430,6 +1577,9 @@ model SurveySection {
 
   @@index([surveyId])
   @@index([order])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SurveyResponse {
@@ -1450,6 +1600,9 @@ model SurveyResponse {
   @@index([surveyId])
   @@index([userId])
   @@index([submittedAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SurveyQuestionResponse {
@@ -1466,6 +1619,9 @@ model SurveyQuestionResponse {
   @@unique([responseId, questionId])
   @@index([responseId])
   @@index([questionId])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model SurveyTemplate {
@@ -1491,6 +1647,9 @@ model SurveyTemplate {
   @@index([createdBy])
   @@index([category])
   @@index([isSystemTemplate])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Multi-Platform Streaming - Platform Connections
@@ -1539,6 +1698,9 @@ model PlatformConnection {
   @@index([platform])
   @@index([status])
   @@index([expiresAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Multi-Platform Streaming - Livestreams
@@ -1585,6 +1747,9 @@ model Livestream {
   @@index([createdBy])
   @@index([status])
   @@index([startAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model LivestreamPlatform {
@@ -1611,6 +1776,9 @@ model LivestreamPlatform {
   @@index([livestreamId])
   @@index([platform])
   @@index([status])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model ExternalLivestreamConfig {
@@ -1631,6 +1799,9 @@ model ExternalLivestreamConfig {
   @@index([churchId])
   @@index([platform])
   @@index([enabled])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Multi-Platform Streaming - Meetings (Enhanced)
@@ -1680,6 +1851,9 @@ model Meeting {
   @@index([createdBy])
   @@index([status])
   @@index([startAt])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 model MeetingPlatform {
@@ -1706,6 +1880,9 @@ model MeetingPlatform {
   @@index([meetingId])
   @@index([platform])
   @@index([status])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Analytics Cache
@@ -1732,6 +1909,9 @@ model AnalyticsCache {
   
   @@index([churchId])
   @@index([nextRefresh])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
 
 // Update Church model to include new relations
@@ -1782,4 +1962,7 @@ model Notification {
   @@index([type])
   @@index([status])
   @@index([scheduledFor])
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 }
