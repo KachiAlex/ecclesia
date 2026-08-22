@@ -1,8 +1,5 @@
-import { db, toDate } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
-import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import { FieldValue, Query } from 'firebase-admin/firestore'
+import bcrypt from 'bcryptjs'
 import type { PayFrequencyOption } from './staff-level-service'
 
 export interface User {
@@ -47,164 +44,173 @@ export interface User {
   updatedAt: Date
 }
 
+const PRISMA_FIELDS = new Set([
+  'id', 'createdAt', 'updatedAt', 'password', 'email', 'firstName', 'lastName',
+  'phone', 'profileImage', 'bio', 'dateOfBirth', 'address', 'city', 'state',
+  'zipCode', 'country', 'role', 'spiritualMaturity', 'churchId', 'branchId',
+  'xp', 'level', 'lastLoginAt', 'firestoreData'
+])
+
 export class UserService {
+  /**
+   * Merge a Prisma user record with any legacy firestoreData
+   */
+  private static fromPrisma(record: any): User {
+    const { firestoreData, ...rest } = record
+    const legacy = (firestoreData as Record<string, unknown>) || {}
+    return { ...legacy, ...rest } as unknown as User
+  }
+
+  /**
+   * Build firestoreData object from input fields that are not Prisma columns
+   */
+  private static buildLegacyData(data: any, extra: any = {}): any {
+    const result: any = { ...extra }
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined && !PRISMA_FIELDS.has(key) && !['id', 'createdAt', 'updatedAt', 'password'].includes(key)) {
+        result[key] = value
+      }
+    }
+    if (Object.keys(result).length === 0) return undefined
+    return result
+  }
+
   /**
    * Find user by ID
    */
   static async findById(id: string): Promise<User | null> {
-    const doc = await db.collection(COLLECTIONS.users).doc(id).get()
-    if (!doc.exists) return null
-    
-    const data = doc.data()!
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-      lastLoginAt: data.lastLoginAt ? toDate(data.lastLoginAt) : undefined,
-    } as User
+    const record = await prisma.user.findUnique({ where: { id } })
+    if (!record) return null
+    return this.fromPrisma(record)
   }
 
   /**
    * Find user by email within a specific church (tenant)
    */
   static async findByEmailInChurch(email: string, churchId: string): Promise<User | null> {
-    const normalizedEmail = email.trim().toLowerCase()
-    const snapshot = await db.collection(COLLECTIONS.users)
-      .where('churchId', '==', churchId)
-      .where('email', '==', normalizedEmail)
-      .limit(1)
-      .get()
-
-    if (snapshot.empty) return null
-
-    const doc = snapshot.docs[0]
-    const data = doc.data()
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-      lastLoginAt: data.lastLoginAt ? toDate(data.lastLoginAt) : undefined,
-    } as User
+    const record = await prisma.user.findFirst({
+      where: { email: email.trim().toLowerCase(), churchId },
+    })
+    if (!record) return null
+    return this.fromPrisma(record)
   }
 
   /**
    * Find user by email
    */
   static async findByEmail(email: string): Promise<User | null> {
-    const normalizedEmail = email.trim().toLowerCase()
-    const record = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    const record = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } })
     if (!record) return null
-    return record as unknown as User
+    return this.fromPrisma(record)
   }
 
   /**
    * Create user
    */
   static async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-    const hashedPassword = await bcrypt.hash(data.password, 10)
-
-    const userData = {
-      ...data,
-      email: data.email.trim().toLowerCase(),
-      password: hashedPassword,
-      xp: data.xp || 0,
-      level: data.level || 1,
-      isStaff: Boolean(data.isStaff),
-      isSuspended: typeof data.isSuspended === 'boolean' ? data.isSuspended : false,
-      staffLevelId: data.staffLevelId || null,
-      staffLevelName: data.staffLevelName || null,
-      customWage: data.customWage || null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }
-
-    const docRef = db.collection(COLLECTIONS.users).doc()
-    await docRef.set(userData)
-
-    const created = await docRef.get()
-    const createdData = created.data()!
-    return {
-      id: created.id,
-      ...createdData,
-      password: hashedPassword, // Return hashed password
-      createdAt: toDate(createdData.createdAt),
-      updatedAt: toDate(createdData.updatedAt),
-    } as User
+    const password = data.password ? await bcrypt.hash(data.password, 10) : ''
+    const record = await prisma.user.create({
+      data: {
+        email: data.email.trim().toLowerCase(),
+        password,
+        firstName: data.firstName || 'Unknown',
+        lastName: data.lastName || 'User',
+        phone: data.phone,
+        profileImage: data.profileImage,
+        bio: data.bio,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+        country: data.country,
+        role: data.role as any,
+        spiritualMaturity: data.spiritualMaturity as any,
+        churchId: data.churchId,
+        branchId: data.branchId,
+        xp: data.xp || 0,
+        level: data.level || 1,
+        firestoreData: this.buildLegacyData(data),
+      },
+    })
+    return this.fromPrisma(record)
   }
 
   /**
    * Update user
    */
   static async update(id: string, data: Partial<Omit<User, 'id' | 'createdAt' | 'updatedAt'>>): Promise<User> {
+    const current = await prisma.user.findUnique({ where: { id }, select: { firestoreData: true } })
+    const currentLegacy = ((current?.firestoreData as Record<string, unknown>) || {})
+
     const updateData: any = {
-      ...data,
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: new Date(),
     }
 
-    // Hash password if provided
+    if (data.email !== undefined) updateData.email = data.email.trim().toLowerCase()
+    if (data.firstName !== undefined) updateData.firstName = data.firstName
+    if (data.lastName !== undefined) updateData.lastName = data.lastName
+    if (data.phone !== undefined) updateData.phone = data.phone
+    if (data.profileImage !== undefined) updateData.profileImage = data.profileImage
+    if (data.bio !== undefined) updateData.bio = data.bio
+    if (data.dateOfBirth !== undefined) updateData.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : undefined
+    if (data.address !== undefined) updateData.address = data.address
+    if (data.city !== undefined) updateData.city = data.city
+    if (data.state !== undefined) updateData.state = data.state
+    if (data.zipCode !== undefined) updateData.zipCode = data.zipCode
+    if (data.country !== undefined) updateData.country = data.country
+    if (data.role !== undefined) updateData.role = data.role as any
+    if (data.spiritualMaturity !== undefined) updateData.spiritualMaturity = data.spiritualMaturity as any
+    if (data.churchId !== undefined) updateData.churchId = data.churchId
+    if (data.branchId !== undefined) updateData.branchId = data.branchId
+    if (data.xp !== undefined) updateData.xp = data.xp
+    if (data.level !== undefined) updateData.level = data.level
+    if (data.lastLoginAt !== undefined) updateData.lastLoginAt = data.lastLoginAt
+
     if (data.password) {
       updateData.password = await bcrypt.hash(data.password, 10)
     }
 
-    await db.collection(COLLECTIONS.users).doc(id).update(updateData)
-    return this.findById(id) as Promise<User>
+    const newLegacy = this.buildLegacyData(data)
+    if (newLegacy !== undefined || Object.keys(currentLegacy).length > 0) {
+      updateData.firestoreData = { ...currentLegacy, ...newLegacy }
+    }
+
+    const record = await prisma.user.update({ where: { id }, data: updateData })
+    return this.fromPrisma(record)
   }
 
   /**
    * Delete user
    */
   static async delete(id: string): Promise<void> {
-    await db.collection(COLLECTIONS.users).doc(id).delete()
+    await prisma.user.delete({ where: { id } })
   }
 
   /**
    * Find users by church
    */
   static async findByChurch(churchId: string, limit?: number): Promise<User[]> {
-    let query: Query = db.collection(COLLECTIONS.users)
-      .where('churchId', '==', churchId)
-    
-    if (limit) {
-      query = query.limit(limit)
-    }
-
-    const snapshot = await query.get()
-    return snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
-        lastLoginAt: data.lastLoginAt ? toDate(data.lastLoginAt) : undefined,
-      } as User
+    const records = await prisma.user.findMany({
+      where: { churchId },
+      take: limit || undefined,
+      orderBy: { createdAt: 'desc' },
     })
+    return records.map((record) => this.fromPrisma(record))
   }
 
   /**
    * Search users
    */
   static async search(churchId: string, searchTerm: string): Promise<User[]> {
-    // Firestore doesn't support full-text search, so we'll search by name fields
-    const snapshot = await db.collection(COLLECTIONS.users)
-      .where('churchId', '==', churchId)
-      .get()
-    
     const searchLower = searchTerm.toLowerCase()
-    return snapshot.docs
-      .map((doc: any) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: toDate(data.createdAt),
-          updatedAt: toDate(data.updatedAt),
-          lastLoginAt: data.lastLoginAt ? toDate(data.lastLoginAt) : undefined,
-        } as User
-      })
-      .filter((user: any) =>
+    const records = await prisma.user.findMany({
+      where: { churchId },
+      orderBy: { createdAt: 'desc' },
+    })
+    return records
+      .map((record) => this.fromPrisma(record))
+      .filter((user) =>
         user.firstName?.toLowerCase().includes(searchLower) ||
         user.lastName?.toLowerCase().includes(searchLower) ||
         user.email?.toLowerCase().includes(searchLower)
@@ -231,10 +237,9 @@ export class UserService {
     const newXP = (user.xp || 0) + amount
     const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1
 
-    await db.collection(COLLECTIONS.users).doc(id).update({
-      xp: newXP,
-      level: newLevel,
-      updatedAt: FieldValue.serverTimestamp(),
+    await prisma.user.update({
+      where: { id },
+      data: { xp: newXP, level: newLevel, updatedAt: new Date() },
     })
   }
 }

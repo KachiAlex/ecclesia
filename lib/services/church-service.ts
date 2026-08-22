@@ -46,12 +46,21 @@ export interface Church {
 
 export class ChurchService {
   /**
+   * Merge a Prisma church record with any legacy firestoreData
+   */
+  private static fromPrisma(record: any): Church {
+    const { firestoreData, ...rest } = record
+    const legacy = (firestoreData as Record<string, unknown>) || {}
+    return { ...legacy, ...rest } as unknown as Church
+  }
+
+  /**
    * Find church by ID
    */
   static async findById(id: string): Promise<Church | null> {
     const record = await prisma.church.findUnique({ where: { id } })
     if (!record) return null
-    return record as unknown as Church
+    return this.fromPrisma(record)
   }
 
   /**
@@ -79,7 +88,7 @@ export class ChurchService {
         ownerId: data.ownerId,
       },
     })
-    return record as unknown as Church
+    return this.fromPrisma(record)
   }
 
   /**
@@ -108,7 +117,7 @@ export class ChurchService {
         ownerId: data.ownerId,
       },
     })
-    return record as unknown as Church
+    return this.fromPrisma(record)
   }
 
   /**
@@ -116,7 +125,7 @@ export class ChurchService {
    */
   static async findAll(): Promise<Church[]> {
     const records = await prisma.church.findMany({ orderBy: { createdAt: 'desc' } })
-    return records as unknown as Church[]
+    return records.map((record) => this.fromPrisma(record))
   }
 
   /**
@@ -125,7 +134,7 @@ export class ChurchService {
   static async findBySlug(slug: string): Promise<Church | null> {
     const record = await prisma.church.findUnique({ where: { slug } })
     if (!record) return null
-    return record as unknown as Church
+    return this.fromPrisma(record)
   }
 
   /**
@@ -134,7 +143,7 @@ export class ChurchService {
   static async findByCustomDomain(domain: string): Promise<Church | null> {
     const record = await prisma.church.findFirst({ where: { customDomain: domain } })
     if (!record) return null
-    return record as unknown as Church
+    return this.fromPrisma(record)
   }
 }
 
