@@ -63,7 +63,8 @@ async function migrateUsers() {
       role: VALID_ROLES.has(data.role) ? data.role : 'VISITOR',
       spiritualMaturity: data.spiritualMaturity && VALID_MATURITY.has(data.spiritualMaturity) ? data.spiritualMaturity : undefined,
       churchId: data.churchId || null,
-      branchId: data.branchId || null,
+      // branchId is preserved in firestoreData to avoid FK constraint on missing Branch rows
+      branchId: null,
       xp: typeof data.xp === 'number' ? data.xp : 0,
       level: typeof data.level === 'number' ? data.level : 1,
       lastLoginAt: toDate(data.lastLoginAt),
