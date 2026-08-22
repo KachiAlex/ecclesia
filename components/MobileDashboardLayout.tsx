@@ -1,0 +1,234 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import SignOutButton from '@/components/SignOutButton'
+import BranchSwitcher from '@/components/BranchSwitcher'
+import ChurchSwitcher from '@/components/ChurchSwitcher'
+import DashboardNav from '@/components/DashboardNav'
+
+interface MobileDashboardLayoutProps {
+  children: React.ReactNode
+  brandName: string
+  brandTagline: string
+  brandLogo: string
+  brandInitial: string
+  profileName: string
+  profileEmail: string
+  profileImage: string
+  profileInitials: string
+  userRole: string
+  isStaff: boolean
+  userId: string
+  activeChurch: any
+  user: any
+}
+
+export default function MobileDashboardLayout({
+  children,
+  brandName,
+  brandTagline,
+  brandLogo,
+  brandInitial,
+  profileName,
+  profileEmail,
+  profileImage,
+  profileInitials,
+  userRole,
+  isStaff,
+  userId,
+  activeChurch,
+  user
+}: MobileDashboardLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const pathname = usePathname()
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+      {/* Mobile Header */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3">
+          {/* Menu Button */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2">
+            <div className="relative">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+                {activeChurch?.logo ? (
+                  <img src={brandLogo} alt={`${brandName} logo`} className="w-6 h-6 object-contain" />
+                ) : (
+                  <span className="text-white text-sm font-semibold">{brandInitial}</span>
+                )}
+              </div>
+            </div>
+            <div className="hidden sm:block">
+              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                {brandName}
+              </span>
+            </div>
+          </Link>
+
+          {/* Profile Button */}
+          <div className="relative">
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              {profileImage ? (
+                <img
+                  src={profileImage}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-primary-100"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-xs font-semibold text-primary-700">
+                  {profileInitials}
+                </div>
+              )}
+            </button>
+
+            {/* Profile Dropdown */}
+            {profileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+                <div className="p-4">
+                  <div className="space-y-1 mb-4">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{profileName}</p>
+                    <p className="text-xs text-gray-500">Administrator</p>
+                    <p className="text-xs text-gray-400 truncate">{profileEmail}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Link
+                      href={`/users/${userId}`}
+                      className="block w-full text-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      View profile
+                    </Link>
+                    <Link
+                      href={`/users/${userId}/edit`}
+                      className="block w-full text-center rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white hover:bg-primary-700"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      Edit profile
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+          
+          {/* Sidebar */}
+          <div className="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-xl shadow-2xl flex flex-col">
+            {/* Sidebar Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50">
+              <Link href="/" className="flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
+                <div className="relative">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                    {activeChurch?.logo ? (
+                      <img src={brandLogo} alt={`${brandName} logo`} className="w-8 h-8 object-contain" />
+                    ) : (
+                      <span className="text-white text-lg font-semibold">{brandInitial}</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    {brandName}
+                  </span>
+                  <p className="text-xs text-gray-500 font-medium truncate">{brandTagline}</p>
+                </div>
+              </Link>
+              
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex-1 overflow-y-auto">
+              <div onClick={() => setSidebarOpen(false)}>
+                <DashboardNav userRole={userRole} isStaff={isStaff} />
+              </div>
+            </div>
+
+            {/* Sidebar Footer */}
+            <div className="border-t border-gray-200/50 p-4 bg-gradient-to-br from-gray-50/50 to-blue-50/30">
+              {user?.role === 'SUPER_ADMIN' && !activeChurch ? (
+                <div className="mb-4">
+                  <ChurchSwitcher />
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <BranchSwitcher />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-2">
+                  {user?.role !== 'MEMBER' && (
+                    <Link
+                      href="/subscription"
+                      className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <span>💳</span>
+                      <span>Plan</span>
+                    </Link>
+                  )}
+                  <Link
+                    href="/settings"
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-gray-200/50"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <span>⚙️</span>
+                    <span>Settings</span>
+                  </Link>
+                </div>
+                <SignOutButton />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="p-4 sm:p-6">
+        {children}
+      </main>
+
+      {/* Click outside to close profile menu */}
+      {profileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => setProfileMenuOpen(false)}
+        />
+      )}
+    </div>
+  )
+}

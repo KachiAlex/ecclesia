@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: #faf9f5;
+    color: #15161a;
+  }
+}
+
+@keyframes floatA {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-30px, 40px) scale(1.08); }
+}
+
+@keyframes floatB {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -20px) scale(1.06); }
+}
+
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1);
+}
+.reveal.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* Prevent white-on-white text issues */
+@layer utilities {
+  /* Fix any accidental white text on white backgrounds */
+  .bg-white .text-white:not([class*="bg-gradient"]) {
+    color: #111827 !important; /* gray-900 */
+  }
+  
+  /* Ensure text on white backgrounds is dark */
+  .text-on-white {
+    @apply text-gray-900;
+  }
+  
+  /* Muted text on white */
+  .text-muted-on-white {
+    @apply text-gray-600;
+  }
+  
+  /* Ensure gradient backgrounds keep proper text color */
+  [class*="bg-gradient"] .text-white {
+    color: white !important;
+  }
+  
+  /* Link styling */
+  .text-link {
+    @apply text-blue-600 hover:text-blue-700;
+  }
+  
+  /* Button utilities */
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md;
+  }
+  
+  /* Card utilities */
+  .card {
+    @apply bg-white rounded-xl p-6 shadow-sm border border-gray-100;
+  }
+  
+  .card-title {
+    @apply text-xl font-bold text-gray-900 mb-2;
+  }
+  
+  .card-subtitle {
+    @apply text-sm text-gray-600;
+  }
+}
