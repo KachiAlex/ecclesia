@@ -1,7 +1,4 @@
-import { db, toDate } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
-import { Query } from 'firebase-admin/firestore'
-import { FieldValue } from 'firebase-admin/firestore'
+import { prisma } from '@/lib/prisma'
 
 export interface EventReminderConfig {
   durationHours: number
@@ -28,61 +25,34 @@ export interface Event {
   updatedAt: Date
 }
 
+const fromPrisma = (record: any): Event => {
+  const { firestoreData, ...rest } = record
+  const legacy = (firestoreData as Record<string, unknown>) || {}
+  return { ...legacy, ...rest } as Event
+}
+
 export class EventService {
   static async findById(id: string): Promise<Event | null> {
-    const doc = await db.collection(COLLECTIONS.events).doc(id).get()
-    if (!doc.exists) return null
-    
-    const data = doc.data()!
-    return {
-      id: doc.id,
-      ...data,
-      startDate: toDate(data.startDate),
-      endDate: data.endDate ? toDate(data.endDate) : undefined,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as Event
+    const record = await prisma.event.findUnique({ where: { id } })
+    if (!record) return null
+    return fromPrisma(record)
   }
 
   static async create(data: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>): Promise<Event> {
-    // Remove undefined values to avoid Firestore errors
-    const cleanedData: any = {
-      churchId: data.churchId,
-      title: data.title,
-      type: data.type,
-      isTicketed: data.isTicketed,
-      startDate: data.startDate instanceof Date ? data.startDate : new Date(data.startDate),
-    }
-
-    // Only add optional fields if they have values
-    if (data.groupId) cleanedData.groupId = data.groupId
-    if (data.description) cleanedData.description = data.description
-    if (data.location) cleanedData.location = data.location
-    if (data.endDate) cleanedData.endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate)
-    if (data.maxAttendees) cleanedData.maxAttendees = data.maxAttendees
-    if (data.ticketPrice) cleanedData.ticketPrice = data.ticketPrice
-    if (data.imageUrl) cleanedData.imageUrl = data.imageUrl
-    if (data.reminderConfig) cleanedData.reminderConfig = data.reminderConfig
-
-    const eventData = {
-      ...cleanedData,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }
-
-    const docRef = db.collection(COLLECTIONS.events).doc()
-    await docRef.set(eventData)
-
-    const created = await docRef.get()
-    const createdData = created.data()!
-    return {
-      id: created.id,
-      ...createdData,
-      startDate: toDate(createdData.startDate),
-      endDate: createdData.endDate ? toDate(createdData.endDate) : undefined,
-      createdAt: toDate(createdData.createdAt),
-      updatedAt: toDate(createdData.updatedAt),
-    } as Event
+    const record = await prisma.event.create({
+      data: {
+        ...data,
+        startDate: data.startDate instanceof Date ? data.startDate : new Date(data.startDate),
+        endDate: data.endDate
+          ? data.endDate instanceof Date
+            ? data.endDate
+            : new Date(data.endDate)
+          : undefined,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any,
+    })
+    return fromPrisma(record)
   }
 
   static async findByChurch(
@@ -95,39 +65,21 @@ export class EventService {
       limit?: number
     }
   ): Promise<Event[]> {
-    let query: Query = db.collection(COLLECTIONS.events)
-      .where('churchId', '==', churchId)
-
-    if (options?.type) {
-      query = query.where('type', '==', options.type)
-    }
-
-    if (options?.groupId) {
-      query = query.where('groupId', '==', options.groupId)
-    }
-
-    if (options?.startDate) {
-      query = query.where('startDate', '>=', options.startDate)
-    }
-
-    query = query.orderBy('startDate', 'asc').limit(options?.limit || 50)
-
-    const snapshot = await query.get()
-    let events = snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        startDate: toDate(data.startDate),
-        endDate: data.endDate ? toDate(data.endDate) : undefined,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
-      } as Event
+    const records = await prisma.event.findMany({
+      where: {
+        churchId,
+        type: (options?.type as any) || undefined,
+        groupId: options?.groupId || undefined,
+        startDate: options?.startDate ? { gte: options.startDate } : undefined,
+      },
+      orderBy: { startDate: 'asc' },
+      take: options?.limit || 50,
     })
 
-    // Filter by endDate if provided (Firestore query limitation)
+    const events = records.map(fromPrisma)
+
     if (options?.endDate) {
-      events = events.filter((event: any) =>
+      return events.filter((event: any) =>
         !event.endDate || event.endDate <= options.endDate!
       )
     }
@@ -136,27 +88,26 @@ export class EventService {
   }
 
   static async update(id: string, data: Partial<Event>): Promise<Event> {
-    const updateData: any = {
-      ...data,
-      updatedAt: FieldValue.serverTimestamp(),
-    }
+    const { id: _, createdAt, updatedAt, ...updateData } = data as any
 
-    if (data.startDate) {
-      updateData.startDate = data.startDate instanceof Date ? data.startDate : new Date(data.startDate)
-    }
-    if (data.endDate) {
-      updateData.endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate)
-    }
-    if (data.reminderConfig !== undefined) {
-      updateData.reminderConfig = data.reminderConfig || FieldValue.delete()
-    }
-
-    delete updateData.id
-    delete updateData.createdAt
-    delete updateData.updatedAt
-
-    await db.collection(COLLECTIONS.events).doc(id).update(updateData)
-    return this.findById(id) as Promise<Event>
+    const record = await prisma.event.update({
+      where: { id },
+      data: {
+        ...updateData,
+        startDate: data.startDate
+          ? data.startDate instanceof Date
+            ? data.startDate
+            : new Date(data.startDate)
+          : undefined,
+        endDate: data.endDate
+          ? data.endDate instanceof Date
+            ? data.endDate
+            : new Date(data.endDate)
+          : undefined,
+        updatedAt: new Date(),
+      } as any,
+    })
+    return fromPrisma(record)
   }
 }
 
