@@ -1,6 +1,4 @@
-import { db, toDate } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
-import { FieldValue } from 'firebase-admin/firestore'
+import { prisma } from '@/lib/prisma'
 
 export interface Group {
   id: string
@@ -22,40 +20,31 @@ export interface GroupMembership {
   joinedAt: Date
 }
 
+const fromPrisma = (record: any): Group => {
+  const { firestoreData, ...rest } = record
+  const legacy = (firestoreData as Record<string, unknown>) || {}
+  return { ...legacy, ...rest } as Group
+}
+
+const fromPrismaMembership = (record: any): GroupMembership => {
+  const { firestoreData, ...rest } = record
+  const legacy = (firestoreData as Record<string, unknown>) || {}
+  return { ...legacy, ...rest } as GroupMembership
+}
+
 export class GroupService {
   static async findByChurch(churchId: string): Promise<Group[]> {
-    const snapshot = await db.collection(COLLECTIONS.groups)
-      .where('churchId', '==', churchId)
-      .get()
-
-    return snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
-      } as Group
-    })
+    const records = await prisma.group.findMany({ where: { churchId } })
+    return records.map(fromPrisma)
   }
 }
 
 export class GroupMembershipService {
   static async findByUserAndGroup(userId: string, groupId: string): Promise<GroupMembership | null> {
-    const snapshot = await db.collection(COLLECTIONS.groupMemberships)
-      .where('userId', '==', userId)
-      .where('groupId', '==', groupId)
-      .limit(1)
-      .get()
-
-    if (snapshot.empty) return null
-
-    const doc = snapshot.docs[0]
-    const data = doc.data()
-    return {
-      id: doc.id,
-      ...data,
-      joinedAt: toDate(data.joinedAt),
-    } as GroupMembership
+    const record = await prisma.groupMembership.findFirst({
+      where: { userId, groupId },
+    })
+    if (!record) return null
+    return fromPrismaMembership(record)
   }
 }

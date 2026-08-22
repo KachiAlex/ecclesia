@@ -1,6 +1,4 @@
-import { db, toDate } from '@/lib/firestore'
-import { COLLECTIONS } from '@/lib/firestore-collections'
-import { FieldValue, Query } from 'firebase-admin/firestore'
+import { prisma } from '@/lib/prisma'
 
 export interface PrayerRequest {
   id: string
@@ -15,40 +13,44 @@ export interface PrayerRequest {
   updatedAt: Date
 }
 
+export interface PrayerInteraction {
+  id: string
+  userId: string
+  requestId: string
+  type: string
+  comment?: string
+  createdAt: Date
+}
+
+const fromPrisma = (record: any): PrayerRequest => {
+  const { firestoreData, ...rest } = record
+  const legacy = (firestoreData as Record<string, unknown>) || {}
+  return { ...legacy, ...rest } as PrayerRequest
+}
+
+const fromPrismaInteraction = (record: any): PrayerInteraction => {
+  const { firestoreData, ...rest } = record
+  const legacy = (firestoreData as Record<string, unknown>) || {}
+  return { ...legacy, ...rest } as PrayerInteraction
+}
+
 export class PrayerRequestService {
   static async findById(id: string): Promise<PrayerRequest | null> {
-    const doc = await db.collection(COLLECTIONS.prayerRequests).doc(id).get()
-    if (!doc.exists) return null
-    
-    const data = doc.data()!
-    return {
-      id: doc.id,
-      prayerCount: data.prayerCount || 0,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as PrayerRequest
+    const record = await prisma.prayerRequest.findUnique({ where: { id } })
+    if (!record) return null
+    return fromPrisma(record)
   }
 
   static async create(data: Omit<PrayerRequest, 'id' | 'createdAt' | 'updatedAt' | 'prayerCount'>): Promise<PrayerRequest> {
-    const prayerData = {
-      ...data,
-      prayerCount: 0,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }
-
-    const docRef = db.collection(COLLECTIONS.prayerRequests).doc()
-    await docRef.set(prayerData)
-
-    const created = await docRef.get()
-    const createdData = created.data()!
-    return {
-      id: created.id,
-      ...createdData,
-      createdAt: toDate(createdData.createdAt),
-      updatedAt: toDate(createdData.updatedAt),
-    } as PrayerRequest
+    const record = await prisma.prayerRequest.create({
+      data: {
+        ...data,
+        prayerCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any,
+    })
+    return fromPrisma(record)
   }
 
   static async findByChurch(
@@ -59,118 +61,62 @@ export class PrayerRequestService {
       lastDocId?: string
     }
   ): Promise<PrayerRequest[]> {
-    let query: Query = db.collection(COLLECTIONS.prayerRequests)
-      .where('churchId', '==', churchId)
-      .limit(options?.limit || 20)
-
-    // Only filter by status if specified
-    if (options?.status) {
-      query = query.where('status', '==', options.status)
-    }
-
-    // Note: orderBy removed temporarily to avoid composite index requirement
-    // Once Firestore indexes are created, we can add back:
-    // query = query.orderBy('createdAt', 'desc')
-
-    if (options?.lastDocId) {
-      const lastDoc = await db.collection(COLLECTIONS.prayerRequests).doc(options.lastDocId).get()
-      if (lastDoc.exists) {
-        query = query.startAfter(lastDoc)
-      }
-    }
-
-    const snapshot = await query.get()
-    const results = snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        prayerCount: data.prayerCount || 0,
-        ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
-      } as PrayerRequest
+    const records = await prisma.prayerRequest.findMany({
+      where: {
+        churchId,
+        status: options?.status || undefined,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: options?.limit || 20,
+      skip: options?.lastDocId ? 1 : undefined,
+      cursor: options?.lastDocId ? { id: options.lastDocId } : undefined,
     })
 
-    // Sort in memory since we can't use orderBy without indexes
-    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    return records.map(fromPrisma)
   }
 
   static async incrementPrayerCount(id: string): Promise<void> {
-    await db.collection(COLLECTIONS.prayerRequests).doc(id).update({
-      prayerCount: FieldValue.increment(1),
-      updatedAt: FieldValue.serverTimestamp(),
+    await prisma.prayerRequest.update({
+      where: { id },
+      data: { prayerCount: { increment: 1 }, updatedAt: new Date() },
     })
   }
 
   static async updateStatus(id: string, status: string): Promise<PrayerRequest> {
-    await db.collection(COLLECTIONS.prayerRequests).doc(id).update({
-      status,
-      updatedAt: FieldValue.serverTimestamp(),
+    const record = await prisma.prayerRequest.update({
+      where: { id },
+      data: { status, updatedAt: new Date() },
     })
-    return this.findById(id) as Promise<PrayerRequest>
+    return fromPrisma(record)
   }
-}
-
-export interface PrayerInteraction {
-  id: string
-  userId: string
-  requestId: string
-  type: string
-  comment?: string
-  createdAt: Date
 }
 
 export class PrayerInteractionService {
   static async findByUserAndRequest(userId: string, requestId: string): Promise<PrayerInteraction | null> {
-    const snapshot = await db.collection(COLLECTIONS.prayerInteractions)
-      .where('userId', '==', userId)
-      .where('requestId', '==', requestId)
-      .limit(1)
-      .get()
-
-    if (snapshot.empty) return null
-
-    const doc = snapshot.docs[0]
-    const data = doc.data()
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-    } as PrayerInteraction
+    const record = await prisma.prayerInteraction.findFirst({
+      where: { userId, requestId },
+    })
+    if (!record) return null
+    return fromPrismaInteraction(record)
   }
 
   static async create(data: Omit<PrayerInteraction, 'id' | 'createdAt'>): Promise<PrayerInteraction> {
-    const interactionData = {
-      ...data,
-      createdAt: FieldValue.serverTimestamp(),
-    }
-
-    const docRef = db.collection(COLLECTIONS.prayerInteractions).doc()
-    await docRef.set(interactionData)
-
-    // Increment prayer count on request
+    const record = await prisma.prayerInteraction.create({
+      data: {
+        ...data,
+        createdAt: new Date(),
+      } as any,
+    })
     await PrayerRequestService.incrementPrayerCount(data.requestId)
-
-    const created = await docRef.get()
-    const createdData = created.data()!
-    return {
-      id: created.id,
-      ...createdData,
-      createdAt: toDate(createdData.createdAt),
-    } as PrayerInteraction
+    return fromPrismaInteraction(record)
   }
 
   static async update(id: string, comment?: string): Promise<PrayerInteraction> {
-    await db.collection(COLLECTIONS.prayerInteractions).doc(id).update({
-      comment: comment || null,
+    const record = await prisma.prayerInteraction.update({
+      where: { id },
+      data: { comment: comment || null } as any,
     })
-    const doc = await db.collection(COLLECTIONS.prayerInteractions).doc(id).get()
-    const data = doc.data()!
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-    } as PrayerInteraction
+    return fromPrismaInteraction(record)
   }
 }
 
