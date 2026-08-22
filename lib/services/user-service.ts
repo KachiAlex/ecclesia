@@ -1,6 +1,7 @@
 import { db, toDate } from '@/lib/firestore'
 import { COLLECTIONS } from '@/lib/firestore-collections'
 import bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/prisma'
 import { FieldValue, Query } from 'firebase-admin/firestore'
 import type { PayFrequencyOption } from './staff-level-service'
 
@@ -93,22 +94,9 @@ export class UserService {
    */
   static async findByEmail(email: string): Promise<User | null> {
     const normalizedEmail = email.trim().toLowerCase()
-    const snapshot = await db.collection(COLLECTIONS.users)
-      .where('email', '==', normalizedEmail)
-      .limit(1)
-      .get()
-    
-    if (snapshot.empty) return null
-    
-    const doc = snapshot.docs[0]
-    const data = doc.data()
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-      lastLoginAt: data.lastLoginAt ? toDate(data.lastLoginAt) : undefined,
-    } as User
+    const record = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    if (!record) return null
+    return record as unknown as User
   }
 
   /**
@@ -227,8 +215,9 @@ export class UserService {
    * Update last login
    */
   static async updateLastLogin(id: string): Promise<void> {
-    await db.collection(COLLECTIONS.users).doc(id).update({
-      lastLoginAt: FieldValue.serverTimestamp(),
+    await prisma.user.update({
+      where: { id },
+      data: { lastLoginAt: new Date() },
     })
   }
 

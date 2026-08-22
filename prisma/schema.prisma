@@ -197,6 +197,10 @@ model User {
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime                     @updatedAt
   lastLoginAt                DateTime?
+
+  // Legacy Firestore data preservation
+  firestoreData              Json?
+
   ReadingPlanNewsletter      ReadingPlanNewsletter[]
   ReadingPlanNewsletterEvent ReadingPlanNewsletterEvent[]
 
@@ -277,6 +281,9 @@ model Church {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Legacy Firestore data preservation
+  firestoreData Json?
 
   @@index([slug])
   @@index([customDomain])

@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client')
 const fs = require('fs')
 
 function toDate(value) {
-  if (!value) return new Date()
+  if (!value) return undefined
   if (typeof value.toDate === 'function') return value.toDate()
   if (value instanceof Date) return value
   return new Date(value)
@@ -18,6 +18,9 @@ function toPlainJson(obj) {
   }
   return obj
 }
+
+const VALID_ROLES = new Set(['MEMBER', 'VISITOR', 'VOLUNTEER', 'LEADER', 'PASTOR', 'ADMIN', 'BRANCH_ADMIN', 'SUPER_ADMIN'])
+const VALID_MATURITY = new Set(['NEW_BELIEVER', 'GROWING', 'MATURE', 'LEADER'])
 
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
 if (!serviceAccountPath || !fs.existsSync(serviceAccountPath)) {
@@ -35,47 +38,50 @@ admin.initializeApp({
 const firestore = admin.firestore()
 const prisma = new PrismaClient()
 
-async function migrateChurches() {
-  const snapshot = await firestore.collection('churches').get()
+async function migrateUsers() {
+  const snapshot = await firestore.collection('users').get()
   const records = []
 
   for (const doc of snapshot.docs) {
     const data = doc.data()
-    const legacy = toPlainJson(data)
+    const legacy = toPlainJson({ ...data, password: undefined })
     const record = {
       id: doc.id,
-      name: data.name || 'Unknown Church',
-      slug: data.slug || doc.id,
-      logo: data.logo || null,
-      primaryColor: data.primaryColor || null,
-      secondaryColor: data.secondaryColor || null,
+      email: (data.email || '').trim().toLowerCase(),
+      password: data.password || '',
+      firstName: data.firstName || 'Unknown',
+      lastName: data.lastName || 'User',
+      phone: data.phone || null,
+      profileImage: data.profileImage || null,
+      bio: data.bio || null,
+      dateOfBirth: toDate(data.dateOfBirth),
       address: data.address || null,
       city: data.city || null,
       state: data.state || null,
       zipCode: data.zipCode || null,
       country: data.country || null,
-      phone: data.phone || null,
-      email: data.email || data.organizationEmail || null,
-      website: data.website || null,
-      description: data.description || null,
-      customDomain: data.customDomain || null,
-      domainVerified: data.domainVerified || false,
-      ownerId: data.ownerId || null,
+      role: VALID_ROLES.has(data.role) ? data.role : 'VISITOR',
+      spiritualMaturity: data.spiritualMaturity && VALID_MATURITY.has(data.spiritualMaturity) ? data.spiritualMaturity : undefined,
+      churchId: data.churchId || null,
+      branchId: data.branchId || null,
+      xp: typeof data.xp === 'number' ? data.xp : 0,
+      level: typeof data.level === 'number' ? data.level : 1,
+      lastLoginAt: toDate(data.lastLoginAt),
       firestoreData: legacy,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
+      createdAt: toDate(data.createdAt) || new Date(),
+      updatedAt: toDate(data.updatedAt) || new Date(),
     }
     records.push(record)
   }
 
   if (records.length === 0) {
-    console.log('No churches found in Firestore')
+    console.log('No users found in Firestore')
     return
   }
 
   await prisma.$transaction(
     records.map((record) =>
-      prisma.church.upsert({
+      prisma.user.upsert({
         where: { id: record.id },
         update: record,
         create: record,
@@ -83,11 +89,11 @@ async function migrateChurches() {
     )
   )
 
-  console.log(`Migrated ${records.length} churches`)
+  console.log(`Migrated ${records.length} users`)
 }
 
 async function main() {
-  await migrateChurches()
+  await migrateUsers()
   await prisma.$disconnect()
 }
 
